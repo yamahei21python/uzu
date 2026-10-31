@@ -11,7 +11,8 @@ mod transcript;
 use std::collections::HashMap;
 
 use payloads::{MsgIn, RunEvent, RunStreamPayload, SamplingDefaults, TitleGenPayload};
-use session::arm_idle_timer;
+use session::{arm_idle_timer, forget_memory_hints};
+pub use session::{memory_hint, refresh_memory_hints};
 use session_events::emit_session_state;
 use stream::run_stream_inner;
 use tauri::{AppHandle, Manager, ipc::Channel};
@@ -191,6 +192,7 @@ impl ChatState {
         *guard = None;
         self.forget_history();
         if had_session {
+            forget_memory_hints(app);
             emit_session_state(app, false, repo_id, false);
         }
         had_session

@@ -1,5 +1,6 @@
 mod analytics;
 mod chat;
+#[cfg(target_os = "macos")]
 mod cli_installer;
 mod downloads;
 mod engine;
@@ -15,7 +16,20 @@ fn open_external(url: String) -> bool {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return false;
     }
-    std::process::Command::new("open").arg(&url).spawn().is_ok()
+    open_in_browser(&url)
+}
+
+fn open_in_browser(url: &str) -> bool {
+    #[cfg(target_os = "macos")]
+    let mut command = std::process::Command::new("open");
+    #[cfg(windows)]
+    let mut command = std::process::Command::new("rundll32");
+    #[cfg(windows)]
+    command.arg("url.dll,FileProtocolHandler");
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut command = std::process::Command::new("xdg-open");
+    // Waiting reaps the opener, which would otherwise stay a zombie.
+    command.arg(url).spawn().map(|mut child| std::thread::spawn(move || child.wait())).is_ok()
 }
 
 fn is_app_url(url: &tauri::Url) -> bool {
@@ -50,7 +64,11 @@ pub fn run() {
     use tauri::Manager;
 
     install_panic_logger();
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // A second launch focuses the running window instead of opening another; on macOS LaunchServices already does.
+    #[cfg(not(target_vendor = "apple"))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _, _| system_ui::show_and_focus_main(app)));
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -58,10 +76,16 @@ pub fn run() {
             let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                 .title("Mirai")
                 .inner_size(1200.0, 800.0)
-                .min_inner_size(390.0, 400.0)
+                .min_inner_size(390.0, 400.0);
+            #[cfg(target_os = "macos")]
+            let window = window
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
                 .hidden_title(true)
-                .traffic_light_position(tauri::LogicalPosition::new(20.0, 28.0))
+                .traffic_light_position(tauri::LogicalPosition::new(20.0, 28.0));
+            // Like the macOS overlay title bar: the client draws the caption buttons and drag regions.
+            #[cfg(windows)]
+            let window = window.decorations(false);
+            let window = window
                 // In-window navigation to an external URL would replace the app;
                 // hand it to the default browser instead.
                 .on_navigation(|url| {
@@ -69,27 +93,35 @@ pub fn run() {
                         return true;
                     }
                     if matches!(url.scheme(), "http" | "https") {
-                        let _ = std::process::Command::new("open").arg(url.as_str()).spawn();
+                        open_in_browser(url.as_str());
                     }
                     false
                 })
                 .build()?;
-            // Closing hides the window; the Dock reopens it and ⌘Q quits.
-            let hide_target = window.clone();
-            window.on_window_event(move |event| {
-                if let tauri::WindowEvent::CloseRequested {
-                    api,
-                    ..
-                } = event
-                {
-                    api.prevent_close();
-                    let _ = hide_target.hide();
-                }
-            });
+            // On macOS closing hides the window; the Dock reopens it and ⌘Q quits. Elsewhere nothing reopens a
+            // hidden window, so closing keeps quitting.
+            #[cfg(target_os = "macos")]
+            {
+                let hide_target = window.clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested {
+                        api,
+                        ..
+                    } = event
+                    {
+                        api.prevent_close();
+                        let _ = hide_target.hide();
+                    }
+                });
+            }
+            #[cfg(not(target_os = "macos"))]
+            let _ = window;
             logger::info("app:start", Some(serde_json::json!({ "version": app.package_info().version.to_string() })));
+            #[cfg(target_os = "macos")]
             if let Err(error) = system_ui::remove_legacy_autostart() {
                 logger::warn("autostart:cleanup", Some(serde_json::json!({ "error": error.to_string() })));
             }
+            #[cfg(target_os = "macos")]
             if let Err(error) = system_ui::setup_app_menu(app.handle()) {
                 logger::error("menu:setup", Some(serde_json::json!({ "error": error.to_string() })));
             }
@@ -108,7 +140,9 @@ pub fn run() {
         .manage(updater::UpdaterState::default())
         .invoke_handler(tauri::generate_handler![
             open_external,
+            #[cfg(target_os = "macos")]
             cli_installer::cli_install,
+            #[cfg(target_os = "macos")]
             cli_installer::cli_status,
             models::chat_models_get,
             models::chat_models_refresh,
@@ -147,11 +181,14 @@ pub fn run() {
         .run(|app, event| {
             // Clicking the dock icon while the window is hidden must bring it
             // back; macOS delivers that as Reopen, not a window event.
+            #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen {
                 ..
             } = event
             {
                 system_ui::show_and_focus_main(app);
             }
+            #[cfg(not(target_os = "macos"))]
+            let _ = (app, event);
         });
 }

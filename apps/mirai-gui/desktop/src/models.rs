@@ -234,6 +234,9 @@ pub struct EngineModel {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quantization_bits: Option<u32>,
     pub state: ModelDownloadState,
+    // The device memory free when the downloaded model was found too large for it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub free_memory_bytes: Option<u64>,
 }
 
 // Models served from a plain directory (LOCAL_PATH) have nothing to download.
@@ -314,6 +317,7 @@ pub fn engine_model(
     model: &Model,
     state: ModelDownloadState,
     reasoning: ReasoningSupport,
+    free_memory_bytes: Option<u64>,
 ) -> EngineModel {
     let vendor = model.family.as_ref().map(|f| &f.vendor).or_else(|| model.quantization.as_ref().map(|q| &q.vendor));
     EngineModel {
@@ -330,6 +334,7 @@ pub fn engine_model(
         quantization: model.quantization.as_ref().map(|q| q.method.clone()),
         quantization_bits: model.quantization.as_ref().map(|q| q.bits_per_weight),
         state,
+        free_memory_bytes,
     }
 }
 
@@ -390,7 +395,7 @@ pub async fn chat_models_get(
     state: tauri::State<'_, crate::downloads::DownloadsState>,
 ) -> AppResult<ModelCatalog> {
     let engine = engine().await?;
-    crate::downloads::ensure_watcher(app, &state);
+    crate::downloads::ensure_watcher(app.clone(), &state);
     let (models, complete) = engine.catalog_snapshot().await?;
     // Taken before the states: an event emitted while they are read then
     // carries a newer seq than this snapshot and wins on the client.
@@ -399,10 +404,22 @@ pub async fn chat_models_get(
     let local: Vec<Model> = models.into_iter().filter(|m| m.is_on_device() && m.is_chat_capable()).collect();
     state.remember_repo_ids(&local).await;
     let mut result = Vec::with_capacity(local.len());
+    let mut unchecked = Vec::new();
     for model in &local {
         let reasoning = reasoning_support(model);
         let state = model_download_state(model, states.get(&model.identifier), seq);
-        result.push(engine_model(model, state, reasoning));
+        let hint = if state.phase == PhaseKind::Downloaded {
+            crate::chat::memory_hint(&model.identifier)
+        } else {
+            Some(None)
+        };
+        if hint.is_none() {
+            unchecked.push(model.clone());
+        }
+        result.push(engine_model(model, state, reasoning, hint.flatten()));
+    }
+    if !unchecked.is_empty() {
+        crate::chat::refresh_memory_hints(app, engine.clone(), unchecked);
     }
     Ok(ModelCatalog {
         models: result,

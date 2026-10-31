@@ -7,4 +7,8 @@ export const webSystem: SystemService = {
   getLogFilePath: () => Promise.resolve(null),
   installCli: () => Promise.resolve("unsupported" as const),
   getCliStatus: () => Promise.resolve("unavailable" as const),
+  minimizeWindow: () => Promise.resolve(),
+  toggleMaximizeWindow: () => Promise.resolve(),
+  closeWindow: () => Promise.resolve(),
+  onWindowMaximizedChange: noopUnsubscribe,
 };

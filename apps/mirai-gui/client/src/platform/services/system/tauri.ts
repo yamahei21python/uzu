@@ -1,8 +1,42 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "../shared/invoke";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { navigationRequestTypes, type NavigationRequest } from "../../types/navigation";
+import { isMacPlatform, isWindowsPlatform } from "@/utils/platform";
 import type { SystemService } from ".";
+
+// WebView2's context menu outside text fields and its reload, find, print, save, history and caret-browsing keys make no
+// sense in the app; development builds keep them. AltGr reaches WebView2 as Ctrl+Alt and types text.
+const BROWSER_KEYS = new Set(["F3", "F5", "F7", "BrowserBack", "BrowserForward", "BrowserRefresh"]);
+const BROWSER_CTRL_LETTERS = new Set(["f", "g", "p", "r", "s", "u"]);
+export const disableBrowserBehaviour = (): void => {
+  if (!import.meta.env.PROD || !isWindowsPlatform()) return;
+  window.addEventListener(
+    "contextmenu",
+    (event) => {
+      if (!(event.target instanceof Element && event.target.closest("input, textarea, [contenteditable]"))) {
+        event.preventDefault();
+      }
+    },
+    true,
+  );
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      // Non-Latin layouts report the localized character; fall back to the physical key.
+      const letter = /^[a-z]$/i.test(event.key)
+        ? event.key.toLowerCase()
+        : event.code.replace(/^Key/, "").toLowerCase();
+      const history = event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight");
+      const browserShortcut = event.ctrlKey && !event.altKey && BROWSER_CTRL_LETTERS.has(letter);
+      if (BROWSER_KEYS.has(event.key) || history || browserShortcut) {
+        event.preventDefault();
+      }
+    },
+    true,
+  );
+};
 
 // WKWebView has no window-open handler wired up, so target="_blank" anchors
 // would silently do nothing; intercept clicks and open externally via Rust.
@@ -45,6 +79,21 @@ export const tauriSystem: SystemService = {
         cb({ type: navigationRequestTypes.openPreferences } satisfies NavigationRequest);
       }),
     );
+    // The macOS app menu owns these shortcuts; Windows and Linux have no menu bar.
+    if (!isMacPlatform()) {
+      const onKeyDown = (event: KeyboardEvent): void => {
+        if (!event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
+        // Non-Latin layouts report the localized character; fall back to the physical key.
+        const key = /^[\x20-\x7e]$/.test(event.key) ? event.key.toLowerCase() : event.code;
+        if (key === "n" || key === "KeyN") cb({ type: navigationRequestTypes.newChat } satisfies NavigationRequest);
+        else if (key === "," || key === "Comma")
+          cb({ type: navigationRequestTypes.openPreferences } satisfies NavigationRequest);
+        else return;
+        event.preventDefault();
+      };
+      window.addEventListener("keydown", onKeyDown);
+      offs.push(() => window.removeEventListener("keydown", onKeyDown));
+    }
     return () => {
       disposed = true;
       offs.forEach((off) => off());
@@ -55,4 +104,25 @@ export const tauriSystem: SystemService = {
   installCli: () => invoke<"installed" | "already-installed" | "cancelled">("cli_install"),
   getCliStatus: () =>
     invoke<"missing" | "installed" | "foreign" | "unavailable">("cli_status").catch(() => "unavailable" as const),
+  minimizeWindow: () => getCurrentWindow().minimize(),
+  toggleMaximizeWindow: () => getCurrentWindow().toggleMaximize(),
+  closeWindow: () => getCurrentWindow().close(),
+  onWindowMaximizedChange: (cb) => {
+    const window = getCurrentWindow();
+    let disposed = false;
+    const report = (): void => {
+      void window
+        .isMaximized()
+        .then((maximized) => {
+          if (!disposed) cb(maximized);
+        })
+        .catch(() => undefined);
+    };
+    report();
+    const unlisten = window.onResized(report);
+    return () => {
+      disposed = true;
+      void unlisten.then((off) => off()).catch(() => undefined);
+    };
+  },
 };
