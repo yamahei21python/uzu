@@ -31,11 +31,14 @@ use uzu_engine::{
     engine::{Engine, language_model::LanguageModel},
 };
 
-use crate::engine::bridge::{
-    chat_token_state::UzuChatTokenBackendInstanceState,
-    helpers::{
-        error_stream, get_grammar, get_max_context_length, get_sampling_method, grammar_trigger_token_sequence,
-        grammar_trigger_token_sequence_for_prompt,
+use crate::engine::{
+    MemoryCheck,
+    bridge::{
+        chat_token_state::UzuChatTokenBackendInstanceState,
+        helpers::{
+            error_stream, get_grammar, get_max_context_length, get_sampling_method, grammar_trigger_token_sequence,
+            grammar_trigger_token_sequence_for_prompt,
+        },
     },
 };
 
@@ -51,11 +54,18 @@ pub struct UzuChatTokenBackendInstance<B: Backend> {
 }
 
 impl<B: Backend> UzuChatTokenBackendInstance<B> {
+    /// Refuses a model that fails `memory_check` against the memory free on the device before loading its weights.
     pub async fn new(
         model_path: String,
         config: ChatConfig,
+        memory_check: Option<MemoryCheck>,
     ) -> Result<Self, BackendError> {
         let engine = Engine::<B>::new().await.map_err(|err| err.to_string())?;
+        if let Some(shortfall) =
+            memory_check.zip(engine.available_memory()).and_then(|(check, available)| check(available as u64))
+        {
+            return Err(shortfall.to_string().into());
+        }
         let model_path = PathBuf::from(model_path);
         let model = engine.load_language_model(&model_path).await.map_err(|err| err.to_string())?;
 
@@ -227,6 +237,12 @@ impl<B: Backend> ChatTokenBackendInstance for UzuChatTokenBackendInstance<B> {
 
     fn sampling_defaults(&self) -> SamplingParameters {
         self.sampling_defaults
+    }
+
+    fn speculation_notice(&self) -> Option<String> {
+        self.model
+            .speculator_unavailable()
+            .then(|| format!("Speculation is off: the {} backend cannot run this model's speculator", B::NAME))
     }
 }
 
