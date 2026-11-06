@@ -29,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--spec-name", default="Qwen3.5-0.8B", help="Built-in lalamo model spec name")
     parser.add_argument("--hf-repo", default=None, help="Override origin with this Hugging Face repo")
+    parser.add_argument("--hf-dir", default=None, help="Use a local HF snapshot directory instead of downloading")
     parser.add_argument("--vendor", default=None)
     parser.add_argument("--name", default=None)
     parser.add_argument("--output-dir", required=True)
@@ -136,7 +137,21 @@ def main() -> None:
         print("load done")
     else:
         spec = find_spec(QWEN_MODELS, args.spec_name)
-        if args.hf_repo:
+        if args.hf_dir:
+            from pathlib import Path as _Path
+
+            from lalamo.model_import.origins import LocalOrigin
+
+            weight_files = tuple(sorted(path.name for path in _Path(args.hf_dir).glob("*.safetensors")))
+            if not weight_files:
+                raise SystemExit(f"no safetensors files in {args.hf_dir}")
+            spec = replace(
+                spec,
+                vendor=args.vendor or spec.vendor,
+                name=args.name or spec.name,
+                origin=LocalOrigin(root=args.hf_dir, weight_files=weight_files),
+            )
+        elif args.hf_repo:
             from lalamo.model_import.origins import HuggingFaceOrigin
 
             spec = replace(
@@ -249,57 +264,71 @@ def main() -> None:
     quantized_model = map_nodes_of_type_with_path(Linear, quantize_linear, model)
     print(f"quantized: {counts['quantized']}, skipped: {counts['skipped']}, yaqa: {counts['yaqa']}")
 
+    def embedding_spec(layout: Layout, mode: IncoherenceProcessingMode | None) -> HybridSpec:
+        return HybridSpec(
+            quantization_spec=IntSpec(
+                bits=args.bits,
+                group_size=args.group_size,
+                is_symmetric=False,
+                layout=layout,
+            ),
+            adapter_spec=None,
+            incoherence_spec=None
+            if args.no_rht or mode is None
+            else HadamardSpec(block_size=args.block_size, processing_mode=mode),
+        )
+
+    def quantize_matrix(matrix, layout: Layout, mode: IncoherenceProcessingMode | None, label: str):
+        embedding_dim = int(matrix.shape[-1])
+        if not args.no_rht and embedding_dim % args.block_size:
+            raise SystemExit(f"{label} dim {embedding_dim} is not divisible by block size {args.block_size}")
+        new_matrix = embedding_spec(layout, mode).compress(
+            matrix.decompress(),
+            key=quantize_key,
+            sharding_config=matrix.sharding_config,
+            is_sharded=matrix.is_sharded,
+        )
+        print(f"{label} quantized: shape={tuple(int(x) for x in matrix.shape)}")
+        return new_matrix
+
     if args.quantize_embedding:
         embedding = getattr(quantized_model.decoder, "embedding", None)
-        matrix = getattr(embedding, "embedding", None)
-        if matrix is None:
-            print("embedding: tied embedding not found, skipped")
-        else:
-            vocab_size, embedding_dim = (int(x) for x in matrix.shape)
-            if args.no_rht:
-                embedding_spec = HybridSpec(
-                    quantization_spec=IntSpec(
-                        bits=args.bits,
-                        group_size=args.group_size,
-                        is_symmetric=False,
-                        layout=Layout.INPUT_OUTPUT,
-                    ),
-                    adapter_spec=None,
-                    incoherence_spec=None,
-                )
-            else:
-                if embedding_dim % args.block_size:
-                    raise SystemExit(
-                        f"embedding_dim {embedding_dim} is not divisible by block size {args.block_size}"
-                    )
-                embedding_spec = HybridSpec(
-                    quantization_spec=IntSpec(
-                        bits=args.bits,
-                        group_size=args.group_size,
-                        is_symmetric=False,
-                        layout=Layout.INPUT_OUTPUT,
-                    ),
-                    adapter_spec=None,
-                    incoherence_spec=HadamardSpec(
-                        block_size=args.block_size,
-                        processing_mode=IncoherenceProcessingMode.OUTPUT,
-                    ),
-                )
-            # decompress() returns logical [output, input] = [embedding_dim, vocab_size];
-            # the INPUT_OUTPUT layout stores it as [vocab_size, embedding_dim].
-            new_matrix = embedding_spec.compress(
-                matrix.decompress(),
-                key=quantize_key,
-                sharding_config=matrix.sharding_config,
-                is_sharded=matrix.is_sharded,
+        tied = getattr(embedding, "embedding", None)
+        if tied is not None:
+            matrix = quantize_matrix(
+                tied,
+                Layout.INPUT_OUTPUT,
+                IncoherenceProcessingMode.OUTPUT,
+                "tied embedding",
             )
-            new_embedding = eqx.tree_at(lambda node: node.embedding, embedding, new_matrix)
+            new_embedding = eqx.tree_at(lambda node: node.embedding, embedding, matrix)
             quantized_model = eqx.tree_at(
                 lambda root: root.decoder.embedding,
                 quantized_model,
                 new_embedding,
             )
-            print(f"embedding quantized: vocab={vocab_size} dim={embedding_dim}")
+        elif hasattr(embedding, "input_embedding") and hasattr(embedding, "output_embedding"):
+            input_embedding = quantize_matrix(
+                embedding.input_embedding,
+                Layout.INPUT_OUTPUT,
+                IncoherenceProcessingMode.OUTPUT,
+                "input_embedding",
+            )
+            output_embedding = quantize_matrix(
+                embedding.output_embedding,
+                Layout.OUTPUT_INPUT,
+                IncoherenceProcessingMode.INPUT,
+                "output_embedding (lm_head)",
+            )
+            embedding = eqx.tree_at(lambda node: node.input_embedding, embedding, input_embedding)
+            embedding = eqx.tree_at(lambda node: node.output_embedding, embedding, output_embedding)
+            quantized_model = eqx.tree_at(
+                lambda root: root.decoder.embedding,
+                quantized_model,
+                embedding,
+            )
+        else:
+            print("embedding: neither tied nor untied embedding found, skipped")
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)

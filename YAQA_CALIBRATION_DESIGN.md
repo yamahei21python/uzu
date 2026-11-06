@@ -292,3 +292,12 @@ Test を見ながら Damping を選ばない。
 - `--output-block none` は H_O を捨てるため **LDLQ 相当**。YAQA を名乗るなら H_O が必要。
 - 既存の `experiments/qwen35-0.8b/yaqa-hin-int4-g32` は旧条件（token sum / 64 token / H_in のみ）。
 - 公式 0.8B-M は embedding も INT4。我々の 764MB に対して 419MB。
+
+
+## 15. 大規模モデルの校正経路
+
+- `--hf-repo` / `--hf-dir` で lalamo に直接インポート（BF16 保存不要）
+- `--calib-dtype bfloat16` で model / grad のメモリを半減
+- `--layer-filter "/[0]/,/[1]/,/[2]/,/[3]/"` で層グループ実行
+- 4B: bf16 19GB → Kaggle CPU 32GB
+- 9B: bf16 モデル 18GB + 勾配。層グループ + Kaggle 32GB、または Modal A100

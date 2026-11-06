@@ -120,3 +120,45 @@
 - リージョン指定は 1.15〜1.75x。
 - volume は $0.09/GiB/月（1TiB まで無料）。
 - 18GB の BF16 をローカルからアップロードしない。HF から直接取得する。
+
+## 7. 計算資源の優先順位（2026-11 決定）
+
+1. **ローカル M3 16GB（最優先）**
+   - 0.8B: RTN / YAQA / QAD の小規模検証、logits / PPL / 生成評価
+   - 4B: RTN 変換、評価
+   - 制約: swap 6.7GB、GPU wired limit ~10.7GB。9B の f32 校正は不可
+
+2. **Kaggle（無料・次点）**
+   - CPU カーネル: **GPU クォータ非消費**、32GB RAM。4B YAQA（bf16）、9B の層分割校正
+   - GPU カーネル: T4 x2（16GB × 2）、30h/週。4B YAQA、0.8B QAD、9B 層分割
+   - 制約: 1セッション12h、GPU 同時1、週次リセット（09:00 JST）
+   - 2026-11-07 時点: GPU 残 0h（30.27/30h）、09:00 JST 回復
+
+3. **Modal（大規模のみ）**
+   - 9B の全層 YAQA / QAD、Kaggle で収まらないとき
+   - A100 80GB: 約 $6.8/run（Starter $30 無料枠）
+   - 18GB BF16 をアップロードしない。HF から Modal 内で取得
+
+### 使い分けの目安
+
+| 作業 | 第一候補 | 代替 |
+|---|---|---|
+| 0.8B PTQ/評価 | ローカル | Kaggle CPU |
+| 0.8B QAD | Kaggle T4 | Modal A10 |
+| 4B RTN/評価 | ローカル | Kaggle CPU |
+| 4B YAQA | Kaggle CPU/GPU (32GB) | Modal A100 40GB |
+| 9B RTN | ローカル stream（要実装） | Modal CPU |
+| 9B YAQA | Kaggle 層分割 (32GB) | Modal A100 80GB |
+| 9B QAD | Modal A100 80GB | – |
+
+## 8. Kaggle CPU カーネル（4B YAQA）
+
+- Kernel: `yamahei21python/uzu-quant-yaqa-4b-cpu`
+- Dataset: `yamahei21python/uzu-quant-kit`（scripts + corpus）
+- GPU 無効 → **GPU クォータ非消費**
+- 32GB RAM、bf16 calibration
+- 4B: model 8.4GB + grads 8.4GB + H 2GB ≒ 19GB
+- 出力: `/kaggle/working/calibration.npz`
+- 取得: `kaggle kernels output yamahei21python/uzu-quant-yaqa-4b-cpu -p out/`
+
+GPU クォータは 2026-11-07 09:00 JST にリセット。GPU 版は 4B の速度改善に使う。

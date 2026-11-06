@@ -495,3 +495,31 @@ lalamoを量子化・変換側、uzuを推論側として分離する構成は�
 現段階の最大のリスクはYAQAのアルゴリズムではなく、量子化済み重みの相互運用性が未実証であること。
 
 ここを先に潰すのが、最も手戻りの少ない進め方だと思う。
+
+## 12. 4B / Kaggle への展開
+
+### 4B
+
+- 対象: `huihui-ai/Huihui-Qwen3.5-4B-Claude-4.6-Opus-abliterated`
+- 32層、hidden 2560、intermediate 9216、tied embedding
+- BF16 9.3GB。ローカルで RTN 変換・評価可能
+- YAQA は bf16 で model 8.4GB + grads 8.4GB + H 2GB ≒ 19GB
+  - ローカル 16GB では不可
+  - **Kaggle CPU 32GB** で実行（GPU クォータ非消費）
+
+### Kaggle の位置づけ
+
+- GPU: 30h/週、T4 x2（16GB × 2）。1セッション12h
+- CPU: 32GB RAM、GPU クォータ非消費
+- 2026-11-07 09:00 JST に GPU クォータ回復
+- 4B YAQA は Kaggle CPU、9B YAQA/QAD は Kaggle か Modal
+
+### 実装追加
+
+- `yaqa_calibration.py`
+  - `--hf-repo` / `--hf-dir` で HF から直接ロード（BF16 保存不要）
+  - `--calib-dtype bfloat16` でメモリ半減
+  - `--layer-filter` のカンマ区切り対応
+- `rht_int4_convert.py`
+  - `--hf-dir` でローカル HF スナップショットから変換
+  - untied embedding / lm_head の量子化（RHT output / input）

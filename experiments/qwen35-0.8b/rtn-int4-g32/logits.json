@@ -1,0 +1,82 @@
+[
+  {
+    "prompt": "The capital of Japan is",
+    "positions": 5,
+    "top1_matches": 5,
+    "top5_overlap": 0.8,
+    "kl_bf16_int4": 0.12304593473672867,
+    "cosine_logits": 0.9861809611320496
+  },
+  {
+    "prompt": "1+1は？",
+    "positions": 5,
+    "top1_matches": 4,
+    "top5_overlap": 0.8800000000000001,
+    "kl_bf16_int4": 0.164800962805748,
+    "cosine_logits": 0.9719753265380859
+  },
+  {
+    "prompt": "富士山の高さは",
+    "positions": 4,
+    "top1_matches": 3,
+    "top5_overlap": 0.45,
+    "kl_bf16_int4": 0.8704728446900845,
+    "cosine_logits": 0.9495801627635956
+  },
+  {
+    "prompt": "def fibonacci(n):",
+    "positions": 4,
+    "top1_matches": 3,
+    "top5_overlap": 0.65,
+    "kl_bf16_int4": 0.30618087644688785,
+    "cosine_logits": 0.95991550385952
+  },
+  {
+    "prompt": "日本の首都は",
+    "positions": 3,
+    "top1_matches": 1,
+    "top5_overlap": 0.5333333333333333,
+    "kl_bf16_int4": 0.856709490219752,
+    "cosine_logits": 0.9476093451182047
+  },
+  {
+    "prompt": "Translate to French: Hello",
+    "positions": 5,
+    "top1_matches": 5,
+    "top5_overlap": 0.72,
+    "kl_bf16_int4": 0.238287403434515,
+    "cosine_logits": 0.9577486872673034
+  },
+  {
+    "prompt": "Pythonで配列を逆順にするには",
+    "positions": 9,
+    "top1_matches": 6,
+    "top5_overlap": 0.7777777777777778,
+    "kl_bf16_int4": 0.21025624529769024,
+    "cosine_logits": 0.9733323521084256
+  },
+  {
+    "prompt": "ここでクイックソートは",
+    "positions": 7,
+    "top1_matches": 4,
+    "top5_overlap": 0.6571428571428573,
+    "kl_bf16_int4": 0.5687225950615746,
+    "cosine_logits": 0.9520007371902466
+  },
+  {
+    "prompt": "Explain in one sentence why the sky is blue:",
+    "positions": 11,
+    "top1_matches": 11,
+    "top5_overlap": 0.8181818181818182,
+    "kl_bf16_int4": 0.20624380355531519,
+    "cosine_logits": 0.9703433622013439
+  },
+  {
+    "prompt": "富士山の主な特徴は、",
+    "positions": 6,
+    "top1_matches": 4,
+    "top5_overlap": 0.6333333333333334,
+    "kl_bf16_int4": 0.5711770343283812,
+    "cosine_logits": 0.9679240187009176
+  }
+]

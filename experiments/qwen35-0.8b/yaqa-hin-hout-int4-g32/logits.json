@@ -1,0 +1,82 @@
+[
+  {
+    "prompt": "The capital of Japan is",
+    "positions": 5,
+    "top1_matches": 5,
+    "top5_overlap": 0.9199999999999999,
+    "kl_bf16_int4": 0.06785829067230224,
+    "cosine_logits": 0.9900506854057312
+  },
+  {
+    "prompt": "1+1は？",
+    "positions": 5,
+    "top1_matches": 5,
+    "top5_overlap": 0.8799999999999999,
+    "kl_bf16_int4": 0.11704921126365661,
+    "cosine_logits": 0.9738696813583374
+  },
+  {
+    "prompt": "富士山の高さは",
+    "positions": 4,
+    "top1_matches": 2,
+    "top5_overlap": 0.7,
+    "kl_bf16_int4": 0.2534451298415661,
+    "cosine_logits": 0.9649791121482849
+  },
+  {
+    "prompt": "def fibonacci(n):",
+    "positions": 4,
+    "top1_matches": 2,
+    "top5_overlap": 0.75,
+    "kl_bf16_int4": 0.24163279426284134,
+    "cosine_logits": 0.9598995894193649
+  },
+  {
+    "prompt": "日本の首都は",
+    "positions": 3,
+    "top1_matches": 3,
+    "top5_overlap": 0.6666666666666666,
+    "kl_bf16_int4": 0.1515879382689794,
+    "cosine_logits": 0.9798941413561503
+  },
+  {
+    "prompt": "Translate to French: Hello",
+    "positions": 5,
+    "top1_matches": 4,
+    "top5_overlap": 0.76,
+    "kl_bf16_int4": 0.10753734931349754,
+    "cosine_logits": 0.9697909712791443
+  },
+  {
+    "prompt": "Pythonで配列を逆順にするには",
+    "positions": 9,
+    "top1_matches": 6,
+    "top5_overlap": 0.7555555555555555,
+    "kl_bf16_int4": 0.173369865036673,
+    "cosine_logits": 0.9733358886506822
+  },
+  {
+    "prompt": "ここでクイックソートは",
+    "positions": 7,
+    "top1_matches": 4,
+    "top5_overlap": 0.6571428571428573,
+    "kl_bf16_int4": 0.29807535239628385,
+    "cosine_logits": 0.9644947562898908
+  },
+  {
+    "prompt": "Explain in one sentence why the sky is blue:",
+    "positions": 11,
+    "top1_matches": 11,
+    "top5_overlap": 0.7818181818181817,
+    "kl_bf16_int4": 0.07772698862986131,
+    "cosine_logits": 0.9807034243236888
+  },
+  {
+    "prompt": "富士山の主な特徴は、",
+    "positions": 6,
+    "top1_matches": 4,
+    "top5_overlap": 0.7000000000000001,
+    "kl_bf16_int4": 0.14449618632594743,
+    "cosine_logits": 0.9805400570233663
+  }
+]
