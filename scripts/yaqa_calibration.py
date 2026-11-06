@@ -170,15 +170,21 @@ def main() -> None:
 
     grad_fn = jax.grad(per_sample_loss)
     rng = np.random.default_rng(args.seed)
-    for sample_index in range(args.samples):
+    sample_index = 0
+    processed = 0
+    attempts = 0
+    max_attempts = max(args.samples * 4, len(texts) * 2)
+    while processed < args.samples and attempts < max_attempts:
         text = texts[sample_index % len(texts)]
+        sample_index += 1
+        attempts += 1
         ids = tokenizer.encode(text, add_special_tokens=True).ids[: args.max_tokens]
         if len(ids) < 8:
             continue
         current_ids = ids
         logits = logits_for(model, ids)
         current_targets = jax.random.categorical(
-            jax.random.key(args.seed + sample_index), logits, axis=-1
+            jax.random.key(args.seed + processed), logits, axis=-1
         )
         grads = grad_fn(base_arrays)
         for site, accumulator, gradient in zip(sites, accumulators, grads):
@@ -195,8 +201,12 @@ def main() -> None:
                     if accumulator["output"] is not None:
                         accumulator["output"][component] += g @ g.T
             accumulator["samples"] += 1
-        if (sample_index + 1) % 4 == 0:
-            print(f"  sample {sample_index + 1}/{args.samples}")
+        processed += 1
+        if processed % 4 == 0:
+            print(f"  sample {processed}/{args.samples}")
+
+    if processed < args.samples:
+        raise SystemExit(f"only {processed} usable calibration samples (requested {args.samples})")
 
     records = []
     arrays: dict[str, np.ndarray] = {}
