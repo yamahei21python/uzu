@@ -46,7 +46,10 @@ class LinearSite:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-dir", type=Path, required=True)
+    parser.add_argument("--model-dir", type=Path, default=None, help="saved lalamo model directory")
+    parser.add_argument("--spec-name", default="Qwen3.5-0.8B", help="built-in lalamo spec for direct HF import")
+    parser.add_argument("--hf-repo", default=None, help="load directly from this Hugging Face repo (no save)")
+    parser.add_argument("--hf-dir", default=None, help="load directly from a local HF snapshot directory")
     parser.add_argument("--corpus", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--lalamo-path", default=os.environ.get("LALAMO_PATH", "/tmp/lalamo-direct"))
@@ -58,6 +61,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-block-limit", type=int, default=2048)
     parser.add_argument("--damping", type=float, default=1e-2, help="initial sigma_reg after mean-diagonal normalization")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--calib-dtype",
+        choices=("float32", "bfloat16"),
+        default="float32",
+        help="model dtype during calibration; bfloat16 halves memory for 4B/9B",
+    )
     parser.add_argument("--json-out", type=Path, default=None)
     return parser.parse_args()
 
@@ -83,9 +92,38 @@ def main() -> None:
     keychain = Keychain.init(seed=args.seed, sharding_config=sharding)
     forward_pass_config = DecoderForwardPassConfig.for_inference(mode=ForwardPassMode.MULTI_TOKEN)
 
-    print("loading model (float32)...")
-    model = Model.load(args.model_dir, sharding, dtype=jnp.float32)
-    tokenizer = Tokenizer.from_file(str(args.model_dir / "tokenizer.json"))
+    dtype = jnp.dtype(args.calib_dtype)
+    if args.hf_repo or args.hf_dir:
+        from dataclasses import replace as dataclass_replace
+        from pathlib import Path as _Path
+
+        from lalamo.model_import.common import import_model
+        from lalamo.model_import.model_specs.qwen import QWEN_MODELS
+
+        spec = next((item for item in QWEN_MODELS if item.name == args.spec_name), None)
+        if spec is None:
+            raise SystemExit(f"lalamo spec {args.spec_name!r} not found")
+        if args.hf_dir:
+            from lalamo.model_import.origins import LocalOrigin
+
+            weight_files = tuple(sorted(path.name for path in _Path(args.hf_dir).glob("*.safetensors")))
+            if not weight_files:
+                raise SystemExit(f"no safetensors in {args.hf_dir}")
+            origin = LocalOrigin(root=args.hf_dir, weight_files=weight_files)
+        else:
+            from lalamo.model_import.origins import HuggingFaceOrigin
+
+            origin = HuggingFaceOrigin(repo=args.hf_repo)
+        print(f"importing {args.spec_name} from {origin.description} ({args.calib_dtype})...")
+        results = import_model(dataclass_replace(spec, origin=origin), sharding_config=sharding, dtype=dtype)
+        model = results.model
+        tokenizer = model.token_codec.tokenizer
+    else:
+        if args.model_dir is None:
+            raise SystemExit("provide --model-dir, --hf-repo, or --hf-dir")
+        print(f"loading model ({args.calib_dtype})...")
+        model = Model.load(args.model_dir, sharding, dtype=dtype)
+        tokenizer = Tokenizer.from_file(str(args.model_dir / "tokenizer.json"))
     print("loaded")
 
     def module_at(root, attribute_path):
