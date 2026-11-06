@@ -224,3 +224,43 @@ Test を見ながら Damping を選ばない。
 4. 実用性能（Perplexity、生成、メモリ、速度）
 5. 汎用化（Llama 系 Dense で Layer 2/3 無変更）
 6. 高度化（層別精度選択、MoE、メモリ最適化）
+
+## 13. 公式実装との照合
+
+参照: `Cornell-RelaxML/yaqa-quantization`（GPL-3.0、コードは流用せず数式のみ参照）。
+
+### `hessian_llama/custom_linear_B.py`
+
+- `in_hess = einsum('btm,btn,bsm,bsk->nk', g, x, g, x)`
+  - `= Σ_b G_b^T G_b`、`G_b = Σ_t g_{b,t} x_{b,t}^T`
+- `out_hess = einsum('btm,btn,bsk,bsn->mk', g, x, g, x)`
+  - `= Σ_b G_b G_b^T`
+- `ct += bs`、最後に `hin / ct`
+  - サンプル数で平均（トークン数ではない）
+
+### `hessian_llama/get_hess_llama.py`
+
+- forward の logits から `Categorical(logits).sample()` で pseudo target を生成
+- `F.cross_entropy(logits, fake_target).backward()`
+- `--hessian_sketch B`、`--power_iters 1` が推奨
+- 固定 `ctx_size` で CE 平均を使うため、スケールは全サンプルで一定
+
+### 本実装との対応
+
+| 項目 | 公式 | 本実装 |
+|---|---|---|
+| G_b | Σ_t g x^T | 重みに関する損失勾配 |
+| H_I | Σ_b G_b^T G_b / N | 同じ |
+| H_O | Σ_b G_b G_b^T / N | 同じ |
+| 集計単位 | サンプル | サンプル |
+| 損失 | 固定長 CE (mean) | 可変長 CE (sum) |
+| 蓄積 | FP32（FP64 任意） | FP32 |
+| pseudo target | logits からサンプリング | 同じ |
+
+可変長入力では CE mean だと G_b が `1/T` で変わるため、本実装は **token-sum** を使う。
+固定長なら公式の mean と定数倍の差だけで、最適解は同じ。
+
+### 注意
+
+- 公式コードは GPL-3.0。本リポジトリは数式と API のみ参照し、コードは独立実装。
+- 公式は `start_layer` / `end_layer` で層分割できる。本実装も `--layer-filter` で部分実行可能。
