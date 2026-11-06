@@ -80,3 +80,31 @@ E0 は `scripts/rht_int4_convert.py --no-rht` で生成する。
 5. 長文（RULER / LongBench v2）
 
 結果は `scripts/experiment_record.py` の JSONL にも追記する。
+
+## 実測結果（2026-11）
+
+### logits（lalamo、59位置）
+
+| モデル | Top-1 | Top-5 | KL | cosine |
+|---|---|---|---|---|
+| RTN | 0.780 | 0.719 | 0.364 | 0.966 |
+| YAQA H_in（旧条件） | 0.797 | 0.776 | 0.157 | 0.974 |
+| 公式 Mirai 0.8B-M | 0.881 | 0.793 | 0.108 | 0.983 |
+
+### 再構成（Hessian 重み付き）
+
+- YAQA H_in は全96層で RTN より改善
+- RTN 比の中央値 0.244x
+
+### 公式チェックポイント
+
+- 419MB（我々は 764MB、embedding BF16 の差）
+- scale 比 0.99996、code 分布ほぼ一致
+- 詳細: `research/checkpoint_compare_yaqa.json`
+
+### ディレクトリ追加
+
+- `rtn-int4-g32/` — RTN の再構成・logits
+- `yaqa-hin-old-int4-g32/` — 旧条件 YAQA（token sum, 64 token, H_in）
+- `yaqa-hin-hout-int4-g32/` — 修正版 calibration（512 token, H_O small）
+- `official-0.8b-m/` — 公式モデル比較

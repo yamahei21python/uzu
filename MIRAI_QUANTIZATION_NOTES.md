@@ -147,3 +147,22 @@ embedding 量子化は A に含める（公式構成に合わせる）。
 - 推論時オーバーヘッドなし（RHT はカーネルに融合）
 
 本実装の `H_I` / `H_O` はこの Kronecker 因子に対応する。
+
+## 9. 配布チェックポイントの逆解析（0.8B-M vs 我々）
+
+`scripts/compare_quantized_checkpoints.py` で 96 Linear を比較。
+
+| 比較 | code 一致率 | scale 比 | code 分布 |
+|---|---|---|---|
+| 公式 vs RTN | 0.706 | 1.0021 | ずれあり |
+| 公式 vs YAQA(H_in) | 0.620 | 0.99996 | **ほぼ一致** |
+
+- 公式と YAQA の scale 平均比は 0.99996
+- 4-bit code ヒストグラムは小数4桁まで一致
+- 個別 code は 38% 異なる
+  → 公式は YAQA 系の分布を持ち、QAD でコードを微調整した可能性
+- zero point 分布も両者でほぼ同一（平均 7.50、std 1.27）
+
+成果物:
+- `research/checkpoint_compare_rtn.json`
+- `research/checkpoint_compare_yaqa.json`
