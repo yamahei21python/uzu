@@ -53,6 +53,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--corpus", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--lalamo-path", default=os.environ.get("LALAMO_PATH", "/tmp/lalamo-direct"))
+    parser.add_argument(
+        "--parallel",
+        choices=("replicated", "tensor", "fsdp", "data"),
+        default="replicated",
+        help="JAX device sharding: tensor/fsdp use all visible GPUs as one memory pool",
+    )
     parser.add_argument("--samples", type=int, default=32)
     parser.add_argument("--max-tokens", type=int, default=128)
     parser.add_argument("--min-tokens", type=int, default=32, help="drop shorter trailing chunks")
@@ -88,7 +94,14 @@ def main() -> None:
     from lalamo.utils.surgery import select_nodes_of_type
     from tokenizers import Tokenizer
 
-    sharding = ShardingConfig.replicated()
+    if args.parallel == "tensor":
+        sharding = ShardingConfig.tensor_parallel()
+    elif args.parallel == "fsdp":
+        sharding = ShardingConfig.fully_sharded_data_parallel()
+    elif args.parallel == "data":
+        sharding = ShardingConfig.data_parallel()
+    else:
+        sharding = ShardingConfig.replicated()
     keychain = Keychain.init(seed=args.seed, sharding_config=sharding)
     forward_pass_config = DecoderForwardPassConfig.for_inference(mode=ForwardPassMode.MULTI_TOKEN)
 

@@ -40,6 +40,12 @@ def parse_args() -> argparse.Namespace:
         help="Load an existing lalamo model directory instead of importing from Hugging Face",
     )
     parser.add_argument("--lalamo-path", default=os.environ.get("LALAMO_PATH", "/tmp/lalamo-direct"))
+    parser.add_argument(
+        "--parallel",
+        choices=("replicated", "tensor", "fsdp", "data"),
+        default="replicated",
+        help="JAX device sharding: tensor/fsdp use all visible GPUs as one memory pool",
+    )
     parser.add_argument("--bits", type=int, default=4, choices=(4, 8))
     parser.add_argument("--group-size", type=int, default=32)
     parser.add_argument("--block-size", type=int, default=32, choices=(32, 64, 128))
@@ -129,11 +135,20 @@ def main() -> None:
     from lalamo.weight_matrix import Layout
     from rewrite_lalamo_hybrid_spec import rewrite
 
+    if args.parallel == "tensor":
+        sharding = ShardingConfig.tensor_parallel()
+    elif args.parallel == "fsdp":
+        sharding = ShardingConfig.fully_sharded_data_parallel()
+    elif args.parallel == "data":
+        sharding = ShardingConfig.data_parallel()
+    else:
+        sharding = ShardingConfig.replicated()
+
     if args.load_from:
         from lalamo.model import Model
 
         print(f"load lalamo model <- {args.load_from}")
-        model = Model.load(args.load_from, ShardingConfig.replicated(), dtype=jnp.dtype(args.dtype))
+        model = Model.load(args.load_from, sharding, dtype=jnp.dtype(args.dtype))
         print("load done")
     else:
         spec = find_spec(QWEN_MODELS, args.spec_name)
@@ -164,7 +179,7 @@ def main() -> None:
         print(f"import {spec.vendor}/{spec.name} <- {spec.origin.description}")
         results = import_model(
             spec,
-            sharding_config=ShardingConfig.replicated(),
+            sharding_config=sharding,
             dtype=jnp.dtype(args.dtype),
         )
         model = results.model

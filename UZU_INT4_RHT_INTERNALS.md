@@ -108,3 +108,50 @@ lalamo の `token_codec_config` はこの2点で不一致。
 - raw logits 比較を uzu で行うにはエンジン拡張が必要
 - RHT 構成は InputOutput/32 のみ実質サポート
 - 速度は条件依存。品質評価と切り分けて測る
+
+## 9. MTP / speculative decoding の構成
+
+uzu の `DFlashTfmSpeculator` は次の2部品。
+
+1. **DFlash draft**: 5層程度の軽量ドラフト。対象モデルの隠れ状態（例: layers 1,5,...,29）と embeddings / lm_head を共有。
+2. **Weaver（任意）**: ドラフト候補から検証木を作る。DFlash 本体とは別。
+
+読み込みは `model_dir/speculator/` が存在する場合だけ。
+
+```
+speculator/
+  config.json        # SpeculatorModelConfig (DFlashSpeculatorConfig)
+  model.safetensors  # DFlash draft (例: 755MB for 9B)
+  shapes.json        # tree shape / budget
+```
+
+### 公式チェックポイント
+
+| モデル | speculator |
+|---|---|
+| trymirai/Qwen3.5-9B-M | **あり**（755MB） |
+| trymirai/Qwen3.5-0.8B-M | なし |
+
+9B-M の speculator config は `DFlashSpeculatorConfig`。Weaver は必須ではない。
+draft は target の embeddings / lm_head を共有するため、チェックポイントには含まれない。
+
+### Huihui 9B への流用
+
+- アーキテクチャは Qwen3.5-9B と同じ（32層、hidden 4096、target_layer_ids 1..29）
+- 公式 9B-M の `speculator/` を Huihui 9B の uzu モデルディレクトリへコピーすればロード可能
+- ただし draft は公式 9B で学習されているため、abliterated / 蒸留版では acceptance rate が落ちる可能性
+- まず公式 speculator で acceptance / tok/s を実測し、不足なら DFlash を再学習
+
+### DFlash 学習
+
+- z-lab 公式の学習レシピは未公開（推論コードのみ）
+- 第三者実装 **SpecForge** が DFlash のブロック並列学習に対応
+- 実績: Qwen3.5-0.8B / 4B。9B は未確認
+- 論文設定: 5層、block 16、AdamW lr 6e-4、6 epoch、max seq 3072、約800Kサンプル
+- 1,000サンプルはスモーク用。本番学習には対象モデルの rollout と隠れ状態が必要
+- 自作パイプラインは不要。SpecForge で足りる可能性が高い
+
+### 注意
+
+- 「MTP = Weaver」ではない。MTP の本体は DFlash draft、Weaver は木構築。
+- 9B-M に speculator があることと、Weaver が 27B 専用であることは矛盾しない。
