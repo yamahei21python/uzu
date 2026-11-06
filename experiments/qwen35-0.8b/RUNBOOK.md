@@ -117,3 +117,20 @@ raw logits が必要な場合は現状 API がないため、まずは生成品�
 python scripts/normalize_lalamo_config.py /tmp/qwen35_0.8b_rht_int4_lalamo
 ./target/release/cli --model /tmp/qwen35_0.8b_rht_int4_lalamo -m "..." --reasoning-effort disabled
 ```
+
+## 9. 層別比較（E1 vs E2/E3）
+
+同じ Preconditioner で RTN と YAQA の再構成を測り、層別に比較する。
+
+```bash
+python scripts/verify_rht_int4_model.py \
+  --quantized-dir /tmp/qwen35_0.8b_rht_int4_lalamo \
+  --reference-dir /tmp/qwen35_0.8b_bf16_lalamo \
+  --preconditioners $EXP/yaqa-hin-int4-g32/calibration.npz \
+  --json-out $EXP/rtn-int4-g32/reconstruction_weighted.json
+
+python scripts/compare_reconstruction.py \
+  --baseline $EXP/rtn-int4-g32/reconstruction_weighted.json \
+  --candidate $EXP/yaqa-hin-int4-g32/reconstruction_weighted.json \
+  --json-out $EXP/yaqa-hin-int4-g32/reconstruction_compare.json
+```
