@@ -11,4 +11,5 @@ export const webSystem: SystemService = {
   toggleMaximizeWindow: () => Promise.resolve(),
   closeWindow: () => Promise.resolve(),
   onWindowMaximizedChange: noopUnsubscribe,
+  onCloseRequested: noopUnsubscribe,
 };

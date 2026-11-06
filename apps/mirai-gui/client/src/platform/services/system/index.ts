@@ -18,4 +18,6 @@ export type SystemService = {
   closeWindow(): Promise<void>;
   /** Reports whether the window is maximized now and after every resize. */
   onWindowMaximizedChange(cb: (maximized: boolean) => void): () => void;
+  /** Runs `cb` before closing the window quits the app, which it does outside macOS. */
+  onCloseRequested(cb: () => Promise<void>): () => void;
 };

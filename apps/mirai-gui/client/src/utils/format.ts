@@ -14,7 +14,7 @@ export const formatModelSize = (sizeBytes?: number | null): string | undefined =
 };
 
 export const formatMemoryHint = (freeMemoryBytes?: number): string | undefined =>
-  freeMemoryBytes === undefined ? undefined : `Won't fit in ${formatBytes(freeMemoryBytes)} of GPU memory`;
+  freeMemoryBytes === undefined ? undefined : `Won't fit in ${formatBytes(freeMemoryBytes)} of free memory`;
 
 export const formatModelName = (repoId: string): string => {
   if (!repoId) return "";

@@ -10,14 +10,23 @@ Tauri v2, React, Rust.
 - Node.js 22.19 or newer and pnpm, both on `PATH`: `tauri dev` and `tauri build` start the client with
   `pnpm run`, and pnpm runs the dependencies' install scripts with `node`. On Node.js 24 and older,
   `corepack enable` provides the pnpm version `package.json` names; Node.js 25 and newer no longer ship
-  corepack, so install pnpm with its [installer](https://pnpm.io/installation)
+  corepack, so install pnpm with its [installer](https://pnpm.io/installation). bun can stand in for
+  Node.js: with a `node` link to `bun` on `PATH`, and pnpm run as `bun x pnpm@12.9.0`, installing,
+  building and the type, lint and format checks work; the client tests need Node.js, as vitest does
+  not run fully under bun
 - macOS 26.4 or newer on Apple silicon, with Xcode 26 and its Metal toolchain
   (`xcodebuild -downloadComponent MetalToolchain`)
 - Windows or Linux with a Vulkan 1.4 GPU, plus:
   - the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home), whose Slang compiles the shaders, and libclang;
     the [CLI section](../../README.md#cli) lists the variables that locate them
   - Tauri's [prerequisites](https://v2.tauri.app/start/prerequisites/) for the OS
-  - on Linux, the ALSA headers (`libasound2-dev` on Debian and Ubuntu)
+  - on Linux, the ALSA headers (`libasound2-dev` on Debian and Ubuntu). Bundling the AppImage downloads
+    linuxdeploy and its plugins from GitHub, so it needs the network; without `libfuse2` they run
+    extracted and leave `/tmp/appimage_extracted_*` directories behind
+
+On Linux the app needs `libvulkan1` and a Vulkan driver at runtime. Mesa's lavapipe, a software
+driver that runs models on the CPU, works too, slowly. Links open in the browser through `xdg-open`
+from `xdg-utils`. The .deb depends on both packages.
 
 ## Run
 

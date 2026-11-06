@@ -3,7 +3,7 @@ import { disableBrowserBehaviour, tauriSystem } from "./tauri";
 
 const mocks = vi.hoisted(() => ({ isMac: false }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: async () => () => {} }));
-vi.mock("@/utils/platform", () => ({ isMacPlatform: () => mocks.isMac, isWindowsPlatform: () => true }));
+vi.mock("@/utils/platform", () => ({ isMacPlatform: () => mocks.isMac }));
 
 const onRequest = vi.fn();
 let unsubscribe = () => {};
@@ -49,6 +49,7 @@ it("leaves the shortcuts to the macOS app menu", () => {
 
 describe("disableBrowserBehaviour", () => {
   beforeAll(() => {
+    mocks.isMac = false;
     vi.stubEnv("PROD", true);
     disableBrowserBehaviour();
     vi.unstubAllEnvs();

@@ -11,6 +11,9 @@ mod storage;
 mod system_ui;
 mod updater;
 
+const MIN_WIDTH: f64 = 390.0;
+const MIN_HEIGHT: f64 = 400.0;
+
 #[tauri::command]
 fn open_external(url: String) -> bool {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
@@ -40,6 +43,23 @@ fn is_app_url(url: &tauri::Url) -> bool {
         },
         _ => false,
     }
+}
+
+// Without its window the app would quit silently: WebView2 missing or broken is the usual cause on Windows.
+fn report_window_failure(
+    app: &tauri::AppHandle,
+    error: &tauri::Error,
+) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+
+    logger::error("window:create", Some(serde_json::json!({ "error": error.to_string() })));
+    let log = logger::log_file_path().map(|path| path.display().to_string()).unwrap_or_default();
+    let exit = app.clone();
+    app.dialog()
+        .message(format!("Mirai could not open its window: {error}\n\nThe log is at {log}"))
+        .title("Mirai")
+        .kind(MessageDialogKind::Error)
+        .show(move |_| exit.exit(1));
 }
 
 // Backend crashes would otherwise vanish silently; log location + payload to
@@ -76,7 +96,7 @@ pub fn run() {
             let window = tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::default())
                 .title("Mirai")
                 .inner_size(1200.0, 800.0)
-                .min_inner_size(390.0, 400.0);
+                .min_inner_size(MIN_WIDTH, MIN_HEIGHT);
             #[cfg(target_os = "macos")]
             let window = window
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
@@ -97,7 +117,31 @@ pub fn run() {
                     }
                     false
                 })
-                .build()?;
+                // Runs of the page being replaced would keep the engine busy.
+                .on_page_load(|window, payload| {
+                    if payload.event() == tauri::webview::PageLoadEvent::Started {
+                        window.state::<chat::ChatState>().cancel_all_runs();
+                    }
+                })
+                .build();
+            let window = match window {
+                Ok(window) => window,
+                Err(error) => {
+                    report_window_failure(app.handle(), &error);
+                    return Ok(());
+                },
+            };
+            // The minimum would count the invisible resize borders of the frameless window.
+            #[cfg(windows)]
+            {
+                let (outer, inner) = (window.outer_size()?, window.inner_size()?);
+                let borders = tauri::PhysicalSize::new(outer.width - inner.width, outer.height - inner.height)
+                    .to_logical::<f64>(window.scale_factor()?);
+                window.set_min_size(Some(tauri::LogicalSize::new(
+                    MIN_WIDTH + borders.width,
+                    MIN_HEIGHT + borders.height,
+                )))?;
+            }
             // On macOS closing hides the window; the Dock reopens it and ⌘Q quits. Elsewhere nothing reopens a
             // hidden window, so closing keeps quitting.
             #[cfg(target_os = "macos")]
@@ -151,6 +195,7 @@ pub fn run() {
             chat::cancel_run,
             chat::cancel_title_gen,
             chat::eject_session,
+            chat::resident_session,
             chat::set_auto_eject_config,
             chat::chat_sampling_defaults,
             downloads::download_resume,

@@ -3,15 +3,16 @@ import { invoke } from "../shared/invoke";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { navigationRequestTypes, type NavigationRequest } from "../../types/navigation";
-import { isMacPlatform, isWindowsPlatform } from "@/utils/platform";
+import { isMacPlatform } from "@/utils/platform";
 import type { SystemService } from ".";
 
-// WebView2's context menu outside text fields and its reload, find, print, save, history and caret-browsing keys make no
-// sense in the app; development builds keep them. AltGr reaches WebView2 as Ctrl+Alt and types text.
+// The context menu outside text fields (WebView2's, and WebKitGTK's Back, Forward, Stop and Reload) and the reload, find,
+// print, save, history and caret-browsing keys make no sense in the app; development builds keep them. AltGr reaches
+// WebView2 as Ctrl+Alt and types text.
 const BROWSER_KEYS = new Set(["F3", "F5", "F7", "BrowserBack", "BrowserForward", "BrowserRefresh"]);
 const BROWSER_CTRL_LETTERS = new Set(["f", "g", "p", "r", "s", "u"]);
 export const disableBrowserBehaviour = (): void => {
-  if (!import.meta.env.PROD || !isWindowsPlatform()) return;
+  if (!import.meta.env.PROD || isMacPlatform()) return;
   window.addEventListener(
     "contextmenu",
     (event) => {
@@ -124,5 +125,14 @@ export const tauriSystem: SystemService = {
       disposed = true;
       void unlisten.then((off) => off()).catch(() => undefined);
     };
+  },
+  onCloseRequested: (cb) => {
+    // On macOS closing hides the window and the backend owns that.
+    if (isMacPlatform()) return () => {};
+    // A rejected handler would keep the window open.
+    const unlisten = getCurrentWindow().onCloseRequested(() =>
+      cb().catch((error: unknown) => console.error("[window] close handler failed", error)),
+    );
+    return () => void unlisten.then((off) => off()).catch(() => undefined);
   },
 };

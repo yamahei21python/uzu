@@ -360,10 +360,10 @@ pub async fn find_chat_model(repo_id: &str) -> AppResult<Model> {
     find_in(models, repo_id).ok_or_else(|| AppError::msg(format!("Model not found: {repo_id}")))
 }
 
-// Cleanup enumerates by engine identifier (download_states' key), not repo_id.
+// Looks a model up by engine identifier (download_states' key), not repo_id.
 // Searches every engine list, not just chat: the model cache is shared with
 // other uzu-based apps, so it can hold weights this app never downloads.
-pub async fn find_model_by_identifier(identifier: &str) -> Option<Model> {
+async fn find_model_by_identifier(identifier: &str) -> Option<Model> {
     let engine = engine().await.ok()?;
     for models in [
         engine.models_for_chat().await.ok(),
@@ -389,6 +389,11 @@ pub async fn find_downloadable_model(key: &str) -> AppResult<Model> {
     find_model_by_identifier(key).await.ok_or_else(|| AppError::msg(format!("Model not found: {key}")))
 }
 
+/// The models the app lists: on-device chat models.
+pub fn is_listed(model: &Model) -> bool {
+    model.is_on_device() && model.is_chat_capable()
+}
+
 #[tauri::command]
 pub async fn chat_models_get(
     app: tauri::AppHandle,
@@ -401,7 +406,7 @@ pub async fn chat_models_get(
     // carries a newer seq than this snapshot and wins on the client.
     let seq = state.event_seq();
     let states = engine.download_states().await;
-    let local: Vec<Model> = models.into_iter().filter(|m| m.is_on_device() && m.is_chat_capable()).collect();
+    let local: Vec<Model> = models.into_iter().filter(is_listed).collect();
     state.remember_repo_ids(&local).await;
     let mut result = Vec::with_capacity(local.len());
     let mut unchecked = Vec::new();
