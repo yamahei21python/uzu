@@ -19,6 +19,7 @@ use crate::{
 };
 pub use crate::{config::model::generation::GenerationConfig, utils::strict_serde::Unsupported};
 
+pub mod eval;
 pub mod state;
 pub mod stream;
 
