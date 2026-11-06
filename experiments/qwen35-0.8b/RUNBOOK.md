@@ -134,3 +134,22 @@ python scripts/compare_reconstruction.py \
   --candidate $EXP/yaqa-hin-int4-g32/reconstruction_weighted.json \
   --json-out $EXP/yaqa-hin-int4-g32/reconstruction_compare.json
 ```
+
+## 10. 公式 Mirai-M 構成（embedding 量子化）
+
+公式 0.8B-M は tied embedding も INT4 化している（RHT output-only）。
+現在の E1/E2 は embedding を BF16 のまま残すため、サイズと品質が公式と異なる。
+
+```bash
+JAX_PLATFORM_NAME=cpu python scripts/rht_int4_convert.py \
+  --load-from /tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg \
+  --lalamo-path /tmp/lalamo-direct \
+  --output-dir /tmp/qwen35_0.8b_mirai_m_lalamo \
+  --quantize-embedding
+```
+
+比較用:
+- E1: Linear のみ INT4（embedding BF16）
+- E1b: Linear + embedding INT4（公式構成）
+
+詳細は `MIRAI_QUANTIZATION_NOTES.md`。

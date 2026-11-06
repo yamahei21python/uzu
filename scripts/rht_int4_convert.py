@@ -47,6 +47,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Disable RHT and quantize with plain INT4 Group (isolation baseline)",
     )
+    parser.add_argument(
+        "--quantize-embedding",
+        action="store_true",
+        help="Also quantize the tied token embedding with RHT output-only (matches Mirai-M)",
+    )
     parser.add_argument("--dtype", default="bfloat16")
     parser.add_argument("--skip-incompatible", action="store_true", help="Leave non-divisible Linears full precision")
     parser.add_argument("--dry-run", action="store_true")
@@ -243,6 +248,58 @@ def main() -> None:
         )
     quantized_model = map_nodes_of_type_with_path(Linear, quantize_linear, model)
     print(f"quantized: {counts['quantized']}, skipped: {counts['skipped']}, yaqa: {counts['yaqa']}")
+
+    if args.quantize_embedding:
+        embedding = getattr(quantized_model.decoder, "embedding", None)
+        matrix = getattr(embedding, "embedding", None)
+        if matrix is None:
+            print("embedding: tied embedding not found, skipped")
+        else:
+            vocab_size, embedding_dim = (int(x) for x in matrix.shape)
+            if args.no_rht:
+                embedding_spec = HybridSpec(
+                    quantization_spec=IntSpec(
+                        bits=args.bits,
+                        group_size=args.group_size,
+                        is_symmetric=False,
+                        layout=Layout.INPUT_OUTPUT,
+                    ),
+                    adapter_spec=None,
+                    incoherence_spec=None,
+                )
+            else:
+                if embedding_dim % args.block_size:
+                    raise SystemExit(
+                        f"embedding_dim {embedding_dim} is not divisible by block size {args.block_size}"
+                    )
+                embedding_spec = HybridSpec(
+                    quantization_spec=IntSpec(
+                        bits=args.bits,
+                        group_size=args.group_size,
+                        is_symmetric=False,
+                        layout=Layout.INPUT_OUTPUT,
+                    ),
+                    adapter_spec=None,
+                    incoherence_spec=HadamardSpec(
+                        block_size=args.block_size,
+                        processing_mode=IncoherenceProcessingMode.OUTPUT,
+                    ),
+                )
+            # decompress() returns logical [output, input] = [embedding_dim, vocab_size];
+            # the INPUT_OUTPUT layout stores it as [vocab_size, embedding_dim].
+            new_matrix = embedding_spec.compress(
+                matrix.decompress(),
+                key=quantize_key,
+                sharding_config=matrix.sharding_config,
+                is_sharded=matrix.is_sharded,
+            )
+            new_embedding = eqx.tree_at(lambda node: node.embedding, embedding, new_matrix)
+            quantized_model = eqx.tree_at(
+                lambda root: root.decoder.embedding,
+                quantized_model,
+                new_embedding,
+            )
+            print(f"embedding quantized: vocab={vocab_size} dim={embedding_dim}")
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
