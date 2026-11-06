@@ -1,0 +1,1157 @@
+{
+  "overall_relative_rmse": 0.1270415112990198,
+  "layers": [
+    {
+      "path": "decoder.transformer.layers.0.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.002033798830982579,
+      "relative_rmse": 0.12097456590766735,
+      "weighted_objective": 22.349475860595703,
+      "weighted_relative": 0.0023615017079096127,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.0.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0017464882296037087,
+      "relative_rmse": 0.1411739531491285,
+      "weighted_objective": 0.9394582509994507,
+      "weighted_relative": 0.005852236393919289,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.0.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008767793274774298,
+      "relative_rmse": 0.10318831443425101,
+      "weighted_objective": 2.3247106075286865,
+      "weighted_relative": 0.00801975765447927,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.0.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0012996254854122206,
+      "relative_rmse": 0.12390329649251906,
+      "weighted_objective": 8.696945190429688,
+      "weighted_relative": 0.007682146901025636,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.1.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.002139679770838634,
+      "relative_rmse": 0.1233656586062593,
+      "weighted_objective": 25.815507888793945,
+      "weighted_relative": 0.003850643001992831,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.1.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.002105475668963365,
+      "relative_rmse": 0.16622106750917393,
+      "weighted_objective": 1.5993130207061768,
+      "weighted_relative": 0.015040866371195031,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.1.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008925359917494666,
+      "relative_rmse": 0.10392622620446583,
+      "weighted_objective": 2.382430076599121,
+      "weighted_relative": 0.009912188362063465,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.1.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0014230950993269853,
+      "relative_rmse": 0.12724353366518446,
+      "weighted_objective": 10.040703773498535,
+      "weighted_relative": 0.008177668722597257,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.10.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0019381114690651333,
+      "relative_rmse": 0.12196774291446497,
+      "weighted_objective": 17.26180648803711,
+      "weighted_relative": 0.0016696007490448678,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.10.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.002061653194702031,
+      "relative_rmse": 0.1767204326884717,
+      "weighted_objective": 1.9466086626052856,
+      "weighted_relative": 0.014905018227760993,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.10.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008650709061153563,
+      "relative_rmse": 0.10872944131315214,
+      "weighted_objective": 1.9973280429840088,
+      "weighted_relative": 0.009749641334649603,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.10.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0012093294357831466,
+      "relative_rmse": 0.12351878066479141,
+      "weighted_objective": 6.662784099578857,
+      "weighted_relative": 0.003966729197256914,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.11.mixer.out_projection.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0014641796564269318,
+      "relative_rmse": 0.1257472952044875,
+      "weighted_objective": 0.897443950176239,
+      "weighted_relative": 0.017739883973047932,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.11.mixer.qkvg_projection.weights",
+      "shape": [
+        5120,
+        1024
+      ],
+      "weight_rmse": 0.001614477044280696,
+      "relative_rmse": 0.11596376363246297,
+      "weighted_objective": 7.521535873413086,
+      "weighted_relative": 0.0009088335651077087,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.11.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008814724144470672,
+      "relative_rmse": 0.10892753103268164,
+      "weighted_objective": 2.2126283645629883,
+      "weighted_relative": 0.012242599822735484,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.11.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0012216995588303222,
+      "relative_rmse": 0.12491777699171652,
+      "weighted_objective": 6.921137809753418,
+      "weighted_relative": 0.003639893417102683,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.12.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0021411003367090274,
+      "relative_rmse": 0.1212848043305239,
+      "weighted_objective": 22.59813690185547,
+      "weighted_relative": 0.0016452384149666587,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.12.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0018808403401722191,
+      "relative_rmse": 0.16796865997969224,
+      "weighted_objective": 1.624159336090088,
+      "weighted_relative": 0.019828173360915694,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.12.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008372078118104609,
+      "relative_rmse": 0.1053692692344574,
+      "weighted_objective": 1.820752739906311,
+      "weighted_relative": 0.011664426145444162,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.12.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0012900390303783064,
+      "relative_rmse": 0.12528914946065928,
+      "weighted_objective": 7.6689958572387695,
+      "weighted_relative": 0.0034033416528861417,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.13.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0020890334383782895,
+      "relative_rmse": 0.12469872673905928,
+      "weighted_objective": 21.523380279541016,
+      "weighted_relative": 0.0021778933950217017,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.13.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0018043767190764326,
+      "relative_rmse": 0.15586540184988915,
+      "weighted_objective": 1.7620466947555542,
+      "weighted_relative": 0.011942907791727216,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.13.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008552045369469225,
+      "relative_rmse": 0.1067549191335513,
+      "weighted_objective": 1.8104915618896484,
+      "weighted_relative": 0.010368225420020506,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.13.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0013311941336714142,
+      "relative_rmse": 0.12593757997310612,
+      "weighted_objective": 8.264646530151367,
+      "weighted_relative": 0.0035348026722475325,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.14.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.002111200444856382,
+      "relative_rmse": 0.12357295675531674,
+      "weighted_objective": 22.082599639892578,
+      "weighted_relative": 0.0019857113629829443,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.14.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0021795639342923026,
+      "relative_rmse": 0.18645717314763044,
+      "weighted_objective": 1.9922356605529785,
+      "weighted_relative": 0.015640867276864572,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.14.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008550258172693202,
+      "relative_rmse": 0.10817534007535051,
+      "weighted_objective": 3.5316195487976074,
+      "weighted_relative": 0.01135904379476354,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.14.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0014527991382393228,
+      "relative_rmse": 0.127927559256963,
+      "weighted_objective": 9.99415111541748,
+      "weighted_relative": 0.0030864879187264406,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.15.mixer.out_projection.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.001561699241241875,
+      "relative_rmse": 0.11287805976904926,
+      "weighted_objective": 1.0017887353897095,
+      "weighted_relative": 0.005204839951109413,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.15.mixer.qkvg_projection.weights",
+      "shape": [
+        5120,
+        1024
+      ],
+      "weight_rmse": 0.00183365826678081,
+      "relative_rmse": 0.119024599414013,
+      "weighted_objective": 10.703096389770508,
+      "weighted_relative": 0.0010799081664849407,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.15.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0009034474843785868,
+      "relative_rmse": 0.10525935624052267,
+      "weighted_objective": 2.5506863594055176,
+      "weighted_relative": 0.010761732858086471,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.15.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.001556038985590753,
+      "relative_rmse": 0.13092620418925396,
+      "weighted_objective": 12.059191703796387,
+      "weighted_relative": 0.002739218257862717,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.16.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0025497297051333065,
+      "relative_rmse": 0.12740677717494112,
+      "weighted_objective": 38.338951110839844,
+      "weighted_relative": 0.002072449908073146,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.16.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0016122953895343181,
+      "relative_rmse": 0.14552600894411313,
+      "weighted_objective": 1.489746332168579,
+      "weighted_relative": 0.011551181173513309,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.16.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0009395935969046387,
+      "relative_rmse": 0.10995801423552203,
+      "weighted_objective": 2.6522672176361084,
+      "weighted_relative": 0.012894053491792696,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.16.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0016371336178886639,
+      "relative_rmse": 0.13009068178750832,
+      "weighted_objective": 14.577971458435059,
+      "weighted_relative": 0.0036323352717357515,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.17.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0027333390956940707,
+      "relative_rmse": 0.128268998834454,
+      "weighted_objective": 47.40684127807617,
+      "weighted_relative": 0.002304845074350078,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.17.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.001552398980413263,
+      "relative_rmse": 0.1450178668942352,
+      "weighted_objective": 1.656989336013794,
+      "weighted_relative": 0.0098475369403517,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.17.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0009225920907637168,
+      "relative_rmse": 0.10785617104934347,
+      "weighted_objective": 2.5981497764587402,
+      "weighted_relative": 0.013029625422747253,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.17.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0017262470823050352,
+      "relative_rmse": 0.12839566453749732,
+      "weighted_objective": 16.423234939575195,
+      "weighted_relative": 0.0035870871244079294,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.18.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.002863670342250971,
+      "relative_rmse": 0.12976870490713333,
+      "weighted_objective": 51.74376678466797,
+      "weighted_relative": 0.0021555199906132133,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.18.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0016062176698372842,
+      "relative_rmse": 0.15888054783970387,
+      "weighted_objective": 1.975341558456421,
+      "weighted_relative": 0.012881546236991184,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.18.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.000921587810313602,
+      "relative_rmse": 0.1074424536856809,
+      "weighted_objective": 2.4002838134765625,
+      "weighted_relative": 0.010428244489679946,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.18.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0018018446071868903,
+      "relative_rmse": 0.1278700944782524,
+      "weighted_objective": 17.589805603027344,
+      "weighted_relative": 0.0036520342895985125,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.19.mixer.out_projection.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0026694435092988814,
+      "relative_rmse": 0.159670709930535,
+      "weighted_objective": 1.9741201400756836,
+      "weighted_relative": 0.014432452317754169,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.19.mixer.qkvg_projection.weights",
+      "shape": [
+        5120,
+        1024
+      ],
+      "weight_rmse": 0.0019512471971066467,
+      "relative_rmse": 0.12442085793595484,
+      "weighted_objective": 13.630073547363281,
+      "weighted_relative": 0.00126139291658755,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.19.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0009452307781819621,
+      "relative_rmse": 0.10494193132123397,
+      "weighted_objective": 2.491194009780884,
+      "weighted_relative": 0.009063039055588765,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.19.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0017357053131293403,
+      "relative_rmse": 0.12616563621413185,
+      "weighted_objective": 17.483661651611328,
+      "weighted_relative": 0.004142260796601005,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.2.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0022055003199053253,
+      "relative_rmse": 0.12341309339023963,
+      "weighted_objective": 27.211868286132812,
+      "weighted_relative": 0.0027341312311608083,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.2.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0019472086973958782,
+      "relative_rmse": 0.15574414510971735,
+      "weighted_objective": 1.2696409225463867,
+      "weighted_relative": 0.010909826859482948,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.2.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008861783394701196,
+      "relative_rmse": 0.10763350540675189,
+      "weighted_objective": 2.1848034858703613,
+      "weighted_relative": 0.007498988997824306,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.2.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0016318252954438505,
+      "relative_rmse": 0.12696341127638244,
+      "weighted_objective": 12.935165405273438,
+      "weighted_relative": 0.004607258620277353,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.20.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0028211477865139702,
+      "relative_rmse": 0.1267767927425622,
+      "weighted_objective": 53.486427307128906,
+      "weighted_relative": 0.0022497304420660775,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.20.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0015015641262520728,
+      "relative_rmse": 0.1426299679073786,
+      "weighted_objective": 2.251924514770508,
+      "weighted_relative": 0.014157691368307067,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.20.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0009517303033969751,
+      "relative_rmse": 0.10414784018392832,
+      "weighted_objective": 2.872948169708252,
+      "weighted_relative": 0.0107213280974182,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.20.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.001717814330053062,
+      "relative_rmse": 0.12469562381977198,
+      "weighted_objective": 17.21172523498535,
+      "weighted_relative": 0.004735746895431949,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.21.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0026939473124353874,
+      "relative_rmse": 0.1248157645511249,
+      "weighted_objective": 47.31489562988281,
+      "weighted_relative": 0.002310526360403261,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.21.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0021644029472295137,
+      "relative_rmse": 0.18679513342716986,
+      "weighted_objective": 2.800877571105957,
+      "weighted_relative": 0.015666775018996864,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.21.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0009921655779890023,
+      "relative_rmse": 0.10736489832139211,
+      "weighted_objective": 2.7786130905151367,
+      "weighted_relative": 0.009898261480295142,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.21.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0017442579891191925,
+      "relative_rmse": 0.12482157060162068,
+      "weighted_objective": 17.50571060180664,
+      "weighted_relative": 0.004373304357343428,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.22.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0024870914921400603,
+      "relative_rmse": 0.12737744389166025,
+      "weighted_objective": 37.94578552246094,
+      "weighted_relative": 0.0022654084082940804,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.22.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.002236229752292462,
+      "relative_rmse": 0.1829417531275666,
+      "weighted_objective": 1.9435887336730957,
+      "weighted_relative": 0.0085788412152014,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.22.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0009480848999082302,
+      "relative_rmse": 0.10366991854829581,
+      "weighted_objective": 2.074336290359497,
+      "weighted_relative": 0.004665459658292016,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.22.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.00181076156612553,
+      "relative_rmse": 0.12705026463747374,
+      "weighted_objective": 17.615169525146484,
+      "weighted_relative": 0.0036537574244439866,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.23.mixer.out_projection.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0021574594751889984,
+      "relative_rmse": 0.15571607328335044,
+      "weighted_objective": 1.2608922719955444,
+      "weighted_relative": 0.004409346117202162,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.23.mixer.qkvg_projection.weights",
+      "shape": [
+        5120,
+        1024
+      ],
+      "weight_rmse": 0.0020340173154679525,
+      "relative_rmse": 0.12617379837805978,
+      "weighted_objective": 15.538535118103027,
+      "weighted_relative": 0.001412622569802987,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.23.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008913951602732527,
+      "relative_rmse": 0.10402020843850018,
+      "weighted_objective": 1.2632325887680054,
+      "weighted_relative": 0.004759659890318886,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.23.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.001946530929309389,
+      "relative_rmse": 0.12569816313227283,
+      "weighted_objective": 17.49129295349121,
+      "weighted_relative": 0.002219385147868274,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.3.mixer.out_projection.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.001598717326776635,
+      "relative_rmse": 0.13132458118168905,
+      "weighted_objective": 1.413872480392456,
+      "weighted_relative": 0.012623887230097696,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.3.mixer.qkvg_projection.weights",
+      "shape": [
+        5120,
+        1024
+      ],
+      "weight_rmse": 0.002239189739304692,
+      "relative_rmse": 0.12063395727332883,
+      "weighted_objective": 15.819409370422363,
+      "weighted_relative": 0.0007494068566551961,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.3.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008760637917990298,
+      "relative_rmse": 0.108481260244617,
+      "weighted_objective": 2.232027292251587,
+      "weighted_relative": 0.010536487526694503,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.3.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.001627263997332634,
+      "relative_rmse": 0.12663914160254824,
+      "weighted_objective": 13.788323402404785,
+      "weighted_relative": 0.0032504743688688467,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.4.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0023357185171408107,
+      "relative_rmse": 0.1251092239501685,
+      "weighted_objective": 31.740306854248047,
+      "weighted_relative": 0.002376600462855447,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.4.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0019637403093601255,
+      "relative_rmse": 0.16764119180894746,
+      "weighted_objective": 2.5258660316467285,
+      "weighted_relative": 0.02138753617585891,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.4.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008683807187593617,
+      "relative_rmse": 0.10675073014208117,
+      "weighted_objective": 2.166710376739502,
+      "weighted_relative": 0.010234289389942142,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.4.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0015816391984870264,
+      "relative_rmse": 0.12745097186772805,
+      "weighted_objective": 12.920236587524414,
+      "weighted_relative": 0.0035464786852574823,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.5.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0021543698998985616,
+      "relative_rmse": 0.12345306716427427,
+      "weighted_objective": 25.80066680908203,
+      "weighted_relative": 0.0022922544372499074,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.5.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.00209334771086078,
+      "relative_rmse": 0.1772793815425519,
+      "weighted_objective": 2.936389446258545,
+      "weighted_relative": 0.026516023526934804,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.5.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008750104959492553,
+      "relative_rmse": 0.10602054419815338,
+      "weighted_objective": 2.332909107208252,
+      "weighted_relative": 0.010998745974373973,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.5.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0015033995851025763,
+      "relative_rmse": 0.1266634434161923,
+      "weighted_objective": 11.538997650146484,
+      "weighted_relative": 0.004000005278895808,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.6.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0020670556845104205,
+      "relative_rmse": 0.12316914998892588,
+      "weighted_objective": 23.706398010253906,
+      "weighted_relative": 0.00266931004942468,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.6.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.002511212517751538,
+      "relative_rmse": 0.2082454601705768,
+      "weighted_objective": 2.9545722007751465,
+      "weighted_relative": 0.028071100447435125,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.6.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008939899765275252,
+      "relative_rmse": 0.10915348718050856,
+      "weighted_objective": 2.226158857345581,
+      "weighted_relative": 0.007266780898558524,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.6.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.001442228551812067,
+      "relative_rmse": 0.126248891627106,
+      "weighted_objective": 10.7340669631958,
+      "weighted_relative": 0.004430577046744393,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.7.mixer.out_projection.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.00115930505637774,
+      "relative_rmse": 0.10378069049537929,
+      "weighted_objective": 1.064268708229065,
+      "weighted_relative": 0.020352414882597706,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.7.mixer.qkvg_projection.weights",
+      "shape": [
+        5120,
+        1024
+      ],
+      "weight_rmse": 0.0017785731390634676,
+      "relative_rmse": 0.12155686036180008,
+      "weighted_objective": 10.103784561157227,
+      "weighted_relative": 0.0012082396093546274,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.7.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008978210420796546,
+      "relative_rmse": 0.10906136237064656,
+      "weighted_objective": 2.574021339416504,
+      "weighted_relative": 0.013558122014613809,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.7.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.001348595308162493,
+      "relative_rmse": 0.12670547707259197,
+      "weighted_objective": 9.034782409667969,
+      "weighted_relative": 0.003756005513461251,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.8.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.0020432115978489505,
+      "relative_rmse": 0.12361770946284284,
+      "weighted_objective": 21.610061645507812,
+      "weighted_relative": 0.0015843070895704314,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.8.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0023986042416552903,
+      "relative_rmse": 0.20907533408067652,
+      "weighted_objective": 3.002967357635498,
+      "weighted_relative": 0.042007988408245926,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.8.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008696642299523457,
+      "relative_rmse": 0.10819779728863368,
+      "weighted_objective": 2.4356541633605957,
+      "weighted_relative": 0.01297850783411502,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.8.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.0012712163284846164,
+      "relative_rmse": 0.12578384506381118,
+      "weighted_objective": 7.4415388107299805,
+      "weighted_relative": 0.003851652234442913,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.9.mixer.in_proj.weights",
+      "shape": [
+        8224,
+        1024
+      ],
+      "weight_rmse": 0.00191788256300354,
+      "relative_rmse": 0.12088025415011004,
+      "weighted_objective": 17.507312774658203,
+      "weighted_relative": 0.0019597616780938345,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.9.mixer.out_proj.weights",
+      "shape": [
+        1024,
+        2048
+      ],
+      "weight_rmse": 0.0016633380941703726,
+      "relative_rmse": 0.1477100251973465,
+      "weighted_objective": 2.067911148071289,
+      "weighted_relative": 0.014156383327212111,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.9.mlp.down_projection.weights",
+      "shape": [
+        1024,
+        3584
+      ],
+      "weight_rmse": 0.0008656482257902057,
+      "relative_rmse": 0.10666525024890174,
+      "weighted_objective": 2.2794976234436035,
+      "weighted_relative": 0.01221645634000784,
+      "rht": true
+    },
+    {
+      "path": "decoder.transformer.layers.9.mlp.up_projection.weights",
+      "shape": [
+        7168,
+        1024
+      ],
+      "weight_rmse": 0.00120090929584814,
+      "relative_rmse": 0.12502305095849733,
+      "weighted_objective": 6.307997703552246,
+      "weighted_relative": 0.0043327447511023005,
+      "rht": true
+    }
+  ]
+}
