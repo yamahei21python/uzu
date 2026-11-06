@@ -41,6 +41,8 @@ pub enum LanguageModelStreamError<B: Backend> {
     Speculator(#[from] DFlashTreeError<B>),
     #[error("No seed token (both state and input are empty)")]
     NoSeedToken,
+    #[error("Empty input")]
+    EmptyInput,
     #[error("Context overflow")]
     ContextOverflow,
 }
