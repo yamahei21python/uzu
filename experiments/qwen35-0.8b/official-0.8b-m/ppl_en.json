@@ -1,0 +1,15 @@
+{
+  "bf16_dir": "/tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg",
+  "candidate_dir": "/tmp/mirai_08b_model_lalamo",
+  "corpus": "experiments/qwen35-0.8b/data/eval_en_wikitext2.txt",
+  "chunks": 50,
+  "tokens": 6350,
+  "bf16_ppl": 40.811983764022344,
+  "candidate_ppl": 41.974818340898864,
+  "delta_nll_per_token": 0.02809411717212118,
+  "top1_agreement": 0.8560629921259842,
+  "top5_overlap": 0.8618267716535941,
+  "kl_bf16_candidate": 0.05903792997044841,
+  "cosine_logits": 0.9913259395088736,
+  "mean_abs_top1_margin_delta": 0.3039763779527559
+}

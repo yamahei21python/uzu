@@ -151,14 +151,39 @@
 | 9B YAQA | Kaggle 層分割 (32GB) | Modal A100 80GB |
 | 9B QAD | Modal A100 80GB | – |
 
-## 8. Kaggle CPU カーネル（4B YAQA）
+## 8. Kaggle カーネルの RAM 制限（訂正）
 
-- Kernel: `yamahei21python/uzu-quant-yaqa-4b-cpu`
-- Dataset: `yamahei21python/uzu-quant-kit`（scripts + corpus）
-- GPU 無効 → **GPU クォータ非消費**
-- 32GB RAM、bf16 calibration
-- 4B: model 8.4GB + grads 8.4GB + H 2GB ≒ 19GB
-- 出力: `/kaggle/working/calibration.npz`
-- 取得: `kaggle kernels output yamahei21python/uzu-quant-yaqa-4b-cpu -p out/`
+| カーネル | RAM | GPU | 4B YAQA |
+|---|---:|---|---|
+| CPU のみ | **16GB** | なし | ✕（model 8.4 + grads 8.4 > 16） |
+| GPU T4 x2 | **29〜32GB** | 15.6GB × 2 | ○（TP で ~12GB/GPU） |
 
-GPU クォータは 2026-11-07 09:00 JST にリセット。GPU 版は 4B の速度改善に使う。
+- Kaggle CPU カーネルで 4B 全層・4層グループを試したが **SIGKILL (OOM)**
+- CPU 32GB という前提は誤り。32GB は GPU カーネル側
+- 4B YAQA は GPU カーネル `uzu-quant-yaqa-4b-gpu` で実行する
+  - `--parallel tensor`、`--calib-dtype bfloat16`
+  - GPU クォータは 2026-11-07 09:00 JST に回復
+- CPU カーネルは 0.8B 向け（model 1.6 + grads 1.6 + H 1 ≒ 4GB）
+
+## 9. Kaggle T4 x2 のメモリ解釈（重要）
+
+- Kaggle `NvidiaTeslaT4` = **2 × T4、各 15.6GB、合計 31.3GB**
+- DDP / データ並列はモデルを各 GPU に複製 → **1枚あたり 15.6GB が上限**
+- 2枚をメモリプールとして使うには **tensor parallel / model parallel / FSDP** が必要
+- kaggleAI の vLLM は TP=2 で2枚を活用済み
+- 我々の JAX calibration は `ShardingConfig.replicated()` → 現状は1枚分のみ
+
+| 作業 | 1枚 | 2×T4 tensor parallel（実装済み） | 備考 |
+|---|---|---|---|
+| 0.8B YAQA | ○ ~10GB | ◎ ~3GB/GPU | 2枚は速度目的 |
+| 0.8B QAD | ○ ~13GB | ◎ ~7GB/GPU | DDP/TP |
+| 4B RTN | GPU不要 | – | CPU/disk |
+| 4B YAQA | ✕ ~19GB | ○ ~12GB/GPU | 4層グループ不要、全層可 |
+| 4B QAD | ✕ | △ ~17GB/GPU | gradient checkpointing 次第 |
+| 9B RTN | ✕ 18GB | ○ ~12GB/GPU | 重み9GB + 出力2.5GB |
+| 9B YAQA | ✕ | ○ 4層×8 + TP ~11GB/GPU | 時間は長い |
+| 9B QAD | ✕ | ✕ | Modal A100 |
+
+→ `--parallel tensor` で 2枚を1つのメモリプールとして使える。
+→ 4B YAQA / 9B RTN / 9B YAQA（層分割）は 2×T4 で実行可能。
+→ 4B QAD / 9B QAD は依然として A100 が必要。

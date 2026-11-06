@@ -30,7 +30,9 @@ os.environ.setdefault("JAX_PLATFORM_NAME", "cpu")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--bf16-dir", type=Path, required=True)
+    parser.add_argument("--bf16-dir", type=Path, default=None, help="saved lalamo BF16 model dir")
+    parser.add_argument("--bf16-hf-dir", type=Path, default=None, help="local HF snapshot (loads BF16 directly)")
+    parser.add_argument("--bf16-spec-name", default="Qwen3.5-0.8B")
     parser.add_argument("--int4-dir", type=Path, required=True)
     parser.add_argument("--lalamo-path", default=os.environ.get("LALAMO_PATH", "/tmp/lalamo-direct"))
     parser.add_argument("--max-positions", type=int, default=0, help="cap compared positions per prompt (0 = all)")
@@ -55,12 +57,30 @@ def main() -> None:
     sharding = ShardingConfig.replicated()
     keychain = Keychain.init(seed=0, sharding_config=sharding)
 
-    print("loading BF16 model...")
-    bf16 = Model.load(args.bf16_dir, sharding, dtype=jnp.bfloat16)
+    if args.bf16_hf_dir:
+        from dataclasses import replace as dataclass_replace
+        from lalamo.model_import.common import import_model
+        from lalamo.model_import.model_specs.qwen import QWEN_MODELS
+        from lalamo.model_import.origins import LocalOrigin
+
+        spec = next((item for item in QWEN_MODELS if item.name == args.bf16_spec_name), None)
+        if spec is None:
+            raise SystemExit(f"spec {args.bf16_spec_name!r} not found")
+        weights = tuple(sorted(path.name for path in args.bf16_hf_dir.glob("*.safetensors")))
+        print(f"importing BF16 from {args.bf16_hf_dir}...")
+        results = import_model(
+            dataclass_replace(spec, origin=LocalOrigin(root=str(args.bf16_hf_dir), weight_files=weights)),
+            sharding_config=sharding,
+            dtype=jnp.bfloat16,
+        )
+        bf16 = results.model
+    else:
+        print("loading BF16 model...")
+        bf16 = Model.load(args.bf16_dir, sharding, dtype=jnp.bfloat16)
     print("loading INT4 model...")
     int4 = Model.load(args.int4_dir, sharding, dtype=jnp.bfloat16)
 
-    tokenizer = Tokenizer.from_file(str(args.bf16_dir / "tokenizer.json"))
+    tokenizer = bf16.token_codec.tokenizer
     print("tokenizer loaded")
 
     prompts = [
