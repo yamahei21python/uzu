@@ -1,0 +1,721 @@
+{
+  "layers": 96,
+  "code_agreement_mean": 0.619925051071654,
+  "code_agreement_median": 0.6157786505562919,
+  "scale_ratio_mean": 0.9999604834161838,
+  "scale_ratio_median": 0.9999727719612672,
+  "code_histogram_reference": [
+    0.040771,
+    0.025418,
+    0.037198,
+    0.051495,
+    0.067205,
+    0.082328,
+    0.094444,
+    0.101186,
+    0.101187,
+    0.094442,
+    0.08232,
+    0.067182,
+    0.051479,
+    0.03718,
+    0.025407,
+    0.040757
+  ],
+  "code_histogram_candidate": [
+    0.040769,
+    0.025412,
+    0.037189,
+    0.051489,
+    0.067206,
+    0.082343,
+    0.09443,
+    0.101182,
+    0.101192,
+    0.09445,
+    0.082332,
+    0.067176,
+    0.051493,
+    0.03717,
+    0.025409,
+    0.040759
+  ],
+  "zero_point_mean_reference": 7.499532168300573,
+  "zero_point_mean_candidate": 7.4996641900846175,
+  "zero_point_std_reference": 1.2734845756954936,
+  "zero_point_std_candidate": 1.2736199413016338,
+  "rows": [
+    {
+      "path": "decoder.transformer.layers.0.mixer.in_proj.weights",
+      "scale_mean_reference": 15241.776093598006,
+      "scale_mean_candidate": 15241.787819947715,
+      "scale_ratio": 0.999999230644735,
+      "code_agreement": 0.6109531268999271
+    },
+    {
+      "path": "decoder.transformer.layers.0.mixer.out_proj.weights",
+      "scale_mean_reference": 15192.757781982422,
+      "scale_mean_candidate": 15193.50894165039,
+      "scale_ratio": 0.9999505604879786,
+      "code_agreement": 0.6539907455444336
+    },
+    {
+      "path": "decoder.transformer.layers.0.mlp.down_projection.weights",
+      "scale_mean_reference": 15127.267107282367,
+      "scale_mean_candidate": 15127.440656389508,
+      "scale_ratio": 0.99998852753013,
+      "code_agreement": 0.7108527592250279
+    },
+    {
+      "path": "decoder.transformer.layers.0.mlp.up_projection.weights",
+      "scale_mean_reference": 15160.845781598773,
+      "scale_mean_candidate": 15161.349552699498,
+      "scale_ratio": 0.9999667726742284,
+      "code_agreement": 0.6385739190237862
+    },
+    {
+      "path": "decoder.transformer.layers.1.mixer.in_proj.weights",
+      "scale_mean_reference": 15254.702703216197,
+      "scale_mean_candidate": 15255.013105696742,
+      "scale_ratio": 0.9999796524278023,
+      "code_agreement": 0.6175767475528939
+    },
+    {
+      "path": "decoder.transformer.layers.1.mixer.out_proj.weights",
+      "scale_mean_reference": 15198.167343139648,
+      "scale_mean_candidate": 15199.977279663086,
+      "scale_ratio": 0.9998809250507329,
+      "code_agreement": 0.6013064384460449
+    },
+    {
+      "path": "decoder.transformer.layers.1.mlp.down_projection.weights",
+      "scale_mean_reference": 15129.059561593192,
+      "scale_mean_candidate": 15129.252406529018,
+      "scale_ratio": 0.9999872535052861,
+      "code_agreement": 0.716815676007952
+    },
+    {
+      "path": "decoder.transformer.layers.1.mlp.up_projection.weights",
+      "scale_mean_reference": 15170.121241978237,
+      "scale_mean_candidate": 15170.75210571289,
+      "scale_ratio": 0.9999584157904461,
+      "code_agreement": 0.6324866158621651
+    },
+    {
+      "path": "decoder.transformer.layers.10.mixer.in_proj.weights",
+      "scale_mean_reference": 15233.9656797179,
+      "scale_mean_candidate": 15234.3650937804,
+      "scale_ratio": 0.9999737820342337,
+      "code_agreement": 0.5951621207745622
+    },
+    {
+      "path": "decoder.transformer.layers.10.mixer.out_proj.weights",
+      "scale_mean_reference": 15180.53776550293,
+      "scale_mean_candidate": 15182.39875793457,
+      "scale_ratio": 0.9998774243476731,
+      "code_agreement": 0.6251630783081055
+    },
+    {
+      "path": "decoder.transformer.layers.10.mlp.down_projection.weights",
+      "scale_mean_reference": 15114.343488420758,
+      "scale_mean_candidate": 15114.498020717076,
+      "scale_ratio": 0.9999897758896058,
+      "code_agreement": 0.7015181950160435
+    },
+    {
+      "path": "decoder.transformer.layers.10.mlp.up_projection.weights",
+      "scale_mean_reference": 15148.364916120257,
+      "scale_mean_candidate": 15148.854317801339,
+      "scale_ratio": 0.9999676938155972,
+      "code_agreement": 0.6122256687709263
+    },
+    {
+      "path": "decoder.transformer.layers.11.mixer.out_projection.weights",
+      "scale_mean_reference": 15179.10563659668,
+      "scale_mean_candidate": 15179.341384887695,
+      "scale_ratio": 0.9999844691357129,
+      "code_agreement": 0.6094045639038086
+    },
+    {
+      "path": "decoder.transformer.layers.11.mixer.qkvg_projection.weights",
+      "scale_mean_reference": 15208.394384765625,
+      "scale_mean_candidate": 15208.741900634766,
+      "scale_ratio": 0.9999771502553326,
+      "code_agreement": 0.39561767578125
+    },
+    {
+      "path": "decoder.transformer.layers.11.mlp.down_projection.weights",
+      "scale_mean_reference": 15116.811819893974,
+      "scale_mean_candidate": 15116.976806640625,
+      "scale_ratio": 0.999989085995913,
+      "code_agreement": 0.7058100019182477
+    },
+    {
+      "path": "decoder.transformer.layers.11.mlp.up_projection.weights",
+      "scale_mean_reference": 15148.355865478516,
+      "scale_mean_candidate": 15148.908316476005,
+      "scale_ratio": 0.9999635319597988,
+      "code_agreement": 0.6167007173810687
+    },
+    {
+      "path": "decoder.transformer.layers.12.mixer.in_proj.weights",
+      "scale_mean_reference": 15250.793439931907,
+      "scale_mean_candidate": 15251.129780216439,
+      "scale_ratio": 0.9999779465331828,
+      "code_agreement": 0.6015410070753283
+    },
+    {
+      "path": "decoder.transformer.layers.12.mixer.out_proj.weights",
+      "scale_mean_reference": 15171.438446044922,
+      "scale_mean_candidate": 15173.061614990234,
+      "scale_ratio": 0.9998930229780582,
+      "code_agreement": 0.5812187194824219
+    },
+    {
+      "path": "decoder.transformer.layers.12.mlp.down_projection.weights",
+      "scale_mean_reference": 15113.66401890346,
+      "scale_mean_candidate": 15113.875776018414,
+      "scale_ratio": 0.9999859892248625,
+      "code_agreement": 0.6998871394566127
+    },
+    {
+      "path": "decoder.transformer.layers.12.mlp.up_projection.weights",
+      "scale_mean_reference": 15154.586800711495,
+      "scale_mean_candidate": 15155.122719900948,
+      "scale_ratio": 0.9999646377532299,
+      "code_agreement": 0.6157125745500837
+    },
+    {
+      "path": "decoder.transformer.layers.13.mixer.in_proj.weights",
+      "scale_mean_reference": 15244.684722306663,
+      "scale_mean_candidate": 15245.126918926313,
+      "scale_ratio": 0.9999709942316649,
+      "code_agreement": 0.598276813670355
+    },
+    {
+      "path": "decoder.transformer.layers.13.mixer.out_proj.weights",
+      "scale_mean_reference": 15179.870956420898,
+      "scale_mean_candidate": 15181.028533935547,
+      "scale_ratio": 0.9999237484132211,
+      "code_agreement": 0.6158447265625
+    },
+    {
+      "path": "decoder.transformer.layers.13.mlp.down_projection.weights",
+      "scale_mean_reference": 15115.043378557477,
+      "scale_mean_candidate": 15115.299028669086,
+      "scale_ratio": 0.9999830866652969,
+      "code_agreement": 0.6934939793178013
+    },
+    {
+      "path": "decoder.transformer.layers.13.mlp.up_projection.weights",
+      "scale_mean_reference": 15159.152103969029,
+      "scale_mean_candidate": 15159.690468924386,
+      "scale_ratio": 0.9999644870746892,
+      "code_agreement": 0.6147120339529855
+    },
+    {
+      "path": "decoder.transformer.layers.14.mixer.in_proj.weights",
+      "scale_mean_reference": 15244.140514804232,
+      "scale_mean_candidate": 15244.510628191878,
+      "scale_ratio": 0.9999757215304136,
+      "code_agreement": 0.5973694797619772
+    },
+    {
+      "path": "decoder.transformer.layers.14.mixer.out_proj.weights",
+      "scale_mean_reference": 15180.129989624023,
+      "scale_mean_candidate": 15182.037963867188,
+      "scale_ratio": 0.9998743268691789,
+      "code_agreement": 0.5502448081970215
+    },
+    {
+      "path": "decoder.transformer.layers.14.mlp.down_projection.weights",
+      "scale_mean_reference": 15113.455409458706,
+      "scale_mean_candidate": 15113.569771902901,
+      "scale_ratio": 0.9999924331282469,
+      "code_agreement": 0.7264213562011719
+    },
+    {
+      "path": "decoder.transformer.layers.14.mlp.up_projection.weights",
+      "scale_mean_reference": 15168.353964669364,
+      "scale_mean_candidate": 15168.873931884766,
+      "scale_ratio": 0.9999657214360317,
+      "code_agreement": 0.606532369341169
+    },
+    {
+      "path": "decoder.transformer.layers.15.mixer.out_projection.weights",
+      "scale_mean_reference": 15213.609603881836,
+      "scale_mean_candidate": 15213.757263183594,
+      "scale_ratio": 0.9999902943566665,
+      "code_agreement": 0.6316647529602051
+    },
+    {
+      "path": "decoder.transformer.layers.15.mixer.qkvg_projection.weights",
+      "scale_mean_reference": 15222.422760009766,
+      "scale_mean_candidate": 15222.689245605468,
+      "scale_ratio": 0.9999824941840825,
+      "code_agreement": 0.39657039642333985
+    },
+    {
+      "path": "decoder.transformer.layers.15.mlp.down_projection.weights",
+      "scale_mean_reference": 15125.768310546875,
+      "scale_mean_candidate": 15126.0187726702,
+      "scale_ratio": 0.9999834416360914,
+      "code_agreement": 0.6965563637869698
+    },
+    {
+      "path": "decoder.transformer.layers.15.mlp.up_projection.weights",
+      "scale_mean_reference": 15178.032405308315,
+      "scale_mean_candidate": 15178.630562918526,
+      "scale_ratio": 0.9999605921227391,
+      "code_agreement": 0.6112352098737445
+    },
+    {
+      "path": "decoder.transformer.layers.16.mixer.in_proj.weights",
+      "scale_mean_reference": 15274.327931207441,
+      "scale_mean_candidate": 15274.711883663667,
+      "scale_ratio": 0.999974863522196,
+      "code_agreement": 0.5972257977793652
+    },
+    {
+      "path": "decoder.transformer.layers.16.mixer.out_proj.weights",
+      "scale_mean_reference": 15170.935607910156,
+      "scale_mean_candidate": 15172.290344238281,
+      "scale_ratio": 0.999910709833691,
+      "code_agreement": 0.6235241889953613
+    },
+    {
+      "path": "decoder.transformer.layers.16.mlp.down_projection.weights",
+      "scale_mean_reference": 15126.170436314174,
+      "scale_mean_candidate": 15126.573564801898,
+      "scale_ratio": 0.9999733496494764,
+      "code_agreement": 0.6970342908586774
+    },
+    {
+      "path": "decoder.transformer.layers.16.mlp.up_projection.weights",
+      "scale_mean_reference": 15186.17291695731,
+      "scale_mean_candidate": 15186.737854003906,
+      "scale_ratio": 0.9999628006322341,
+      "code_agreement": 0.6090996606009347
+    },
+    {
+      "path": "decoder.transformer.layers.17.mixer.in_proj.weights",
+      "scale_mean_reference": 15289.211883663667,
+      "scale_mean_candidate": 15289.610655550827,
+      "scale_ratio": 0.9999739187677081,
+      "code_agreement": 0.5938736140032222
+    },
+    {
+      "path": "decoder.transformer.layers.17.mixer.out_proj.weights",
+      "scale_mean_reference": 15164.834732055664,
+      "scale_mean_candidate": 15165.812698364258,
+      "scale_ratio": 0.9999355150740653,
+      "code_agreement": 0.6220502853393555
+    },
+    {
+      "path": "decoder.transformer.layers.17.mlp.down_projection.weights",
+      "scale_mean_reference": 15126.521187918526,
+      "scale_mean_candidate": 15126.865042550224,
+      "scale_ratio": 0.9999772686124501,
+      "code_agreement": 0.7034154619489398
+    },
+    {
+      "path": "decoder.transformer.layers.17.mlp.up_projection.weights",
+      "scale_mean_reference": 15194.20463344029,
+      "scale_mean_candidate": 15194.761941092354,
+      "scale_ratio": 0.9999633223834486,
+      "code_agreement": 0.6141948699951172
+    },
+    {
+      "path": "decoder.transformer.layers.18.mixer.in_proj.weights",
+      "scale_mean_reference": 15291.53770595209,
+      "scale_mean_candidate": 15291.997533894699,
+      "scale_ratio": 0.9999699301584644,
+      "code_agreement": 0.5991199062955983
+    },
+    {
+      "path": "decoder.transformer.layers.18.mixer.out_proj.weights",
+      "scale_mean_reference": 15154.47119140625,
+      "scale_mean_candidate": 15155.802124023438,
+      "scale_ratio": 0.9999121832941407,
+      "code_agreement": 0.6172375679016113
+    },
+    {
+      "path": "decoder.transformer.layers.18.mlp.down_projection.weights",
+      "scale_mean_reference": 15127.26331438337,
+      "scale_mean_candidate": 15127.60160609654,
+      "scale_ratio": 0.999977637452256,
+      "code_agreement": 0.708970206124442
+    },
+    {
+      "path": "decoder.transformer.layers.18.mlp.up_projection.weights",
+      "scale_mean_reference": 15200.565909249442,
+      "scale_mean_candidate": 15201.139421735492,
+      "scale_ratio": 0.9999622717435754,
+      "code_agreement": 0.6159665243966239
+    },
+    {
+      "path": "decoder.transformer.layers.19.mixer.out_projection.weights",
+      "scale_mean_reference": 15248.146728515625,
+      "scale_mean_candidate": 15249.344635009766,
+      "scale_ratio": 0.999921445378617,
+      "code_agreement": 0.561251163482666
+    },
+    {
+      "path": "decoder.transformer.layers.19.mixer.qkvg_projection.weights",
+      "scale_mean_reference": 15222.939007568359,
+      "scale_mean_candidate": 15223.53848876953,
+      "scale_ratio": 0.9999606214283483,
+      "code_agreement": 0.3961803436279297
+    },
+    {
+      "path": "decoder.transformer.layers.19.mlp.down_projection.weights",
+      "scale_mean_reference": 15136.136082240513,
+      "scale_mean_candidate": 15136.411368233817,
+      "scale_ratio": 0.9999818129947312,
+      "code_agreement": 0.7012337275913784
+    },
+    {
+      "path": "decoder.transformer.layers.19.mlp.up_projection.weights",
+      "scale_mean_reference": 15199.6589617048,
+      "scale_mean_candidate": 15200.180472237724,
+      "scale_ratio": 0.9999656905038807,
+      "code_agreement": 0.6255194800240653
+    },
+    {
+      "path": "decoder.transformer.layers.2.mixer.in_proj.weights",
+      "scale_mean_reference": 15259.252682696984,
+      "scale_mean_candidate": 15259.54166540005,
+      "scale_ratio": 0.9999810621636349,
+      "code_agreement": 0.6067414636277967
+    },
+    {
+      "path": "decoder.transformer.layers.2.mixer.out_proj.weights",
+      "scale_mean_reference": 15195.703430175781,
+      "scale_mean_candidate": 15196.86782836914,
+      "scale_ratio": 0.99992337906689,
+      "code_agreement": 0.6314797401428223
+    },
+    {
+      "path": "decoder.transformer.layers.2.mlp.down_projection.weights",
+      "scale_mean_reference": 15121.503845214844,
+      "scale_mean_candidate": 15121.70542689732,
+      "scale_ratio": 0.9999866693817406,
+      "code_agreement": 0.6957604544503349
+    },
+    {
+      "path": "decoder.transformer.layers.2.mlp.up_projection.weights",
+      "scale_mean_reference": 15183.796434674945,
+      "scale_mean_candidate": 15184.393785749164,
+      "scale_ratio": 0.9999606601960771,
+      "code_agreement": 0.62213134765625
+    },
+    {
+      "path": "decoder.transformer.layers.20.mixer.in_proj.weights",
+      "scale_mean_reference": 15293.764884028453,
+      "scale_mean_candidate": 15294.1134218446,
+      "scale_ratio": 0.9999772109826484,
+      "code_agreement": 0.6052217594844358
+    },
+    {
+      "path": "decoder.transformer.layers.20.mixer.out_proj.weights",
+      "scale_mean_reference": 15162.101425170898,
+      "scale_mean_candidate": 15163.049270629883,
+      "scale_ratio": 0.999937489785724,
+      "code_agreement": 0.632321834564209
+    },
+    {
+      "path": "decoder.transformer.layers.20.mlp.down_projection.weights",
+      "scale_mean_reference": 15138.932556152344,
+      "scale_mean_candidate": 15139.16055733817,
+      "scale_ratio": 0.9999849396414707,
+      "code_agreement": 0.7072639465332031
+    },
+    {
+      "path": "decoder.transformer.layers.20.mlp.up_projection.weights",
+      "scale_mean_reference": 15201.207550048828,
+      "scale_mean_candidate": 15201.688485281808,
+      "scale_ratio": 0.999968363038524,
+      "code_agreement": 0.6306047439575195
+    },
+    {
+      "path": "decoder.transformer.layers.21.mixer.in_proj.weights",
+      "scale_mean_reference": 15291.847192667801,
+      "scale_mean_candidate": 15292.155839615758,
+      "scale_ratio": 0.9999798166490589,
+      "code_agreement": 0.6062845311740029
+    },
+    {
+      "path": "decoder.transformer.layers.21.mixer.out_proj.weights",
+      "scale_mean_reference": 15179.609985351562,
+      "scale_mean_candidate": 15181.584991455078,
+      "scale_ratio": 0.9998699077794165,
+      "code_agreement": 0.6080541610717773
+    },
+    {
+      "path": "decoder.transformer.layers.21.mlp.down_projection.weights",
+      "scale_mean_reference": 15140.855730329242,
+      "scale_mean_candidate": 15141.15815952846,
+      "scale_ratio": 0.999980026019408,
+      "code_agreement": 0.700202396937779
+    },
+    {
+      "path": "decoder.transformer.layers.21.mlp.up_projection.weights",
+      "scale_mean_reference": 15204.7746320452,
+      "scale_mean_candidate": 15205.215584891183,
+      "scale_ratio": 0.9999709998951662,
+      "code_agreement": 0.6245960508074079
+    },
+    {
+      "path": "decoder.transformer.layers.22.mixer.in_proj.weights",
+      "scale_mean_reference": 15272.18976851289,
+      "scale_mean_candidate": 15272.627032921935,
+      "scale_ratio": 0.9999713694043532,
+      "code_agreement": 0.6028880553486746
+    },
+    {
+      "path": "decoder.transformer.layers.22.mixer.out_proj.weights",
+      "scale_mean_reference": 15191.4501953125,
+      "scale_mean_candidate": 15193.342758178711,
+      "scale_ratio": 0.9998754347284641,
+      "code_agreement": 0.6000537872314453
+    },
+    {
+      "path": "decoder.transformer.layers.22.mlp.down_projection.weights",
+      "scale_mean_reference": 15138.929050990513,
+      "scale_mean_candidate": 15139.108555385044,
+      "scale_ratio": 0.9999881430010311,
+      "code_agreement": 0.697014399937221
+    },
+    {
+      "path": "decoder.transformer.layers.22.mlp.up_projection.weights",
+      "scale_mean_reference": 15208.500069754464,
+      "scale_mean_candidate": 15208.922964913505,
+      "scale_ratio": 0.9999721942730582,
+      "code_agreement": 0.6109766278948102
+    },
+    {
+      "path": "decoder.transformer.layers.23.mixer.out_projection.weights",
+      "scale_mean_reference": 15208.90054321289,
+      "scale_mean_candidate": 15209.941970825195,
+      "scale_ratio": 0.9999315298102844,
+      "code_agreement": 0.630152702331543
+    },
+    {
+      "path": "decoder.transformer.layers.23.mixer.qkvg_projection.weights",
+      "scale_mean_reference": 15225.148864746094,
+      "scale_mean_candidate": 15225.494622802735,
+      "scale_ratio": 0.9999772908489867,
+      "code_agreement": 0.3873432159423828
+    },
+    {
+      "path": "decoder.transformer.layers.23.mlp.down_projection.weights",
+      "scale_mean_reference": 15125.92760358538,
+      "scale_mean_candidate": 15126.037711007255,
+      "scale_ratio": 0.9999927206698821,
+      "code_agreement": 0.6823970249720982
+    },
+    {
+      "path": "decoder.transformer.layers.23.mlp.up_projection.weights",
+      "scale_mean_reference": 15224.07261439732,
+      "scale_mean_candidate": 15224.38539341518,
+      "scale_ratio": 0.9999794553927941,
+      "code_agreement": 0.6130045482090541
+    },
+    {
+      "path": "decoder.transformer.layers.3.mixer.out_projection.weights",
+      "scale_mean_reference": 15190.943176269531,
+      "scale_mean_candidate": 15191.583358764648,
+      "scale_ratio": 0.9999578593962197,
+      "code_agreement": 0.6254348754882812
+    },
+    {
+      "path": "decoder.transformer.layers.3.mixer.qkvg_projection.weights",
+      "scale_mean_reference": 15248.420587158203,
+      "scale_mean_candidate": 15248.728021240235,
+      "scale_ratio": 0.9999798387064414,
+      "code_agreement": 0.39860286712646487
+    },
+    {
+      "path": "decoder.transformer.layers.3.mlp.down_projection.weights",
+      "scale_mean_reference": 15118.308628627232,
+      "scale_mean_candidate": 15118.508326939174,
+      "scale_ratio": 0.9999867911365576,
+      "code_agreement": 0.6987416403634208
+    },
+    {
+      "path": "decoder.transformer.layers.3.mlp.up_projection.weights",
+      "scale_mean_reference": 15181.450295584542,
+      "scale_mean_candidate": 15182.054866245815,
+      "scale_ratio": 0.9999601786012104,
+      "code_agreement": 0.6177637917654855
+    },
+    {
+      "path": "decoder.transformer.layers.4.mixer.in_proj.weights",
+      "scale_mean_reference": 15265.353147039154,
+      "scale_mean_candidate": 15265.709850741732,
+      "scale_ratio": 0.9999766336642012,
+      "code_agreement": 0.6026888005000608
+    },
+    {
+      "path": "decoder.transformer.layers.4.mixer.out_proj.weights",
+      "scale_mean_reference": 15183.816650390625,
+      "scale_mean_candidate": 15185.221206665039,
+      "scale_ratio": 0.9999075050501208,
+      "code_agreement": 0.5964431762695312
+    },
+    {
+      "path": "decoder.transformer.layers.4.mlp.down_projection.weights",
+      "scale_mean_reference": 15119.43874686105,
+      "scale_mean_candidate": 15119.606009347099,
+      "scale_ratio": 0.9999889373780014,
+      "code_agreement": 0.699387959071568
+    },
+    {
+      "path": "decoder.transformer.layers.4.mlp.up_projection.weights",
+      "scale_mean_reference": 15179.227382114956,
+      "scale_mean_candidate": 15179.869589669364,
+      "scale_ratio": 0.999957693473543,
+      "code_agreement": 0.6171858651297433
+    },
+    {
+      "path": "decoder.transformer.layers.5.mixer.in_proj.weights",
+      "scale_mean_reference": 15255.124304626703,
+      "scale_mean_candidate": 15255.442994589008,
+      "scale_ratio": 0.999979109753652,
+      "code_agreement": 0.6022540734435797
+    },
+    {
+      "path": "decoder.transformer.layers.5.mixer.out_proj.weights",
+      "scale_mean_reference": 15186.153686523438,
+      "scale_mean_candidate": 15187.76643371582,
+      "scale_ratio": 0.9998938127472909,
+      "code_agreement": 0.5995192527770996
+    },
+    {
+      "path": "decoder.transformer.layers.5.mlp.down_projection.weights",
+      "scale_mean_reference": 15121.581647600446,
+      "scale_mean_candidate": 15121.784598214286,
+      "scale_ratio": 0.9999865789244303,
+      "code_agreement": 0.7016386304582868
+    },
+    {
+      "path": "decoder.transformer.layers.5.mlp.up_projection.weights",
+      "scale_mean_reference": 15175.026014055524,
+      "scale_mean_candidate": 15175.652509416852,
+      "scale_ratio": 0.9999587170725648,
+      "code_agreement": 0.616995130266462
+    },
+    {
+      "path": "decoder.transformer.layers.6.mixer.in_proj.weights",
+      "scale_mean_reference": 15247.64785992218,
+      "scale_mean_candidate": 15248.048041555205,
+      "scale_ratio": 0.9999737552221809,
+      "code_agreement": 0.6042062484800583
+    },
+    {
+      "path": "decoder.transformer.layers.6.mixer.out_proj.weights",
+      "scale_mean_reference": 15190.665802001953,
+      "scale_mean_candidate": 15192.709381103516,
+      "scale_ratio": 0.9998654894890503,
+      "code_agreement": 0.5707097053527832
+    },
+    {
+      "path": "decoder.transformer.layers.6.mlp.down_projection.weights",
+      "scale_mean_reference": 15119.329868861607,
+      "scale_mean_candidate": 15119.596095493862,
+      "scale_ratio": 0.9999823919481332,
+      "code_agreement": 0.6988882337297712
+    },
+    {
+      "path": "decoder.transformer.layers.6.mlp.up_projection.weights",
+      "scale_mean_reference": 15170.380257742745,
+      "scale_mean_candidate": 15170.96743774414,
+      "scale_ratio": 0.9999612958103163,
+      "code_agreement": 0.6136059079851423
+    },
+    {
+      "path": "decoder.transformer.layers.7.mixer.out_projection.weights",
+      "scale_mean_reference": 15172.01742553711,
+      "scale_mean_candidate": 15172.064483642578,
+      "scale_ratio": 0.9999968983716409,
+      "code_agreement": 0.6799015998840332
+    },
+    {
+      "path": "decoder.transformer.layers.7.mixer.qkvg_projection.weights",
+      "scale_mean_reference": 15210.161999511718,
+      "scale_mean_candidate": 15210.553649902344,
+      "scale_ratio": 0.9999742514046733,
+      "code_agreement": 0.39347476959228517
+    },
+    {
+      "path": "decoder.transformer.layers.7.mlp.down_projection.weights",
+      "scale_mean_reference": 15120.134957449776,
+      "scale_mean_candidate": 15120.267028808594,
+      "scale_ratio": 0.9999912652760321,
+      "code_agreement": 0.7025318145751953
+    },
+    {
+      "path": "decoder.transformer.layers.7.mlp.up_projection.weights",
+      "scale_mean_reference": 15161.309757777623,
+      "scale_mean_candidate": 15161.92622593471,
+      "scale_ratio": 0.9999593410396607,
+      "code_agreement": 0.6155854633876255
+    },
+    {
+      "path": "decoder.transformer.layers.8.mixer.in_proj.weights",
+      "scale_mean_reference": 15243.088171814203,
+      "scale_mean_candidate": 15243.467716439689,
+      "scale_ratio": 0.999975101162508,
+      "code_agreement": 0.5968829796935797
+    },
+    {
+      "path": "decoder.transformer.layers.8.mixer.out_proj.weights",
+      "scale_mean_reference": 15178.038619995117,
+      "scale_mean_candidate": 15180.802444458008,
+      "scale_ratio": 0.9998179395013536,
+      "code_agreement": 0.5754265785217285
+    },
+    {
+      "path": "decoder.transformer.layers.8.mlp.down_projection.weights",
+      "scale_mean_reference": 15116.254228864398,
+      "scale_mean_candidate": 15116.394705636161,
+      "scale_ratio": 0.9999907069923418,
+      "code_agreement": 0.7063988276890346
+    },
+    {
+      "path": "decoder.transformer.layers.8.mlp.up_projection.weights",
+      "scale_mean_reference": 15153.123413085938,
+      "scale_mean_candidate": 15153.711299351284,
+      "scale_ratio": 0.999961205129639,
+      "code_agreement": 0.6156787872314453
+    },
+    {
+      "path": "decoder.transformer.layers.9.mixer.in_proj.weights",
+      "scale_mean_reference": 15236.529532465953,
+      "scale_mean_candidate": 15236.874939202335,
+      "scale_ratio": 0.9999773308675328,
+      "code_agreement": 0.5984113522540735
+    },
+    {
+      "path": "decoder.transformer.layers.9.mixer.out_proj.weights",
+      "scale_mean_reference": 15172.81103515625,
+      "scale_mean_candidate": 15173.746871948242,
+      "scale_ratio": 0.9999383252666668,
+      "code_agreement": 0.5915699005126953
+    },
+    {
+      "path": "decoder.transformer.layers.9.mlp.down_projection.weights",
+      "scale_mean_reference": 15117.301923479352,
+      "scale_mean_candidate": 15117.41587611607,
+      "scale_ratio": 0.9999924621616781,
+      "code_agreement": 0.6991165706089565
+    },
+    {
+      "path": "decoder.transformer.layers.9.mlp.up_projection.weights",
+      "scale_mean_reference": 15145.82854788644,
+      "scale_mean_candidate": 15146.43745640346,
+      "scale_ratio": 0.9999597985652552,
+      "code_agreement": 0.6119304384504046
+    }
+  ]
+}
