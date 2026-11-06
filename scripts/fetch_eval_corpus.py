@@ -25,6 +25,7 @@ def main() -> None:
     parser.add_argument("--text-column", default="text")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--max-characters", type=int, default=2_000_000)
+    parser.add_argument("--skip-documents", type=int, default=0)
     args = parser.parse_args()
 
     from datasets import load_dataset
@@ -32,7 +33,11 @@ def main() -> None:
     dataset = load_dataset(args.dataset, args.config, split=args.split, streaming=True)
     parts: list[str] = []
     total = 0
+    skipped = 0
     for row in dataset:
+        if skipped < args.skip_documents:
+            skipped += 1
+            continue
         text = row.get(args.text_column)
         if not isinstance(text, str) or not text.strip():
             continue

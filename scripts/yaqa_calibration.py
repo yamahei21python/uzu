@@ -238,7 +238,7 @@ def main() -> None:
         records.append(record)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(args.output, **arrays)
+    np.savez(args.output, **arrays)
     print(f"saved {args.output} ({len(arrays)} arrays)")
 
     summary = {
