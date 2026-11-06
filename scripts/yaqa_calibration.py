@@ -52,10 +52,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lalamo-path", default=os.environ.get("LALAMO_PATH", "/tmp/lalamo-direct"))
     parser.add_argument("--samples", type=int, default=32)
     parser.add_argument("--max-tokens", type=int, default=128)
+    parser.add_argument("--min-tokens", type=int, default=32, help="drop shorter trailing chunks")
     parser.add_argument("--layer-filter", default="", help="only paths containing this substring")
     parser.add_argument("--output-block", choices=("none", "small", "all"), default="none")
     parser.add_argument("--output-block-limit", type=int, default=2048)
-    parser.add_argument("--damping", type=float, default=1e-3, help="ratio of mean diagonal")
+    parser.add_argument("--damping", type=float, default=1e-2, help="initial sigma_reg after mean-diagonal normalization")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--json-out", type=Path, default=None)
     return parser.parse_args()
@@ -126,9 +127,10 @@ def main() -> None:
 
     def cross_entropy(logits, targets):
         log_probs = jax.nn.log_softmax(logits.astype(jnp.float32), axis=-1)
-        # Sketch B defines G_b = sum_t g_{b,t} x_{b,t}^T; use a sum, not a mean,
-        # so the Hessian scale does not depend on the sequence length.
-        return -jnp.sum(jnp.take_along_axis(log_probs, targets[:, None], axis=-1))
+        # Official get_hess_llama.py uses F.cross_entropy(..., reduction="mean")
+        # over all tokens of the batch. Per-sample mean keeps the same scale
+        # independently of sequence length.
+        return -jnp.mean(jnp.take_along_axis(log_probs, targets[:, None], axis=-1))
 
     base_arrays = tuple(site.linear.weights.weights for site in sites)
 
@@ -153,6 +155,24 @@ def main() -> None:
     if not texts:
         raise SystemExit("empty calibration corpus")
 
+    def build_chunks() -> list[list[int]]:
+        # Concatenate documents and cut into full-context windows, matching the
+        # official calibration flow (continuous sequences instead of single lines).
+        joined = "\n\n".join(texts)
+        ids = tokenizer.encode(joined, add_special_tokens=True).ids
+        chunks = [ids[start : start + args.max_tokens] for start in range(0, len(ids), args.max_tokens)]
+        chunks = [chunk for chunk in chunks if len(chunk) >= args.min_tokens]
+        if not chunks:
+            raise SystemExit("no usable calibration chunks")
+        rng = np.random.default_rng(args.seed)
+        rng.shuffle(chunks)
+        return chunks
+
+    chunks = build_chunks()
+    if len(chunks) < args.samples:
+        print(f"warning: only {len(chunks)} calibration chunks available, using all")
+        args.samples = len(chunks)
+
     accumulators = []
     for site in sites:
         components = site.components or ()
@@ -172,15 +192,9 @@ def main() -> None:
     rng = np.random.default_rng(args.seed)
     sample_index = 0
     processed = 0
-    attempts = 0
-    max_attempts = max(args.samples * 4, len(texts) * 2)
-    while processed < args.samples and attempts < max_attempts:
-        text = texts[sample_index % len(texts)]
+    while processed < args.samples:
+        ids = chunks[sample_index]
         sample_index += 1
-        attempts += 1
-        ids = tokenizer.encode(text, add_special_tokens=True).ids[: args.max_tokens]
-        if len(ids) < 8:
-            continue
         current_ids = ids
         logits = logits_for(model, ids)
         current_targets = jax.random.categorical(
@@ -205,17 +219,33 @@ def main() -> None:
         if processed % 4 == 0:
             print(f"  sample {processed}/{args.samples}")
 
-    if processed < args.samples:
-        raise SystemExit(f"only {processed} usable calibration samples (requested {args.samples})")
-
     records = []
     arrays: dict[str, np.ndarray] = {}
+
+    def regularize(matrix: np.ndarray, name: str):
+        # Official pipeline: H /= mean(diag), then add sigma_reg (1e-2) until
+        # Cholesky succeeds. Fall back to eigenvalue clipping if needed.
+        scale = float(np.mean(np.diagonal(matrix, axis1=-2, axis2=-1)))
+        normalized = matrix / max(scale, 1e-30)
+        sigma = args.damping
+        for _ in range(8):
+            candidate = normalized + np.eye(normalized.shape[-1]) * sigma
+            try:
+                np.linalg.cholesky(candidate)
+                return candidate.astype(np.float32), sigma
+            except np.linalg.LinAlgError:
+                sigma *= 10.0
+        eigenvalues, eigenvectors = np.linalg.eigh(normalized)
+        eigenvalues = np.clip(eigenvalues, 1e-6, None)
+        rebuilt = (eigenvectors * eigenvalues[..., None, :]) @ np.swapaxes(eigenvectors, -1, -2)
+        print(f"warning: {name} needed eigenvalue clipping")
+        return rebuilt.astype(np.float32), None
+
     for site, accumulator in zip(sites, accumulators):
         count = max(accumulator["samples"], 1)
         H_I = accumulator["input"] / count
         H_O = None if accumulator["output"] is None else accumulator["output"] / count
-        diag_scale = float(np.mean(np.diagonal(H_I, axis1=-2, axis2=-1)))
-        H_I = H_I + np.eye(site.in_dim) * diag_scale * args.damping
+        H_I, damping_input = regularize(H_I, f"{site.key}/input_block")
         record = {
             "path": site.key,
             "in_dim": site.in_dim,
@@ -226,6 +256,7 @@ def main() -> None:
             "input_min_eig": None,
             "input_max_eig": None,
             "input_condition": None,
+            "input_damping": damping_input,
             "output_block": H_O is not None,
         }
         try:
@@ -235,11 +266,11 @@ def main() -> None:
             record["input_condition"] = float(eigenvalues.max() / max(eigenvalues.min(), 1e-30))
         except np.linalg.LinAlgError:
             record["input_condition"] = float("inf")
-        arrays[f"{site.key}/input_block"] = H_I.astype(np.float32)
+        arrays[f"{site.key}/input_block"] = H_I
         if H_O is not None:
-            output_scale = float(np.mean(np.diagonal(H_O, axis1=-2, axis2=-1)))
-            H_O = H_O + np.eye(site.out_dim) * output_scale * args.damping
-            arrays[f"{site.key}/output_block"] = H_O.astype(np.float32)
+            H_O, damping_output = regularize(H_O, f"{site.key}/output_block")
+            arrays[f"{site.key}/output_block"] = H_O
+            record["output_damping"] = damping_output
             try:
                 eigenvalues = np.linalg.eigvalsh(H_O)
                 record["output_min_eig"] = float(eigenvalues.min())

@@ -53,9 +53,9 @@ JAX_PLATFORM_NAME=cpu python scripts/yaqa_calibration.py \
   --corpus $DATA/calibration_en_wikitext2.txt \
   --output $EXP/yaqa-hin-int4-g32/calibration.npz \
   --json-out $EXP/yaqa-hin-int4-g32/calibration.json \
-  --samples 32 --max-tokens 128 \
-  --output-block none \
-  --damping 1e-3
+  --samples 32 --max-tokens 512 \
+  --output-block small --output-block-limit 2048 \
+  --damping 1e-2
 
 JAX_PLATFORM_NAME=cpu python scripts/rht_int4_convert.py \
   --spec-name Qwen3.5-0.8B \
@@ -153,3 +153,14 @@ JAX_PLATFORM_NAME=cpu python scripts/rht_int4_convert.py \
 - E1b: Linear + embedding INT4（公式構成）
 
 詳細は `MIRAI_QUANTIZATION_NOTES.md`。
+
+
+## 11. YAQA の必須条件（調査結果）
+
+- H_O を保存しない `--output-block none` は YAQA ではなく LDLQ 相当。
+- 損失は per-sample token mean（公式 `F.cross_entropy` の既定）。
+- damping は `H /= mean(diag)` 後、`1e-2` から Cholesky 成功まで増加。
+- calibration は連続 512 token 以上のチャンクを使う（単一行ではない）。
+- 96 層の H_O 全部は 16GB では厳しい。まず `small`（out_dim <= 2048）で検証する。
+
+旧校正（token sum, 64 token, 1e-3, H_in のみ）は `yaqa-hin-old` として扱い、YAQA 本命と混同しない。
