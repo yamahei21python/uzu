@@ -70,6 +70,12 @@ _UZU_TOKEN_CODEC_UNSUPPORTED = ("response_format", "reasoning_effort")
 def normalize_config_for_uzu(output_dir: Path) -> None:
     path = output_dir / "config.json"
     config = json.loads(path.read_text())
+
+    # Keep the untouched lalamo form for lalamo-side evaluation (PPL / logits).
+    lalamo_path = output_dir / "config.lalamo.json"
+    if not lalamo_path.exists():
+        lalamo_path.write_text(json.dumps(config, indent=2) + "\n")
+
     token_codec = config.get("token_codec_config")
     if token_codec is None:
         return
