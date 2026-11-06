@@ -16,13 +16,22 @@ EXP=experiments/qwen35-0.8b
 ```bash
 JAX_PLATFORM_NAME=cpu python scripts/rht_int4_convert.py \
   --spec-name Qwen3.5-0.8B \
+  --load-from /tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg \
   --lalamo-path /tmp/lalamo-direct \
-  --output-dir /tmp/qwen35_0.8b_rht_int4_lalamo \
-  --bf16-dir /tmp/qwen35_0.8b_bf16_lalamo
+  --output-dir /tmp/qwen35_0.8b_rht_int4_lalamo
 ```
 
+`--load-from` は保存済み lalamo モデルから開始する（HF 再インポート不要）。
+初回だけ `--bf16-dir` で BF16 を保存する。
+
 `--bf16-dir` は lalamo 形式のまま保存される。uzu 用と lalamo 評価用で config が異なるため、
-`scripts/normalize_lalamo_config.py` の適用済み/未適用を分けて管理する。
+変換後に評価用コピーを作る。
+
+```bash
+python scripts/make_lalamo_eval_copy.py \
+  --source /tmp/qwen35_0.8b_rht_int4_lalamo \
+  --dest /tmp/qwen35_0.8b_rht_int4_lalamo_eval
+```
 
 ## 2. E0: RHT なし INT4
 
