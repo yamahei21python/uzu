@@ -52,3 +52,13 @@ print(p, len(text.encode()), len(text.splitlines()))
 print("code fences:", text.count("```"))
 EOF
 ```
+
+## 5. Modal image の注意
+
+- `Image.add_local_file` / `add_local_dir` は **ビルドチェーンの最後**に置く
+- その後に `.env()` や `.pip_install()` を置くとエラー:
+  `An image tried to run a build step after using image.add_local_*`
+- 必要な env / pip は add_local_* より前に設定する
+- `copy=True` を付けると後続ビルドステップも許可されるが、ビルド時間が増える
+- Modal client は新しい Python で実行する（例: Python 3.12 の venv + `modal>=1.6`）。
+  Python 3.9 の system modal 1.2.6 は image builder 2026.10 を扱えない

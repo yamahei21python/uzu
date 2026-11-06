@@ -40,6 +40,7 @@ image = (
         "cd /opt/lalamo && git checkout e401e17761f2fcd337b0cf20218d67d656e6ecba",
         "pip install -e '/opt/lalamo[cuda]'",
     )
+    .env({"HF_HUB_ENABLE_XET": "0", "PYTHONUNBUFFERED": "1", "JAX_PLATFORM_NAME": "cpu"})
     .add_local_file("scripts/rht_int4_convert.py", "/workspace/scripts/rht_int4_convert.py")
     .add_local_file("scripts/rewrite_lalamo_hybrid_spec.py", "/workspace/scripts/rewrite_lalamo_hybrid_spec.py")
     .add_local_file("scripts/normalize_lalamo_config.py", "/workspace/scripts/normalize_lalamo_config.py")
@@ -54,7 +55,6 @@ image = (
         "experiments/qwen35-0.8b/data/eval_en_wikitext2.txt",
         "/workspace/data/eval_en.txt",
     )
-    .env({"HF_HUB_ENABLE_XET": "0", "PYTHONUNBUFFERED": "1", "JAX_PLATFORM_NAME": "cpu"})
 )
 
 app = modal.App(APP_NAME)
@@ -96,6 +96,8 @@ def import_9b(run_name: str) -> str:
             "/opt/lalamo",
             "--bf16-dir",
             f"/out/{run_name}/bf16",
+            "--output-dir",
+            f"/out/{run_name}/bf16-import",
             "--dry-run",
         ]
     )
