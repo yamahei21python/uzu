@@ -126,7 +126,9 @@ def main() -> None:
 
     def cross_entropy(logits, targets):
         log_probs = jax.nn.log_softmax(logits.astype(jnp.float32), axis=-1)
-        return -jnp.mean(jnp.take_along_axis(log_probs, targets[:, None], axis=-1))
+        # Sketch B defines G_b = sum_t g_{b,t} x_{b,t}^T; use a sum, not a mean,
+        # so the Hessian scale does not depend on the sequence length.
+        return -jnp.sum(jnp.take_along_axis(log_probs, targets[:, None], axis=-1))
 
     base_arrays = tuple(site.linear.weights.weights for site in sites)
 
