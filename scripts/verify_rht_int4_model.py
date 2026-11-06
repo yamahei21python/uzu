@@ -168,18 +168,18 @@ def main() -> None:
             input_signs = None
             output_signs = None
 
-        rows = scales.shape[-1]
+        output_rows = scales.shape[-1]
         columns = packed.shape[-1] * 2
         codes = unpack_int4(packed, columns)
 
-        zero_points = unpack_int4(packed_zero_points, rows)
-        # (groups, rows) -> (1, groups, rows) broadcast against (rows, groups)
+        zero_points = unpack_int4(packed_zero_points, output_rows)
+        # (groups, output_rows) -> (output_rows, groups)
         groups = codes.shape[-1] // group_size
-        grouped = codes.reshape(rows, groups, group_size)
-        grouped_zero_points = zero_points.T.reshape(rows, groups, 1)
-        grouped_scales = scales.T.reshape(rows, groups, 1)
+        grouped = codes.reshape(output_rows, groups, group_size)
+        grouped_zero_points = zero_points.T.reshape(output_rows, groups, 1)
+        grouped_scales = scales.T.reshape(output_rows, groups, 1)
         dequantized = (grouped - grouped_zero_points) * grouped_scales
-        dequantized = dequantized.reshape(rows, columns)
+        dequantized = dequantized.reshape(output_rows, columns)
 
         # output axis RHT restore, then input axis RHT restore
         if has_rht:
