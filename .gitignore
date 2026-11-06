@@ -37,3 +37,8 @@ result
 .swiftpm/
 Package.resolved
 .dinghy.toml
+
+# Quantization experiments
+experiments/**/data/
+experiments/**/*.npz
+experiments/**/records.jsonl
