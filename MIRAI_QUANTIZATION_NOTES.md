@@ -166,3 +166,14 @@ embedding 量子化は A に含める（公式構成に合わせる）。
 成果物:
 - `research/checkpoint_compare_rtn.json`
 - `research/checkpoint_compare_yaqa.json`
+
+## 10. QAD の寄与（E3b との比較）
+
+| モデル | embedding | KL (BF16比) | サイズ |
+|---|---|---|---|
+| E3 | BF16 | 0.157 | 800MB |
+| E3b | INT4 | 0.193 | 439MB |
+| 公式 0.8B-M | INT4 | 0.108 | 419MB |
+
+公式と同じ「embedding INT4」構成にしても、我々は KL 0.193。
+公式との差 0.085 は PTQ の H_O 全層 + QAD に帰属する可能性が高い。

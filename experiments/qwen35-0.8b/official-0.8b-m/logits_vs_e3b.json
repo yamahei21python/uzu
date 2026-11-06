@@ -1,0 +1,82 @@
+[
+  {
+    "prompt": "The capital of Japan is",
+    "positions": 5,
+    "top1_matches": 5,
+    "top5_overlap": 0.8400000000000001,
+    "kl_bf16_int4": 0.11459452211856842,
+    "cosine_logits": 0.9831543445587159
+  },
+  {
+    "prompt": "1+1は？",
+    "positions": 5,
+    "top1_matches": 3,
+    "top5_overlap": 0.8,
+    "kl_bf16_int4": 0.1833478182554245,
+    "cosine_logits": 0.9542383432388306
+  },
+  {
+    "prompt": "富士山の高さは",
+    "positions": 4,
+    "top1_matches": 3,
+    "top5_overlap": 0.7,
+    "kl_bf16_int4": 0.5201390311121941,
+    "cosine_logits": 0.9345565438270569
+  },
+  {
+    "prompt": "def fibonacci(n):",
+    "positions": 4,
+    "top1_matches": 2,
+    "top5_overlap": 0.65,
+    "kl_bf16_int4": 0.2730861622840166,
+    "cosine_logits": 0.942749485373497
+  },
+  {
+    "prompt": "日本の首都は",
+    "positions": 3,
+    "top1_matches": 3,
+    "top5_overlap": 0.6,
+    "kl_bf16_int4": 0.35689809421698254,
+    "cosine_logits": 0.9612828294436137
+  },
+  {
+    "prompt": "Translate to French: Hello",
+    "positions": 5,
+    "top1_matches": 4,
+    "top5_overlap": 0.72,
+    "kl_bf16_int4": 0.13805317282676696,
+    "cosine_logits": 0.9663358688354492
+  },
+  {
+    "prompt": "Pythonで配列を逆順にするには",
+    "positions": 9,
+    "top1_matches": 8,
+    "top5_overlap": 0.6444444444444444,
+    "kl_bf16_int4": 0.2647186749511295,
+    "cosine_logits": 0.956179658571879
+  },
+  {
+    "prompt": "ここでクイックソートは",
+    "positions": 7,
+    "top1_matches": 3,
+    "top5_overlap": 0.6,
+    "kl_bf16_int4": 0.6471169420651027,
+    "cosine_logits": 0.9340292726244245
+  },
+  {
+    "prompt": "Explain in one sentence why the sky is blue:",
+    "positions": 11,
+    "top1_matches": 11,
+    "top5_overlap": 0.7272727272727273,
+    "kl_bf16_int4": 0.100560435178605,
+    "cosine_logits": 0.9718694578517567
+  },
+  {
+    "prompt": "富士山の主な特徴は、",
+    "positions": 6,
+    "top1_matches": 4,
+    "top5_overlap": 0.6,
+    "kl_bf16_int4": 0.31640104452768963,
+    "cosine_logits": 0.9597684741020203
+  }
+]

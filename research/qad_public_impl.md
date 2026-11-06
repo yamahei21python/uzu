@@ -1,15 +1,15 @@
 # QAD (Quantization-Aware Distillation) 公開実装調査・0.8B 最小再現計画書
 
-PTQ (YAQA) 後の軽量 QAD 手法を分析し、JAX/lalamo（4-bit asym Group32 + RHT）環境で 0.8B モデルを再現するための実装比較・最小再現計画書である。
+PTQ (YAQA) 後の軽量 QAD を分析し、JAX/lalamo（4-bit asym Group32 + RHT）で 0.8B モデルを再現する実装比較・最小再現計画書。
 
-**数値区分**: 【引用】出典あり /【推定】計算根拠を併記 /【実測】本環境で測定。以下、明示なき数値は【推定】。実測値は未取得。
+**数値区分**: 【引用】出典あり /【推定】計算根拠を併記 /【実測】本環境で測定。以下、明示なき数値は【推定】。モデル実測値は未取得（実測はファイル検証のみ）。
 
 ---
 
 ## 1. 背景と前提仕様
 
 - **Mirai 手法**: PTQ 後、BF16 教師 rollout で軽量 QAD（4-bit zp / bf16 scale）。重みは **Muon + Deterministic STE**、Scale/ZP は **AdamW** で最適化。
-- **lalamo 現状**: `rounding.py`（方向性 STE）と YAQA 反復はあるが、学習ループ・Muon・AdamW・蒸留損失は未実装。
+- **lalamo 現状**: `rounding.py`（方向性 STE）と YAQA 反復はあるが、学習ループ・Muon・蒸留損失は未実装。
 
 | 項目 | 仕様・設定値 | 補足 |
 | :--- | :--- | :--- |
@@ -36,7 +36,7 @@ PTQ (YAQA) 後の軽量 QAD 手法を分析し、JAX/lalamo（4-bit asym Group32
 
 ## 3. Muon の JAX 実装と代替策
 
-- **存在・API**: Optax 公式の `optax.contrib.muon` [6] で利用可能（Experimental）。`ndim == 2`（行列重み）を Muon、`ndim != 2` を AdamW で自動更新。
+- **存在・API**: `optax.contrib.muon` [6] で利用可能（Experimental）。`ndim == 2`（行列重み）を Muon、`ndim != 2` を AdamW で自動更新。
 - **原理**: 勾配モメンタム $M$ を多項式反復で極分解 $\text{Polar}(M) = M(M^T M)^{-1/2}$ 近似。特異値を 1 に正規化しランク崩壊を防ぐ。
 
 | オプティマイザ | 適用パラメータ | メモリ | 収束性・特異値保持 | JAX 安定性 | 選択基準 |
@@ -50,11 +50,11 @@ PTQ (YAQA) 後の軽量 QAD 手法を分析し、JAX/lalamo（4-bit asym Group32
 
 ## 4. Deterministic STE と Stochastic Rounding
 
-- **Stochastic Rounding (SR)**: $q_{SR}(x) = \lfloor x \rfloor + \text{Bernoulli}(x - \lfloor x \rfloor)$。無偏だが順伝播ごとに高周波ノイズが混入し、QAD の微小な KL 蒸留信号（$\Delta \sim 0.04$）が埋没して収束が遅延する。
-- **Deterministic STE**: $\hat{w} = \text{round}(w), \frac{\partial \hat{w}}{\partial w} = 1$。有偏だが分散 0 で再現性が高く蒸留に適する。
+- **Stochastic Rounding (SR)**: $q_{SR}(x) = \lfloor x \rfloor + \text{Bernoulli}(x - \lfloor x \rfloor)$。無偏だが順伝播ごとにノイズが混入し、微小な KL 蒸留信号が埋没して収束が遅延。
+- **Deterministic STE**: $\hat{w} = \text{round}(w), \frac{\partial \hat{w}}{\partial w} = 1$。有偏だが分散 0 で再現性に優れ蒸留に適する。
 
 ### lalamo「範囲外へ戻す勾配のみ許可」の数式
-4-bit asymmetric 範囲 $[0, 15]$ において、上流勾配を $g = \frac{\partial \mathcal{L}}{\partial \hat{w}}$、更新量を $\Delta w = -\eta \tilde{g}$ とする。lalamo の方向性 STE マスク $M(w, g)$ は以下で定義される：
+4-bit 範囲 $[0, 15]$、上流勾配 $g = \frac{\partial \mathcal{L}}{\partial \hat{w}}$、更新量 $\Delta w = -\eta \tilde{g}$ とする。lalamo の方向性 STE マスク $M(w, g)$ は以下で定義される：
 $$\tilde{g} = g \cdot M(w, g)$$
 $$M(w, g) = \begin{cases}
 1 & \text{if } 0 \le w \le 15 \quad (\text{正常範囲内：通常透過}) \\
@@ -105,7 +105,7 @@ $$M(w, g) = \begin{cases}
 | XLA workspace | — | 0.5〜1.0 |
 | **合計** | | **12.9〜14.4** |
 
-**結論**: M3 16GB は OS 常駐を引くと実質 12〜13GB。T2 は OOM 危険で **24GB 以上 GPU 必須【推定】**。T0/T1 は M3 可。元稿の 5.92GB は fp32 master・勾配・Muon 状態を二重計上しておらず誤り。
+**結論**: M3 16GB は OS 常駐を引くと実質 12〜13GB。T2 は OOM 危険で **24GB 以上 GPU 必須【推定】**。T0/T1 は M3 可。元稿の 5.92GB は fp32 master・勾配・Muon 状態を計上しておらず過小評価。
 
 ### 5.4 時間【推定】
 | 環境 | 実効 tok/s | 2.46M tok | 判定 |
@@ -182,8 +182,9 @@ def make_tx(params, lr_w=2e-4, lr_s=1e-4):
     )
 
 # 3) 蒸留 step。KL = CE(t,s) - H(t) なので CE で最適化
+TX = make_tx(params)  # jit 引数にしない（callable はクロージャ固定）
 @jax.jit
-def qad_step(params, opt_state, teacher, tokens, tx):
+def qad_step(params, opt_state, teacher, tokens):
     def loss_fn(p):
         qw = jax.tree.map(qdq_ste, p["weight"], p["scale"], p["zp"])
         s_logits = student_forward(qw, p, tokens)
@@ -192,7 +193,7 @@ def qad_step(params, opt_state, teacher, tokens, tx):
         logp_s = jax.nn.log_softmax(s_logits, -1)
         return -jnp.mean(jnp.sum(jnp.exp(logp_t) * logp_s, -1))
     loss, grads = jax.value_and_grad(loss_fn)(params)
-    updates, opt_state = tx.update(grads, opt_state, params)
+    updates, opt_state = TX.update(grads, opt_state, params)
     p = optax.apply_updates(params, updates)
     p["scale"] = jnp.maximum(p["scale"], 1e-5)      # scale collapse 防止
     return p, opt_state, loss
@@ -210,10 +211,10 @@ def qad_step(params, opt_state, teacher, tokens, tx):
 | **Rollout のドメイン偏向** | 高 | 高 | SFT 単一ドメイン蒸留によるコード・推論性能の劣化 | Agentログ 45% + SFT 30% + 推論/対話 25% のデータ混合を実施 |
 | **XLA の動的形状リコンパイル** | 高 | 中 | バッチごとのシーケンス長差異によるコンパイル停止 | `max_length=512` に固定パディングし Padding Mask を徹底 |
 | **Muon Newton-Schulz 発散** | 低 | 高 | 初期イテレーションでの特異値過大による NaN 発生 | グローバルノルムクリップ (`optax.clip_by_global_norm(1.0)`) を併用 |
-| **Qwen3.5-0.8B の入手性** | 中 | 高 | ブログは Qwen3.5-0.8B と明記。HF 公開状況・重み形式は未確認 | HF で存在確認。無ければ 0.6B 代理で T0/T1 |
+| **Qwen3.5-0.8B の入手性** | 低 | 中 | HF に Qwen/Qwen3.5-0.8B が存在（Apache-2.0）。Mirai 対象が Instruct 版かは未確認 | base で T0/T1。差が出れば Instruct を確認 |
 | **optax muon API 互換** | 中 | 中 | 署名・既定分割 (ndim==2→Muon) が版で変わる | requirements に optax を pin、初期化 smoke test |
 | **スループット未実測** | 高 | 中 | 5.4 の tok/s は FLOP 概算のみ | 20 step の実測で係数を置換 |
-| **Mirai ブログ URL 到達性** | 中 | 中 | 引用 [8] の内容・KL 0.041 を一次確認していない | 原典を再取得し数値を照合 |
+| **Mirai QAD の再現詳細** | 中 | 中 | step 数・lr・rollout 長・データは非公開。KL 0.041 は 2B のみ | 0.8B で短期 sweep し自前基準を設定 |
 | **データライセンス** | 中 | 中 | OpenHermes-2.5 の再配布条件未確認 | dataset card を確認し社内規程と突合 |
 
 ---
