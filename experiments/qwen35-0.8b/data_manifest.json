@@ -1,0 +1,42 @@
+[
+  {
+    "file": "data/calibration_en_wikitext2.txt",
+    "dataset": "Salesforce/wikitext",
+    "config": "wikitext-2-raw-v1",
+    "split": "train",
+    "skip_documents": 0,
+    "characters": 501124,
+    "bytes": 502022,
+    "sha256": "b3f67ae551132f58fc03a241fa511e045fea633cfaa5b305953f5f6c094b85de"
+  },
+  {
+    "file": "data/eval_en_wikitext2.txt",
+    "dataset": "Salesforce/wikitext",
+    "config": "wikitext-2-raw-v1",
+    "split": "test",
+    "skip_documents": 0,
+    "characters": 501917,
+    "bytes": 502688,
+    "sha256": "35c306242b5b6c78085910f3cc93b66581baf8b2c9ee84449389bf062242f2ec"
+  },
+  {
+    "file": "data/calibration_ja_wikipedia.txt",
+    "dataset": "wikimedia/wikipedia",
+    "config": "20231101.ja",
+    "split": "train",
+    "skip_documents": 0,
+    "characters": 521459,
+    "bytes": 1439193,
+    "sha256": "1c173c49129b805ef642c74352015612367dd8536d2a74c7b5ac2b43dedfc261"
+  },
+  {
+    "file": "data/eval_ja_wikipedia.txt",
+    "dataset": "wikimedia/wikipedia",
+    "config": "20231101.ja",
+    "split": "train",
+    "skip_documents": 200,
+    "characters": 510339,
+    "bytes": 1371540,
+    "sha256": "f1f6b5b8de48e0c414f82af5a80a9bca74d01d7f86ece910bdcfdae80e505ed9"
+  }
+]
