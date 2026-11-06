@@ -97,9 +97,11 @@ def main() -> None:
                 node = getattr(node, part.lstrip("."))
         return node
 
+    layer_filters = [item for item in args.layer_filter.split(",") if item]
     sites: list[LinearSite] = []
     for path, linear in select_nodes_of_type(Linear, model):
-        if args.layer_filter and args.layer_filter not in "/".join(path):
+        joined = "/".join(path)
+        if layer_filters and not any(item in joined for item in layer_filters):
             continue
         shape = tuple(int(x) for x in linear.weights.shape)
         if len(shape) < 2:
