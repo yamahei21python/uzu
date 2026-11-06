@@ -33,6 +33,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--name", default=None)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--bf16-dir", default=None, help="Also save the unquantized model here")
+    parser.add_argument(
+        "--load-from",
+        default=None,
+        help="Load an existing lalamo model directory instead of importing from Hugging Face",
+    )
     parser.add_argument("--lalamo-path", default=os.environ.get("LALAMO_PATH", "/tmp/lalamo-direct"))
     parser.add_argument("--bits", type=int, default=4, choices=(4, 8))
     parser.add_argument("--group-size", type=int, default=32)
@@ -112,25 +117,32 @@ def main() -> None:
     from lalamo.weight_matrix import Layout
     from rewrite_lalamo_hybrid_spec import rewrite
 
-    spec = find_spec(QWEN_MODELS, args.spec_name)
-    if args.hf_repo:
-        from lalamo.model_import.origins import HuggingFaceOrigin
+    if args.load_from:
+        from lalamo.model import Model
 
-        spec = replace(
+        print(f"load lalamo model <- {args.load_from}")
+        model = Model.load(args.load_from, sharding=ShardingConfig.replicated(), dtype=jnp.dtype(args.dtype))
+        print("load done")
+    else:
+        spec = find_spec(QWEN_MODELS, args.spec_name)
+        if args.hf_repo:
+            from lalamo.model_import.origins import HuggingFaceOrigin
+
+            spec = replace(
+                spec,
+                vendor=args.vendor or spec.vendor,
+                name=args.name or spec.name,
+                origin=HuggingFaceOrigin(repo=args.hf_repo),
+            )
+
+        print(f"import {spec.vendor}/{spec.name} <- {spec.origin.description}")
+        results = import_model(
             spec,
-            vendor=args.vendor or spec.vendor,
-            name=args.name or spec.name,
-            origin=HuggingFaceOrigin(repo=args.hf_repo),
+            sharding_config=ShardingConfig.replicated(),
+            dtype=jnp.dtype(args.dtype),
         )
-
-    print(f"import {spec.vendor}/{spec.name} <- {spec.origin.description}")
-    results = import_model(
-        spec,
-        sharding_config=ShardingConfig.replicated(),
-        dtype=jnp.dtype(args.dtype),
-    )
-    model = results.model
-    print("import done")
+        model = results.model
+        print("import done")
 
     if args.bf16_dir:
         bf16_dir = Path(args.bf16_dir)

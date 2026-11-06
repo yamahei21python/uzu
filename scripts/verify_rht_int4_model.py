@@ -94,12 +94,42 @@ def main() -> None:
     )
     parser.add_argument("--limit", type=int, default=0, help="only the first N tensors (debug)")
     parser.add_argument("--json-out", type=Path, default=None, help="save per-layer metrics as JSON")
+    parser.add_argument(
+        "--preconditioners",
+        type=Path,
+        default=None,
+        help="NPZ from scripts/yaqa_calibration.py; adds the Hessian-weighted objective",
+    )
     args = parser.parse_args()
 
     quant_path = args.quantized_dir / "model.safetensors"
     ref_path = args.reference_dir / "model.safetensors"
     quant_header, quant_start = read_header(quant_path)
     ref_header, ref_start = read_header(ref_path)
+    calibration = np.load(args.preconditioners) if args.preconditioners else None
+
+    def module_key(weight_path: str) -> str:
+        parts = weight_path.split(".")[:-1]
+        return "/".join(f"[{part}]" if part.isdigit() else f".{part}" for part in parts)
+
+    def weighted_objective(error: np.ndarray, weight: np.ndarray, key: str) -> tuple[float | None, float | None]:
+        if calibration is None:
+            return None, None
+        input_key = f"{key}/input_block"
+        if input_key not in calibration:
+            return None, None
+        H_I = calibration[input_key].astype(np.float32)
+        output_key = f"{key}/output_block"
+        if output_key in calibration:
+            H_O = calibration[output_key].astype(np.float32)
+            numerator = float(np.sum((error @ H_I @ error.T) * H_O))
+            denominator = float(np.sum((weight @ H_I @ weight.T) * H_O))
+        else:
+            numerator = float(np.sum((error @ H_I) * error))
+            denominator = float(np.sum((weight @ H_I) * weight))
+        if denominator == 0.0:
+            return numerator, None
+        return numerator, numerator / denominator
 
     weight_paths = sorted(
         key[: -len(".spec")]
@@ -165,6 +195,8 @@ def main() -> None:
         squared = float(np.sum(error * error, dtype=np.float64))
         norm = float(np.sum(reference * reference, dtype=np.float64))
         relative = (squared / norm) ** 0.5 if norm else float("inf")
+        key = module_key(weight_path)
+        weighted, weighted_relative = weighted_objective(error, reference, key)
         total_squared += squared
         total_reference += norm
         status = "OK" if relative <= args.threshold else "FAIL"
@@ -176,10 +208,18 @@ def main() -> None:
                 "shape": list(dequantized.shape),
                 "weight_rmse": float(np.sqrt(squared / reference.size)),
                 "relative_rmse": relative,
+                "weighted_objective": weighted,
+                "weighted_relative": weighted_relative,
                 "rht": has_rht,
             }
         )
-        print(f"[{index + 1:3d}/{len(weight_paths)}] {status:4s} {relative:.6f}  {weight_path} {tuple(dequantized.shape)}")
+        extra = ""
+        if weighted_relative is not None:
+            extra = f" weighted={weighted_relative:.6f}"
+        print(
+            f"[{index + 1:3d}/{len(weight_paths)}] {status:4s} {relative:.6f}{extra}  "
+            f"{weight_path} {tuple(dequantized.shape)}"
+        )
 
     overall = (total_squared / total_reference) ** 0.5 if total_reference else float("inf")
     print(f"\noverall relative RMSE: {overall:.6f}")
