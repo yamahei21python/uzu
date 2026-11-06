@@ -430,34 +430,39 @@ Qwen3.5-0.8B（BF16 / RHT+INT4 Group32）でモデル全体の互換性を確認
 初回の相対誤差 ~1.39（無相関と同等）は、Python の RHT 逆変換で出力軸 Hadamard を列方向に掛けていた実装バグが原因だった。
 `scripts/verify_rht_roundtrip.py` を追加し、往復再現が壊れたら即失敗するようにした。
 
-### 未確定（BF16 と INT4 の品質差の所在）
+### 量子化方式の比較（lalamo、59位置）
 
-greedy decoding では INT4 が BF16 より指示追従・事実性で劣化する（例：「1+1は？数字だけで」に冗長な解説を付与、The capital of Japan is… で中国・琉球ネタを展開）。
-ただし 0.8B 自体が弱いこと、sampling の分岐を除外できていないことから、劣化の所在は次のいずれかまだ絞り込めない。
+| モデル | Top-1 | Top-5 | KL | cosine |
+|---|---|---|---|---|
+| BF16 | 基準 | 基準 | 0 | 1 |
+| RTN（RHT + INT4） | 0.780 | 0.719 | 0.364 | 0.966 |
+| YAQA H_in（E2-old） | 0.797 | 0.776 | **0.157** | 0.974 |
+| 公式 Mirai 0.8B-M | **0.881** | **0.793** | **0.108** | **0.983** |
 
-1. モデル規模の限界
-2. 量子化（RTN、YAQA 未適用）による劣化
-3. lalamo と uzu の演算差
+E2-old の条件: token sum、64 token、実サンプル6、H_in のみ、damping 1e-3。
+Hessian 重み付き再構成誤差は全96層で改善（RTN 比の中央値 0.244x）。
 
-### 推奨する確認順序
+### 公式 0.8B-M との比較
 
-1. lalamo で BF16 vs INT4 の logits を比較 **— 完了（指標は上表）**
-2. 結果に応じて uzu 側の logits 比較を実装（現状 uzu から raw logits を取り出す公開 API はない）
+- ファイル 419MB、tensor 617、HybridSpec 96
+- **embedding も INT4**（layout input_output、RHT output のみ、scales BF16）
+- 線形96層は spec / shape / dtype が完全一致
+- scale 比（公式 / 我々の YAQA）は 0.99996
+- 4-bit code ヒストグラムは公式とほぼ一致
+- code 一致率は RTN 0.706 / YAQA 0.620
+  → 公式は YAQA 系の分布を持ち、QAD で個別コードを変更した可能性
 
-`scripts/compare_logits.py` を追加。lalamo で両モデルをロードし、同一トークン列・全位置で分布を比較する。
+### 修正版 calibration と E3
 
-| 比較 | 確認できること | 状態 |
-|---|---|---|
-| lalamo: BF16 vs INT4 | 量子化そのものの劣化 | 完了 |
-| uzu: BF16 vs INT4 | uzu を含む推論環境での劣化 | 未実装（raw logits API がない） |
-| lalamo vs uzu: INT4 | 実装間の数値差 | 未実装（同上） |
+調査レポート（`research/mirai_yaqa_report.md`）の指摘を反映:
 
-結果の読み方（参考）:
-- Top-1 一致 78% は「4 bit RTN + RHT」の素直な限界に見える
-- Top-5 overlap 0.72 / KL 0.36 / cosine 0.966 も同様に「劣化はあるが、出力がほぼ無関係」ではない
-- したがって、uzu 側の実装バグより「RTN + 弱い 0.8B」の寄与が大きいと推定できる。ただし uzu 側の分布比較で裏取りは必要
+- 損失: per-sample token mean（公式と同じ）
+- calibration: 連続 512 token チャンク、16 samples
+- H_O: out_dim <= 2048 の48層で取得
+- damping: `H/=mean(diag)` → `1e-2` から Cholesky 成功まで増加
 
-この切り分け前に 9B 変換や YAQA の本格実装へ進まないこと。YAQA の効果を見たいなら、まず 0.8B で YAQA 量子化を回して logits を比較するのが最小検証。
+**H_O を捨てた `--output-block none` は YAQA ではなく LDLQ 相当**。
+E3（H_in + H_O small）を変換中。
 
 ### 実機短文テスト（参考）
 

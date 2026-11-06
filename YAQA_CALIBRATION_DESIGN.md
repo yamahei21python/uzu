@@ -132,7 +132,8 @@ G_b = jax.grad(loss_for_weight)(linear.weights.weights)  # (out, in)
   - 全モデル両側は非現実的。まず **1〜2 層で両側**、全モデルは **入力側のみ** を基本候補にする。
 - `H_I` は `in_dim^2`。`1024〜3584` 程度なら 4〜51 MB/層。
 - `block_ldl` は Cholesky を使うため正定値必須。
-  - `H += λ I`, `λ = mean(diag(H)) * 1e-3` を既定候補。
+  - `H += λ I`。公式は `H /= mean(diag(H))` 後、`λ = 1e-2` から Cholesky 成功まで増加。
+- 損失は per-sample token mean（`F.cross_entropy` 既定）。token sum だと系列長で H のスケールが変わる。
   - 固有値・Cholesky・NaN を事前検査。
 - `IntSpec` は `yaqa_round_blockwise` を呼ぶ。`ConvergenceError` は `yaqa_round_fixpoint` のみなので、現経路の成否判定には使わない。
 - Pseudo target はモデル自身の logits からサンプリング（公式 Sketch B 準拠）。
@@ -264,3 +265,30 @@ Test を見ながら Damping を選ばない。
 
 - 公式コードは GPL-3.0。本リポジトリは数式と API のみ参照し、コードは独立実装。
 - 公式は `start_layer` / `end_layer` で層分割できる。本実装も `--layer-filter` で部分実行可能。
+
+## 14. 実装状況（2026-11）
+
+| 項目 | 状態 |
+|---|---|
+| Sketch B（H_I / H_O） | 実装済み（`scripts/yaqa_calibration.py`） |
+| token mean / 512 token チャンク | 実装済み |
+| H 正規化 + Cholesky 成功までの damping | 実装済み |
+| RHT 適用（`process_preconditioner`） | lalamo 側で動作 |
+| H_in のみの YAQA | 0.8B で KL 0.364 → 0.157 |
+| H_in + H_O（E3） | 変換中 |
+| embedding 量子化（公式構成） | 実装済み（`--quantize-embedding`） |
+| QAD（Muon/STE/AdamW） | 未実装 |
+| uzu raw logits | 未実装（`eval.rs` 案あり） |
+
+### 関連レポート
+
+- `research/mirai_yaqa_report.md` — 公式 YAQA との差分、H_O、damping、uzu logits 案
+- `research/eval_harness_plan.md` — llm-jp-eval / KL / PPL の実行計画
+- `research/9b_conversion_feasibility.md` — 9B のメモリ・変換方式
+- `research/DELEGATION_CHECKLIST.md` — サブエージェント委任時の検証手順
+
+### 重要な注意
+
+- `--output-block none` は H_O を捨てるため **LDLQ 相当**。YAQA を名乗るなら H_O が必要。
+- 既存の `experiments/qwen35-0.8b/yaqa-hin-int4-g32` は旧条件（token sum / 64 token / H_in のみ）。
+- 公式 0.8B-M は embedding も INT4。我々の 764MB に対して 419MB。
