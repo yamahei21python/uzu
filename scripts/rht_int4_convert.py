@@ -132,7 +132,7 @@ def main() -> None:
         from lalamo.model import Model
 
         print(f"load lalamo model <- {args.load_from}")
-        model = Model.load(args.load_from, sharding=ShardingConfig.replicated(), dtype=jnp.dtype(args.dtype))
+        model = Model.load(args.load_from, ShardingConfig.replicated(), dtype=jnp.dtype(args.dtype))
         print("load done")
     else:
         spec = find_spec(QWEN_MODELS, args.spec_name)
