@@ -77,6 +77,17 @@ def test_environment_injects_spec_env_and_triton_flag(tmp_path: Path) -> None:
     assert env["UZU_ATTENTION_IMPL"] == "xla"
 
 
+def test_env_provenance_collects_numeric_knobs(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("JAX_DEFAULT_MATMUL_PRECISION", "float32")
+    monkeypatch.setenv("SOME_UNRELATED", "x")
+    runner = make_runner(tmp_path, {"env": {"UZU_ATTENTION_IMPL": "xla"}})
+    runner.triton_off = False
+    provenance = runner.env_provenance()
+    assert provenance["JAX_DEFAULT_MATMUL_PRECISION"] == "float32"
+    assert provenance["UZU_ATTENTION_IMPL"] == "xla"
+    assert "SOME_UNRELATED" not in provenance
+
+
 def test_environment_keeps_existing_xla_flags_and_skips_triton_on_ampere(tmp_path: Path) -> None:
     runner = make_runner(tmp_path, {"xla_flags": ["--xla_cpu_use_thunk_runtime=false"]})
     runner.triton_off = False

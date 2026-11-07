@@ -134,6 +134,15 @@ class Runner:
         path = Path(value).expanduser()
         return path if path.is_absolute() else self.kit / path
 
+    def env_provenance(self) -> dict[str, str]:
+        """Environment knobs that change numerics must travel with the results."""
+        prefixes = ("XLA_FLAGS", "JAX_", "UZU_")
+        seen = {}
+        for key, value in self.environment().items():
+            if key.startswith(prefixes):
+                seen[key] = value
+        return seen
+
     def environment(self, base: dict[str, str] | None = None) -> dict[str, str]:
         env = dict(os.environ if base is None else base)
         if self.jax_platform:
@@ -419,6 +428,7 @@ class Runner:
 
         summary = self.evaluate(name, int4_eval, bf16)
         summary["status"] = "complete"
+        summary["env"] = self.env_provenance()
         summary["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
         summary["spec"] = str(self.spec_path)
         if not self.dry_run:
@@ -500,6 +510,7 @@ class Runner:
             )
             summary = self.evaluate(name, int4_eval, bf16)
             summary["status"] = "complete"
+            summary["env"] = self.env_provenance()
             summary["ja_ratio"] = ratio
             summary["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
             summary["spec"] = str(self.spec_path)
@@ -543,6 +554,7 @@ class Runner:
             "spec": str(self.spec_path),
             "model": self.spec.get("model"),
             "eval": self.spec.get("eval"),
+            "env": self.env_provenance(),
             "results": summaries,
             "problems": problems,
             "updated": time.strftime("%Y-%m-%dT%H:%M:%S"),
