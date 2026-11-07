@@ -60,3 +60,20 @@ def test_table_reports_timeout() -> None:
         [{"size": "4b", "command": "eval", "rc": "timeout", "seconds": 1800, "last": "exceeded 1800s"}]
     )
     assert "| 4b | eval | timeout | 1800 | exceeded 1800s |" in text
+
+
+def test_remote_startup_failure_is_not_reported_as_success() -> None:
+    from modal_batch import failure_marker
+
+    output = (
+        "Function fu-abc failed during startup.\n"
+        "Runner failed with exception: ModuleNotFoundError(\"No module named 'modal_targets'\")\n"
+        "✓ App completed.\n"
+    )
+    assert failure_marker(output) == "Runner failed with exception"
+
+
+def test_clean_output_has_no_failure_marker() -> None:
+    from modal_batch import failure_marker
+
+    assert failure_marker("/out/smoke-4b/int4-rtn\nApp completed\n") is None

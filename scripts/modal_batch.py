@@ -34,6 +34,15 @@ DEFAULT_MODAL = ".deps/venv-lalamo/bin/modal"
 DEFAULT_SCRIPT = "scripts/modal_pipeline.py"
 EVAL_FLAGS = ("--candidate", "int4-rtn")
 
+# The Modal client can exit 0 while the remote function failed during startup,
+# and print "App completed" anyway. These markers override a zero exit code.
+FAILURE_MARKERS = (
+    "Traceback (most recent call last):",
+    "Runner failed with exception",
+    "failed during startup",
+    "ModuleNotFoundError",
+)
+
 
 def build_commands(
     sizes: list[str],
@@ -58,6 +67,18 @@ def build_commands(
                 argv += [EVAL_FLAGS[0], eval_candidate, "--max-sequences", str(max_sequences)]
             argv_list.append(argv)
     return argv_list
+
+
+def failure_marker(output: str) -> str | None:
+    """Return the first remote-failure marker, if any.
+
+    A zero exit code is not proof of success: Modal reports function startup
+    failures in the output and still ends the local app normally.
+    """
+    for marker in FAILURE_MARKERS:
+        if marker in output:
+            return marker
+    return None
 
 
 def interesting_line(output: str) -> str:
@@ -95,8 +116,11 @@ def run_matrix(
         start = time.time()
         try:
             result = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
-            rc: Any = result.returncode
             output = (result.stdout or "") + "\n" + (result.stderr or "")
+            rc: Any = result.returncode
+            marker = failure_marker(output)
+            if rc == 0 and marker:
+                rc = f"failed: {marker}"
         except subprocess.TimeoutExpired:
             rc = "timeout"
             output = f"exceeded {timeout}s"
