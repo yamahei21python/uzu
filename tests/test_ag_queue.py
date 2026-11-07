@@ -118,6 +118,55 @@ def test_priority_order(tmp_path: Path) -> None:
     assert "started low" not in result.stdout
 
 
+def test_select_deletable_keeps_active_and_recent(tmp_path: Path) -> None:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    try:
+        from ag_queue import select_deletable
+    finally:
+        sys.path.pop(0)
+
+    environments = [
+        {"id": "old-idle", "created": "2026-11-01T00:00:00Z"},
+        {"id": "old-active", "created": "2026-11-01T00:00:00Z"},
+        {"id": "no-created"},
+    ]
+    selected = select_deletable(environments, keep={"old-active"}, older_than_days=1)
+    assert [env["id"] for env in selected] == ["old-idle"]
+
+
+def test_cleanup_envs_offline_dry_run(tmp_path: Path) -> None:
+    env_list = tmp_path / "envs.json"
+    env_list.write_text(
+        json.dumps(
+            {
+                "environments": [
+                    {"id": "old-idle", "created": "2026-11-01T00:00:00Z", "size_bytes": "100"},
+                    {"id": "old-active", "created": "2026-11-01T00:00:00Z", "size_bytes": "100"},
+                    {"id": "fresh", "created": "2099-01-01T00:00:00Z", "size_bytes": "100"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = run(
+        tmp_path,
+        tmp_path / "stub_wrapper.py",
+        "cleanup-envs",
+        "--older-than-days",
+        "1",
+        "--dry-run",
+        "--env-list-file",
+        str(env_list),
+        "--keep",
+        "old-active",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "old-idle" in result.stdout
+    assert "old-active" not in result.stdout
+    assert "fresh" not in result.stdout
+    assert '"dry_run": true' in result.stdout
+
+
 def test_manual_task_occupies_a_slot(tmp_path: Path) -> None:
     wrapper, prompt = setup(tmp_path)
     add_ticket(tmp_path, wrapper, prompt, "manual-one")

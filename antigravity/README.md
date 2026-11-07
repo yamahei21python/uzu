@@ -91,6 +91,23 @@ nohup python scripts/ag_queue.py watch --max-active 2 --interval 120 \
 - `manual` のチケットはキューが触らない。ただし**実行中は枠を 1 つ占有**する（state が無い間）
 - `watch` は `antigravity/.queue.lock` を握る。常駐中に手動 `pump` すると「another queue process holds the lock」で終わる（二重起動防止）
 
+### 429 と環境の自動削除
+
+429 は QPS だけでなく**環境の飽和**（実測 ~50 環境 / ~1GiB）でも起きる。`pump` は 429 を検知すると、古い環境を自動で消してから再キューする。
+
+```bash
+python scripts/ag_queue.py cleanup-envs --older-than-days 1 --dry-run   # 確認
+python scripts/ag_queue.py cleanup-envs --older-than-days 1             # 実行
+python scripts/ag_queue.py cleanup-envs --older-than-days 1 --keep <env_id>
+```
+
+- 既定は **1 日より古い**環境を削除
+- `environment_id` が state / sessions / pending に残っている環境は**絶対に消さない**
+- 作成日時が読めない環境も消さない（安全側）
+- 実行中タスクは state をまだ書いていないので、**TTL 1 日**がその防御になる。短くしすぎない
+- 削除 ID は `logs/<date>/antigravity_deleted_envs.txt` に追記
+- 削除は不可逆。`--dry-run` で必ず確認する
+
 ### 状態
 
 | queue_status | 意味 |
