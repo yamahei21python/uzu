@@ -38,11 +38,11 @@ python kit/scripts/run_lane.py \
 | owner | 3 | `robustness-08b-shard1of5` |
 | owner | 4 | `robustness-08b-shard2of5` |
 | owner | 5 | **予備**（常に空ける。再実行・検証・新しい実験用） |
-| Muse | 1 | `robustness-08b-shard4of5` |
-| Muse | 2 | `robustness-08b-shard5of5` |
-| Muse | 3 | `clean-suite-08b`（mix65 / mix35 / jaonly） |
-| Muse | 4 | `balanced-h-08b` |
-| Muse | 5 | `robustness-08b-shard3of5` |
+| Muse | 1 | `robustness-08b-shard3of5` |
+| Muse | 2 | `robustness-08b-shard4of5` |
+| Muse | 3 | `robustness-08b-shard5of5` |
+| Muse | 4 | `clean-suite-08b`（mix65 / mix35 / jaonly） |
+| Muse | 5 | `balanced-h-08b` |
 
 合計 10 セッション。1 つあたり 12h 以内に収まる。
 **予備は owner 側に置く**（owner は 4 本だけ作業に使い、5 本目を空ける）。
