@@ -10,10 +10,13 @@ instead:
 
 Only the public tokenizer is needed. No model weights, no GPU.
 
-The character count is measured on the exact token stream that was scored:
-the chunks are rebuilt with the same ``chunks_from_text`` logic as
-``eval_quantized.py`` and decoded once as a contiguous stream, so multi-byte
-characters split across chunk boundaries are not double counted.
+``tokens`` here means *scored* positions, matching what ``eval_quantized.py``
+puts in its JSON: each chunk contributes ``len(chunk) - 1`` predictions, since
+the first token of every chunk is only context. The character count is measured
+on the same scored stream: the chunks are rebuilt with the same
+``chunks_from_text`` logic as ``eval_quantized.py``, the full stream is decoded
+once, and the characters of the skipped first token of each chunk are removed.
+This avoids counting every chunk boundary twice.
 
 Usage:
     python scripts/compute_bpc.py \
@@ -60,12 +63,25 @@ def read_corpus(path: str) -> str:
     return text.replace("\x00", "")
 
 
-def char_count(tokenizer, chunks: list[list[int]]) -> int:
-    """Decode the scored token stream once and count characters."""
+def scored_tokens(chunks: list[list[int]]) -> int:
+    """Predictions per chunk: every token except the first (context only)."""
+    return sum(max(len(chunk) - 1, 0) for chunk in chunks)
+
+
+def target_chars(tokenizer, chunks: list[list[int]]) -> int:
+    """Characters of the scored stream.
+
+    Decoding the whole stream at once keeps multi-byte characters intact; the
+    context-only first token of each chunk is then removed. A token that holds a
+    partial UTF-8 sequence at a chunk boundary can shift this by at most one
+    character per chunk.
+    """
     flat: list[int] = []
     for chunk in chunks:
         flat.extend(chunk)
-    return len(tokenizer.decode(flat))
+    full = tokenizer.decode(flat)
+    skipped = sum(len(tokenizer.decode([chunk[0]])) for chunk in chunks if chunk)
+    return len(full) - skipped
 
 
 def bpc(ppl: float, tokens: int, chars: int) -> float:
@@ -102,8 +118,8 @@ def analyze(payload: dict[str, Any], tokenizer_source: str, corpus_override: str
     if not chunks:
         raise SystemExit(f"no chunks from {corpus}")
 
-    tokens = sum(len(chunk) for chunk in chunks)
-    chars = char_count(tokenizer, chunks)
+    tokens = scored_tokens(chunks)
+    chars = target_chars(tokenizer, chunks)
     fertility = tokens / chars
 
     expected_chunks = payload.get("chunks")
