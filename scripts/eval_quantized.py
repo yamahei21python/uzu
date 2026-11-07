@@ -42,6 +42,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lalamo-path", default=os.environ.get("LALAMO_PATH", "/tmp/lalamo-direct"))
     parser.add_argument("--max-sequences", type=int, default=100)
     parser.add_argument("--max-tokens", type=int, default=128)
+    parser.add_argument(
+        "--dtype",
+        choices=("bfloat16", "float32"),
+        default="bfloat16",
+        help="model dtype; T4 does not support BF16 matmul, use float32 there",
+    )
     parser.add_argument("--min-tokens", type=int, default=16)
     parser.add_argument("--json-out", type=Path, default=None)
     parser.add_argument(
@@ -155,9 +161,11 @@ def main() -> None:
     print(f"attention: {describe()}", flush=True)
 
     print("loading BF16 model...")
-    bf16 = Model.load(args.bf16_dir, sharding, dtype=jnp.bfloat16)
+    model_dtype = jnp.dtype(args.dtype)
+    print(f"model dtype: {args.dtype}", flush=True)
+    bf16 = Model.load(args.bf16_dir, sharding, dtype=model_dtype)
     print("loading candidate model...")
-    candidate = Model.load(args.candidate_dir, sharding, dtype=jnp.bfloat16)
+    candidate = Model.load(args.candidate_dir, sharding, dtype=model_dtype)
     tokenizer = Tokenizer.from_file(str(args.bf16_dir / "tokenizer.json"))
     print("loaded")
 
