@@ -85,6 +85,19 @@ def main() -> None:
         with open(progress_path, "a", encoding="utf-8") as file:
             file.write(json.dumps(record) + "\n")
 
+    corpus_lines = [
+        line.strip()
+        for line in args.corpus.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    duplicate_lines = len(corpus_lines) - len(set(corpus_lines))
+    if duplicate_lines:
+        raise SystemExit(
+            f"eval corpus has {duplicate_lines} duplicate non-empty lines; "
+            "use scripts/dedup_lines.py first"
+        )
+    text = "\n".join(corpus_lines)
+
     sys.path.insert(0, args.lalamo_path)
 
     import jax
@@ -126,7 +139,7 @@ def main() -> None:
     tokenizer = Tokenizer.from_file(str(args.bf16_dir / "tokenizer.json"))
     print("loaded")
 
-    text = args.corpus.read_text(encoding="utf-8")
+    text = "\n".join(corpus_lines)
     chunks = chunks_from_text(tokenizer, text, args.max_tokens, args.min_tokens, args.max_sequences)
     if not chunks:
         raise SystemExit("no chunks: corpus too small or min-tokens too high")
