@@ -76,3 +76,19 @@ def test_should_quantize_with_filters() -> None:
 def test_layer_filter_option_is_declared() -> None:
     text = (ROOT / "scripts" / "rht_int4_convert.py").read_text(encoding="utf-8")
     assert '"--layer-filter"' in text or "'--layer-filter'" in text
+
+
+def test_dotted_lalamo_paths_match_lane_rules() -> None:
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(root / "scripts"))
+    from rht_int4_convert import resolve_bits
+
+    rules = [{"match": "mlp/down_projection", "bits": 6}, {"match": "mixer/out_projection", "bits": 6}]
+    dotted = ".decoder/.transformer/.layers/[0]/.mlp/.down_projection"
+    assert resolve_bits(dotted, rules, 4) == 6
+    dotted_out = ".decoder/.transformer/.layers/[0]/.mixer/.out_projection"
+    assert resolve_bits(dotted_out, rules, 4) == 6
+    assert resolve_bits(".decoder/.transformer/.layers/[0]/.mlp/.up_projection", rules, 4) == 4

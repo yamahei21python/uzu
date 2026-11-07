@@ -147,11 +147,23 @@ def should_quantize(path: str, filters: list[str]) -> bool:
     return any(item in path for item in filters)
 
 
+def _normalize_path(path: str) -> str:
+    """Drop the leading dots lalamo uses per component.
+
+    Site paths look like ``.decoder/.transformer/.layers/[0]/.mlp/.down_projection``
+    while the lane spec writes ``mlp/down_projection``, so a naive substring
+    test never matched and every layer stayed at the default bits (measured:
+    uniform4 and down-out6 produced identical PPL).
+    """
+    return path.replace(".", "")
+
+
 def resolve_bits(path: str, rules: list[dict], default: int) -> int:
     """First rule whose ``match`` substring appears in the layer path wins."""
+    normalized = _normalize_path(path)
     for rule in rules:
-        match = str(rule.get("match", ""))
-        if match and match in path:
+        match = _normalize_path(str(rule.get("match", "")))
+        if match and match in normalized:
             return int(rule["bits"])
     return default
 
