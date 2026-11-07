@@ -33,6 +33,8 @@
 - `--allow-overlap` は解析目的のみ。通常実験では使わない
 - `make_mixed_corpus.py` も `--eval-corpus` を受け取り、生成直後に検査
 - 重複除去は `scripts/dedup_calibration.py`。`*_dedup.txt` を使う
+- **eval corpus 自体も `scripts/dedup_lines.py` で重複除去する**
+- `eval_quantized.py` は eval corpus 内の重複 non-empty line を検出したら停止
 - `check_experiment.py` で事後監査も行う
 
 ### 3. 校正プロトコルを統一

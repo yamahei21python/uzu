@@ -136,7 +136,7 @@ def main() -> None:
         ]
         duplicates = len(lines) - len(set(lines))
         if duplicates:
-            warnings.append(f"{eval_corpus}: {duplicates} duplicate long lines")
+            errors.append(f"{eval_corpus}: {duplicates} duplicate long lines; dedup required")
 
     overlap_checks = 0
     for calibration_corpus in sorted(calibration_corpora):
