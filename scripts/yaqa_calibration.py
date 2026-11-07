@@ -305,6 +305,19 @@ def main() -> None:
         os.replace(tmp_path, checkpoint_path)
         print(f"  checkpoint -> {checkpoint_path}", flush=True)
 
+    def peak_rss_mb() -> float:
+        """Peak RSS, so bf16 vs f32 calibration can be compared on memory.
+
+        XLA CPU may upcast bf16 internally, so a bf16 run does not necessarily
+        halve the peak; this is the number that decides whether q512 fits.
+        """
+        import resource
+
+        usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return usage / (1024 * 1024) if sys.platform == "darwin" else usage / 1024
+
+    print(f"start peak_rss={peak_rss_mb():.0f}MB", flush=True)
+
     processed = 0
     sample_index = 0
     if args.resume:
@@ -373,7 +386,9 @@ def main() -> None:
         if args.checkpoint_every and processed % args.checkpoint_every == 0:
             save_partial()
         if processed % 4 == 0:
-            print(f"  sample {processed}/{args.samples}")
+            print(f"  sample {processed}/{args.samples} peak_rss={peak_rss_mb():.0f}MB", flush=True)
+
+    print(f"calibration done peak_rss={peak_rss_mb():.0f}MB", flush=True)
 
     records = []
     arrays: dict[str, np.ndarray] = {}
