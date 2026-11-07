@@ -318,19 +318,23 @@ class Runner:
         if not self.dry_run:
             out.mkdir(parents=True, exist_ok=True)
         settings = self.condition_settings(condition)
-        corpus = self.resolve(condition["calibration_corpus"])
-        assert corpus is not None
+        is_rtn = bool(condition.get("rtn"))
+        corpus = self.resolve(condition.get("calibration_corpus")) if not is_rtn else None
+        if not is_rtn and corpus is None:
+            raise SystemExit(f"{name}: calibration_corpus is required unless rtn=true")
 
         existing = self.existing_result(name)
         if existing is not None:
             print(f"skip {name}: result.json already complete", flush=True)
             return existing
 
-        skip_convert = bool(condition.get("skip_convert")) or (
+        skip_convert = (not is_rtn) and (bool(condition.get("skip_convert")) or (
             settings.get("raw_output") and bool(self.spec.get("merge")) and not condition.get("force_convert")
-        )
+        ))
         calib_npz = out / "calibration.npz"
-        if not calib_npz.exists():
+        if is_rtn:
+            print(f"{name}: RTN (no calibration)", flush=True)
+        elif not calib_npz.exists():
             command = [
                 sys.executable,
                 str(self.scripts["calibrate"]),
@@ -395,11 +399,14 @@ class Runner:
             str(bf16),
             "--output-dir",
             str(int4),
-            "--preconditioners",
-            str(calib_npz),
-            "--calibration-json",
-            str(out / "calibration.json"),
         ]
+        if not is_rtn:
+            convert_command += [
+                "--preconditioners",
+                str(calib_npz),
+                "--calibration-json",
+                str(out / "calibration.json"),
+            ]
         for key in ("bits", "group_size", "block_size", "parallel"):
             if key in self.spec.get("convert", {}):
                 convert_command += [f"--{key.replace('_', '-')}", str(self.spec["convert"][key])]

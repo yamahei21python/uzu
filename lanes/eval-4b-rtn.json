@@ -1,0 +1,38 @@
+{
+  "lane": "eval-4b-rtn",
+  "model": {
+    "hf_repo": "huihui-ai/Huihui-Qwen3.5-4B-Claude-4.6-Opus-abliterated",
+    "spec_name": "Qwen3.5-4B",
+    "bf16_dir": "bf16-4b-lalamo",
+    "bf16_source": "/kaggle/input/uzu-bf16-4b-lalamo",
+    "bf16_source_auto": true
+  },
+  "paths": {
+    "kit": "kit",
+    "work": "/kaggle/working",
+    "jax_platform": "gpu"
+  },
+  "eval": {
+    "max_sequences": 100,
+    "max_tokens": 128,
+    "min_tokens": 16,
+    "corpora": {
+      "en": "data/eval_en_wikitext2_dedup.txt",
+      "ja": "data/eval_ja_wikipedia_dedup.txt"
+    }
+  },
+  "condition_defaults": {
+    "samples": 32,
+    "max_tokens": 128,
+    "calib_dtype": "bfloat16"
+  },
+  "convert": {
+    "bits": 4,
+    "group_size": 32,
+    "block_size": 32,
+    "parallel": "tensor"
+  },
+  "conditions": [
+    {"name": "rtn", "rtn": true}
+  ]
+}

@@ -82,6 +82,19 @@ def test_calib_dtype_is_passed_to_calibration() -> None:
     assert all("--damping 0.01" in line for line in calibration)
 
 
+def test_rtn_condition_skips_calibration_and_preconditioners() -> None:
+    result = run_lane(LANES / "eval-4b-rtn.json")
+    assert result.returncode == 0, result.stdout + result.stderr
+    commands = [line for line in result.stdout.splitlines() if line.startswith("$ ")]
+    assert not [line for line in commands if "yaqa_calibration.py" in line]
+    conversions = [
+        line for line in commands if "rht_int4_convert.py" in line and "--load-from" in line
+    ]
+    assert len(conversions) == 1
+    assert "--preconditioners" not in conversions[0]
+    assert len([line for line in commands if "eval_quantized.py" in line]) == 2
+
+
 def test_missing_spec_fields_fail_loudly(tmp_path: Path) -> None:
     spec = tmp_path / "bad.json"
     spec.write_text(json.dumps({"lane": "bad", "paths": {"kit": "kit", "work": str(tmp_path)}}), encoding="utf-8")
