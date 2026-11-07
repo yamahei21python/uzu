@@ -193,6 +193,8 @@ def rtn(size: str, run_name: str, quantize_embedding: bool) -> str:
 def calibrate(size: str, run_name: str, samples: int, max_tokens: int, group_size: int, corpus: str) -> str:
     """Calibrate in layer groups so the Hessian accumulators fit in memory."""
     os.environ["JAX_PLATFORM_NAME"] = "cuda"
+    # JAX otherwise reserves 75% of the device and OOMs before the Hessian fits
+    os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     model = spec(size)
     layers = int(model["layers"])
     merged = f"/out/{run_name}/calibration/calibration.npz"
@@ -242,6 +244,8 @@ def calibrate(size: str, run_name: str, samples: int, max_tokens: int, group_siz
                 filters,
                 "--damping",
                 "1e-2",
+                "--calib-dtype",
+                "bfloat16",
                 "--checkpoint-every",
                 "2",
                 "--resume",
@@ -276,6 +280,7 @@ def calibrate(size: str, run_name: str, samples: int, max_tokens: int, group_siz
         "max_tokens": max_tokens,
         "output_block": "none",
         "damping": 1e-2,
+        "calib_dtype": "bfloat16",
         "calibration_corpora": [corpus_path],
         "eval_corpora": ["/workspace/data/eval_en_dedup.txt", "/workspace/data/eval_ja_dedup.txt"],
         "groups": paths,
