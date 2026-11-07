@@ -728,12 +728,31 @@ def main() -> None:
         default=None,
         help="run only part of the condition list, e.g. 0/3. Merges are not allowed with sharding.",
     )
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        metavar="SUBSTR",
+        help="drop conditions whose name contains SUBSTR (repeatable); e.g. --exclude q512",
+    )
     args = parser.parse_args()
 
     spec = json.loads(args.spec.read_text(encoding="utf-8"))
     conditions = spec.get("conditions", [])
     if not conditions and not spec.get("merge"):
         raise SystemExit("spec has no conditions")
+
+    if args.exclude:
+        before = len(conditions)
+        conditions = [
+            condition
+            for condition in conditions
+            if not any(pattern in condition.get("name", "") for pattern in args.exclude)
+        ]
+        print(f"excluded {before - len(conditions)} conditions matching {args.exclude}", flush=True)
+        if not conditions:
+            raise SystemExit(f"--exclude {args.exclude} removed every condition")
+        spec["conditions"] = conditions
 
     if args.shard:
         if spec.get("merge"):

@@ -222,3 +222,20 @@ def test_validation_flags_baseline_drift() -> None:
         ]
     )
     assert any("bf16_ppl drift" in problem for problem in problems)
+
+
+def test_exclude_drops_matching_conditions() -> None:
+    result = run_lane(LANES / "robustness-08b-shard3of5.json", "--exclude", "q512")
+    assert result.returncode == 0, result.stdout + result.stderr
+    calibration = [
+        line for line in result.stdout.splitlines()
+        if line.startswith("$ ") and "yaqa_calibration.py" in line
+    ]
+    assert len(calibration) == 3  # 5 conditions, 2 of them q512
+    assert "excluded 2 conditions" in result.stdout
+
+
+def test_exclude_cannot_remove_every_condition() -> None:
+    result = run_lane(LANES / "robustness-08b-shard3of5.json", "--exclude", "s")
+    assert result.returncode != 0
+    assert "removed every condition" in result.stdout + result.stderr
