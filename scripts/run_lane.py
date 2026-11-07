@@ -96,33 +96,54 @@ class Runner:
     # ---------- steps ----------
 
     def ensure_bf16(self) -> Path:
+        """Return a lalamo-loadable BF16 directory.
+
+        The import path (rht_int4_convert --dry-run) normalizes config.json for
+        uzu: it drops ``response_format`` and adds ``output_parser_regex`` /
+        ``end_of_thinking_tag``. Pinned lalamo refuses that schema, so
+        calibration cannot load the imported directory directly. The import is
+        therefore written to a raw directory and ``make_lalamo_eval_copy``
+        produces the loadable copy that both calibration and eval use.
+        """
         model = self.spec.get("model", {})
-        bf16 = self.resolve(model.get("bf16_dir", "bf16-lalamo"))
-        assert bf16 is not None
-        weights = bf16 / "model.safetensors"
-        if weights.exists() or self.dry_run:
-            return bf16
+        target = self.resolve(model.get("bf16_dir", "bf16-lalamo"))
+        assert target is not None
+        if (target / "model.safetensors").exists():
+            return target
+
         source = self.resolve(model.get("bf16_source"))
         if source and (source / "model.safetensors").exists():
-            print(f"copy bf16 from {source} -> {bf16}", flush=True)
-            shutil.copytree(source, bf16, dirs_exist_ok=True)
-            return bf16
-        command = [
-            sys.executable,
-            str(self.scripts["convert"]),
-            "--spec-name",
-            model.get("spec_name", "Qwen3.5-0.8B"),
-            "--output-dir",
-            str(self.work / "import"),
-            "--dry-run",
-        ]
-        if model.get("hf_repo"):
-            command += ["--hf-repo", model["hf_repo"]]
-        if model.get("hf_dir"):
-            command += ["--hf-dir", str(self.resolve(model["hf_dir"]))]
-        command += ["--bf16-dir", str(bf16)]
-        self.run("bf16 import", command, self.lane_dir / "lane.log")
-        return bf16
+            print(f"copy bf16 from {source} -> {target}", flush=True)
+            if not self.dry_run:
+                shutil.copytree(source, target, dirs_exist_ok=True)
+            return target
+
+        raw = self.resolve(model.get("bf16_raw_dir", "bf16-raw"))
+        assert raw is not None
+        if not (raw / "model.safetensors").exists():
+            command = [
+                sys.executable,
+                str(self.scripts["convert"]),
+                "--spec-name",
+                model.get("spec_name", "Qwen3.5-0.8B"),
+                "--output-dir",
+                str(self.work / "import"),
+                "--dry-run",
+                "--bf16-dir",
+                str(raw),
+            ]
+            if model.get("hf_repo"):
+                command += ["--hf-repo", model["hf_repo"]]
+            if model.get("hf_dir"):
+                command += ["--hf-dir", str(self.resolve(model["hf_dir"]))]
+            self.run("bf16 import", command, self.lane_dir / "lane.log")
+
+        self.run(
+            "bf16 lalamo copy",
+            [sys.executable, str(self.scripts["copy"]), "--source", str(raw), "--dest", str(target)],
+            self.lane_dir / "lane.log",
+        )
+        return target
 
     def eval_corpora(self) -> dict[str, Path]:
         corpora = self.spec.get("eval", {}).get("corpora", {})
