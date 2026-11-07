@@ -15,3 +15,7 @@ pytest -q tests/
 - PPL config の chunk / baseline / calibration ドリフト
 - layer-group merge の欠落・重複・範囲外
 - atomic save
+- BPC 正規化（`compute_bpc.py`）の式と token 数再現
+- 2-device sharding probe（`tiny_sharding_probe.py`、`FORCE_2_CPU=1`）
+
+モデル重み・private dataset は不要。公開 tokenizer のみ使う。
