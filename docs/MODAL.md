@@ -1,0 +1,61 @@
+# Modal（4B / 9B の逃がし先）
+
+T4 16GB では 4B / 9B の calibration が載らない。9B は BF16 18GB で eval すら不可。
+ローカルでも回さない（`docs/LOCAL_POLICY.md`）。**Modal の A100 が唯一の実行場所**。
+
+## 前提
+
+```bash
+modal secret create huggingface HF_TOKEN=...
+modal volume create uzu-quant      # INT4 出力
+modal volume create uzu-models     # BF16 ソース（任意）
+```
+
+- イメージは lalamo `e401e177` を pin
+- スクリプトと dedup コーパスだけ焼き込む。BF16 は Modal 内で HF から取る
+- 各ステップは冪等（`COMPLETE` か出力の存在で skip）
+
+## 実行
+
+`--size 4b` / `--size 9b`。`run_name` の既定は `huihui-4b` / `huihui-9b`。
+
+```bash
+# 1. BF16 import（CPU、~10 分）
+modal run scripts/modal_pipeline.py --command import --size 9b
+
+# 2. RTN（比較用のベースライン）
+modal run scripts/modal_pipeline.py --command rtn --size 9b --quantize-embedding
+
+# 3. calibration（A100、layer group ごとに分割）
+modal run scripts/modal_pipeline.py --command calibrate --size 9b \
+  --samples 8 --max-tokens 512 --group-size 4 \
+  --corpus calibration_en_dedup.txt
+
+# 4. YAQA 変換
+modal run scripts/modal_pipeline.py --command yaqa --size 9b --quantize-embedding
+
+# 5. eval（BF16 vs INT4、dedup 100 chunks、EN/JA）
+modal run scripts/modal_pipeline.py --command eval --size 9b --candidate int4-yaqa
+
+# 6. QAD（clean student が必要）
+modal run scripts/modal_pipeline.py --command qad --size 9b \
+  --student student --steps 10 --optimizer adamw --lr 2e-5 --scale-lr 1e-6 \
+  --freeze-scales --warmup-steps 5 --save-every 10
+
+# 7. 回収
+modal run scripts/modal_pipeline.py --command fetch --size 9b --remote int4-yaqa
+```
+
+## 注意
+
+- calibration は `--output-block none` / damping 1e-2。0.8B の clean 設定（small / 1e-3）とは**違う**。比較するときは明示する
+- QAD の student は `make_qad_dataset.py` で作る。`provenance.json` が無いと QAD が拒否する
+- `eval` は `A100-80GB`。BF16 18GB + INT4 5GB + 実行時バッファで 40GB だと足りない場合がある
+- 冪等なので、タイムアウトしたら同じコマンドを再実行する。途中から再開する
+- Modal の GPU 時間は課金対象。**smoke をローカルで済ませてから**投げる
+
+## 既知の制約
+
+- 9B の calibration は layer group 分割が必須（1 層ずつでも H が大きい）
+- 4B は `--group-size 8` くらいまで大きくできる見込み（未検証）
+- QAD は単一 GPU。FSDP は未対応（`--parallel` は replicated のまま）
