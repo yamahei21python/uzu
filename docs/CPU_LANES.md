@@ -28,6 +28,23 @@ python kit/scripts/run_lane.py \
 
 12h 制限に収まるよう 2 本に分けている。片方が落ちても、もう片方は独立。
 
+## 枠の割り当て（CPU は 1 アカウント 5 本まで）
+
+| アカウント | 枠 | レーン |
+|---|---|---|
+| owner | 1 | `seed-variance-08b` |
+| owner | 2 | `damping-ablation-08b` + `bit-alloc-ablation-08b` |
+| owner | 3 | `robustness-08b-shard1of5` |
+| owner | 4 | `robustness-08b-shard2of5` |
+| owner | 5 | `robustness-08b-shard3of5` |
+| Muse | 1 | `robustness-08b-shard4of5` |
+| Muse | 2 | `robustness-08b-shard5of5` |
+| Muse | 3 | `clean-suite-08b`（mix65 / mix35 / jaonly） |
+| Muse | 4 | `balanced-h-08b` |
+| Muse | 5 | 予備（再実行・検証） |
+
+合計 10 セッション。1 つあたり 12h 以内に収まる。
+
 ## 前提
 
 - kit: `hf download yamahei21/uzu-quant-kit --repo-type dataset --local-dir kit`

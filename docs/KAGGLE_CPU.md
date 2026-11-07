@@ -22,7 +22,7 @@
 |---|---|---|
 | 12h/セッション | 6 条件（1 条件 40〜90 分）は収まる | カーネル A/B に分割済み。`--shard` でも可 |
 | CPU クォータ無し | 何本回しても課金・消費なし | 0.8B は CPU が本線。T4 は BF16 不可 |
-| 同時 5 本（推定） | owner 2 + Muse 2 = 4 で余裕 | 5 本目を立てない |
+| 同時 5 本/アカウント | owner 5 + Muse 5 = 最大 10 | 使い切ってよい。ただし 1 本ずつ 12h を超えないように分ける |
 | RAM 30GB | 0.8B float32（3.2GB）+ INT4（0.55GB）+ JAX で余裕 | 4B は FP32 16GB で溢れる → CPU 不可 |
 | working 20GB | 条件ごとに `calibration.npz`（1.4GB）を消している | 消さないと 10 条件で溢れる。`run_lane` は変換後に削除する |
 | 出力 20GB | 結果 JSON だけなら数百 KB | `calibration.npz` を上げない |
@@ -41,11 +41,10 @@
 1. CPU カーネルは **GPU を付けない**（`enable_gpu: false`）。付けない限り GPU クォータを消費しない
 2. 1 カーネル 12h を超えそうなら `--shard` で分ける。`result.json` がある条件は再実行で skip
 3. `/kaggle/working` を圧迫しないよう、`calibration.npz` は変換後に削除（`run_lane` が実施）
-4. 同時は 4 本まで（owner 2 + Muse 2）。5 本目は立てない
+4. 同時は **アカウントあたり 5 本**（owner 5 + Muse 5 = 合計 10）。各セッションは 12h 以内
 5. 結果は `kaggle kernels output` で回収し、`<user>/uzu-results` に上げる
 
 ## 未確認（推測で運用しない）
 
-- 同時セッションの正確な上限（5 か 10 か）
 - CPU カーネルの idle 停止までの正確な分数
 - commit モードで 12h を超えた場合の挙動（打ち切り or 失敗）
