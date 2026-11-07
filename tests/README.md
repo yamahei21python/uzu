@@ -24,6 +24,7 @@ pytest -q tests/
 - アングラ fetch の再試行とログ復元（`ag_fetch.py`）
 - 環境容量の掃除と UTC 時刻の扱い（`ag_queue.py cleanup-envs`）
 - 生成評価の採点（`eval_generation.py`）と結果回収（`pull_results.py`）
+- 完了ログからの復帰と pid 猶予（`ag_queue.py`）
 - eval の BPC/chars 出力、merge のメタデータ引き継ぎ
 - kit の完全性（`build_kit.py`、遅延 import の欠落検出）
 - 公開コーパス監査の交差判定（`audit_public_corpus.py --no-public`）

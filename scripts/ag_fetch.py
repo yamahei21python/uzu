@@ -70,6 +70,20 @@ def last_final(log_path: Path) -> str | None:
     return final
 
 
+def log_completed(log_path: Path) -> bool:
+    """True when the run log already holds a completed response.
+
+    The wrapper writes its state file only after the process returns, so a dead
+    pid plus no state is not proof of failure: the log often has the result.
+    """
+    if not log_path.exists():
+        return False
+    for payload in json_objects(log_path.read_text(encoding="utf-8", errors="replace")):
+        if isinstance(payload, dict) and payload.get("status") == "completed":
+            return True
+    return False
+
+
 def recover_from_log(log_path: Path, out_dir: Path) -> Path | None:
     final = last_final(log_path)
     if not final:
