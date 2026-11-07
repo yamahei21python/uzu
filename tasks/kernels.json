@@ -1,20 +1,111 @@
 {
   "kernels": [
-    {"owner": "owner", "ref": "yamahei21python/uzu-lane-runner", "lane": "seed-variance-08b", "kind": "cpu", "note": "seed 0/1/2"},
-    {"owner": "owner", "ref": "yamahei21python/uzu-lane-cpu-b2", "lane": "damping + bit-alloc", "kind": "cpu", "note": "4 条件"},
-    {"owner": "owner", "ref": "yamahei21python/uzu-lane-sweep-1", "lane": "robustness shard1of5", "kind": "cpu", "note": "6 条件"},
-    {"owner": "owner", "ref": "yamahei21python/uzu-lane-sweep-2", "lane": "robustness shard2of5", "kind": "cpu", "note": "6 条件"},
-    {"owner": "owner", "ref": "yamahei21python/uzu-smoke-all", "lane": "all-lane smoke", "kind": "cpu", "note": "8 spec / 19 条件"},
-    {"owner": "owner", "ref": "yamahei21python/uzu-gpu-preflight", "lane": "T4 capability", "kind": "gpu", "note": "cc / bf16 実測"},
-    {"owner": "owner", "ref": "yamahei21python/uzu-smoke-datasets", "lane": "attach + resume smoke", "kind": "gpu", "note": "HF なし経路"},
-    {"owner": "muse", "ref": "kentasatomuse/uzu-robust-s3", "lane": "robustness shard3of5", "status": "reported", "note": "Muse 起動報告"},
-    {"owner": "muse", "ref": "kentasatomuse/uzu-robust-s4", "lane": "robustness shard4of5", "status": "reported"},
-    {"owner": "muse", "ref": "kentasatomuse/uzu-robust-s5", "lane": "robustness shard5of5", "status": "reported"},
-    {"owner": "muse", "ref": "kentasatomuse/uzu-cpu-clean", "lane": "clean-suite (mix65/mix35/jaonly)", "status": "reported"},
-    {"owner": "muse", "ref": "kentasatomuse/uzu-cpu-balanced", "lane": "balanced-h 50/65/35", "status": "reported"},
-    {"owner": "planned", "ref": "yamahei21python/uzu-qad-cpu", "lane": "QAD 10 step (freeze scales)", "status": "planned", "note": "準備済み・スロット待ち"},
-    {"owner": "planned", "ref": "yamahei21python/uzu-lane-cpu-tuning", "lane": "cpu-tuning (calib bf16 / RTN)", "status": "planned", "note": "空き次第"},
-    {"owner": "planned", "ref": "modal", "lane": "0.8B GPU smoke (A100)", "status": "running", "note": "import→rtn→eval"},
-    {"owner": "planned", "ref": "modal", "lane": "4B / 9B eval + QAD", "status": "planned", "note": "0.8B の判断後"}
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-lane-runner",
+      "lane": "seed-variance-08b",
+      "kind": "cpu",
+      "note": "seed 0/1/2"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-lane-cpu-b2",
+      "lane": "damping + bit-alloc",
+      "kind": "cpu",
+      "note": "4 条件"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-lane-sweep-1",
+      "lane": "robustness shard1of5",
+      "kind": "cpu",
+      "note": "6 条件"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-lane-sweep-2",
+      "lane": "robustness shard2of5",
+      "kind": "cpu",
+      "note": "6 条件"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-smoke-all",
+      "lane": "all-lane smoke",
+      "kind": "cpu",
+      "note": "8 spec / 19 条件"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-gpu-preflight",
+      "lane": "T4 capability",
+      "kind": "gpu",
+      "note": "cc / bf16 実測"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-smoke-datasets",
+      "lane": "attach + resume smoke",
+      "kind": "gpu",
+      "note": "HF なし経路"
+    },
+    {
+      "owner": "muse",
+      "ref": "kentasatomuse/uzu-robust-s3",
+      "lane": "robustness shard3of5",
+      "status": "reported",
+      "note": "Muse 起動報告"
+    },
+    {
+      "owner": "muse",
+      "ref": "kentasatomuse/uzu-robust-s4",
+      "lane": "robustness shard4of5",
+      "status": "reported"
+    },
+    {
+      "owner": "muse",
+      "ref": "kentasatomuse/uzu-robust-s5",
+      "lane": "robustness shard5of5",
+      "status": "reported"
+    },
+    {
+      "owner": "muse",
+      "ref": "kentasatomuse/uzu-cpu-clean",
+      "lane": "clean-suite (mix65/mix35/jaonly)",
+      "status": "reported"
+    },
+    {
+      "owner": "muse",
+      "ref": "kentasatomuse/uzu-cpu-balanced",
+      "lane": "balanced-h 50/65/35",
+      "status": "reported"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-qad-cpu",
+      "lane": "QAD 10 step (freeze scales)",
+      "note": "準備済み・スロット待ち"
+    },
+    {
+      "owner": "planned",
+      "ref": "yamahei21python/uzu-lane-cpu-tuning",
+      "lane": "cpu-tuning (calib bf16 / RTN)",
+      "status": "planned",
+      "note": "空き次第"
+    },
+    {
+      "owner": "planned",
+      "ref": "modal",
+      "lane": "0.8B GPU smoke (A100)",
+      "status": "running",
+      "note": "import→rtn→eval"
+    },
+    {
+      "owner": "planned",
+      "ref": "modal",
+      "lane": "4B / 9B eval + QAD",
+      "status": "planned",
+      "note": "0.8B の判断後"
+    }
   ]
 }

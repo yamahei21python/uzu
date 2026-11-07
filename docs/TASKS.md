@@ -2,7 +2,7 @@
 
 全 33 件
 
-## 実行中（14）
+## 実行中（15）
 | source | name | lane | status |
 |---|---|---|---|
 | owner | uzu-lane-runner | seed-variance-08b | running |
@@ -16,26 +16,26 @@
 | muse | uzu-robust-s5 | robustness shard5of5 | reported |
 | muse | uzu-cpu-clean | clean-suite (mix65/mix35/jaonly) | reported |
 | muse | uzu-cpu-balanced | balanced-h 50/65/35 | reported |
+| owner | uzu-qad-cpu | QAD 10 step (freeze scales) | running |
 | planned | modal | 0.8B GPU smoke (A100) | running |
 | antigravity | t4-attention-bf16 | T4 で BF16 dot になる原因と非BF16経路 | running |
-| antigravity | model-cards | 公開 card の最終稿 | running |
+| antigravity | qad-gradient-audit | scale 勾配の導出と freeze の妥当性 | running |
 
 ## 待ち（キュー投入済み）（3）
 | source | name | lane | status |
 |---|---|---|---|
-| antigravity | qad-gradient-audit | scale 勾配の導出と freeze の妥当性 | queued |
 | antigravity | judge-protocol | judge 手順 + キャリブレーション40件 | queued |
 | antigravity | bit-alloc-validation | 代理誤差 vs PPL の検証設計 | queued |
+| antigravity | model-cards | 公開 card の最終稿 | queued |
 
 ## 待ち（外部・手動）（1）
 | source | name | lane | status |
 |---|---|---|---|
 | antigravity | vram-budget | 4B YAQA OOM の主因特定 + T4 で通る枝 | manual |
 
-## 未投入（3）
+## 未投入（2）
 | source | name | lane | status |
 |---|---|---|---|
-| planned | uzu-qad-cpu | QAD 10 step (freeze scales) | planned |
 | planned | uzu-lane-cpu-tuning | cpu-tuning (calib bf16 / RTN) | planned |
 | planned | modal | 4B / 9B eval + QAD | planned |
 
