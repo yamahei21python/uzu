@@ -1,0 +1,63 @@
+{
+  "lane": "balanced-h-d1e-2-08b",
+  "model": {
+    "hf_repo": "Qwen/Qwen3.5-0.8B",
+    "spec_name": "Qwen3.5-0.8B",
+    "bf16_dir": "bf16-lalamo",
+    "bf16_source": "/kaggle/input/uzu-bf16-08b-lalamo",
+    "bf16_source_auto": true
+  },
+  "paths": {
+    "kit": "kit",
+    "work": "/kaggle/working",
+    "jax_platform": "gpu"
+  },
+  "eval": {
+    "max_sequences": 100,
+    "max_tokens": 128,
+    "min_tokens": 16,
+    "corpora": {
+      "en": "data/eval_en_wikitext2_dedup.txt",
+      "ja": "data/eval_ja_wikipedia_dedup.txt"
+    }
+  },
+  "condition_defaults": {
+    "samples": 32,
+    "max_tokens": 128,
+    "output_block": "small",
+    "output_block_limit": 2048,
+    "damping": 0.01,
+    "raw_output": true
+  },
+  "convert": {
+    "bits": 4,
+    "group_size": 32,
+    "block_size": 32,
+    "parallel": "tensor"
+  },
+  "conditions": [
+    {
+      "name": "raw_en",
+      "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt",
+      "raw_output": true,
+      "skip_convert": true
+    },
+    {
+      "name": "raw_ja",
+      "calibration_corpus": "data/calibration_ja_wikipedia_dedup.txt",
+      "raw_output": true,
+      "skip_convert": true
+    }
+  ],
+  "merge": {
+    "en": "raw_en",
+    "ja": "raw_ja",
+    "ratios": [
+      0.5,
+      0.65,
+      0.35
+    ],
+    "damping": 0.01,
+    "name_template": "balanced-{ratio}"
+  }
+}
