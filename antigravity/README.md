@@ -122,6 +122,15 @@ nohup python scripts/ag_queue.py watch --max-active 2 --interval 120 \
 
 掃除の既定は **`--mode auto`**: 終了済みタスクの環境を大きい順に消し、合計が `--target-gib`（既定 0.8）以下になるまで続ける。
 
+**自動で 3 段階までエスカレートする**（`cleanup_under_pressure`）:
+
+1. 通常（sessions / running を保護）
+2. それでも減らなければ sessions 保護を外す
+3. 最後は `--force`（`--keep` 以外すべて対象）
+
+`watch --preemptive-cleanup`（既定 ON）は、dispatch 前に環境の合計が `--env-cleanup-gib`（既定 0.9 GiB）を超えていたら先に掃除する。
+上限は実測 ~1GiB。
+
 ```bash
 # 容量超過のとき（大きい順に削る）
 python scripts/ag_queue.py cleanup-envs --mode auto --target-gib 0.8 --dry-run
