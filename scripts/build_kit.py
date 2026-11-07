@@ -58,6 +58,7 @@ KIT_SCRIPTS = [
     "dedup_calibration.py",
     "check_experiment.py",
     "check_docs.py",
+    "preflight.py",
     # sharding / audit
     "tiny_sharding_probe.py",
     "audit_public_corpus.py",

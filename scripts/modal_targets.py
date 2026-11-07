@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 MODEL_SPECS = {
+    "0.8b": {
+        "repo": "Qwen/Qwen3.5-0.8B",
+        "spec_name": "Qwen3.5-0.8B",
+        "layers": 24,
+        "hidden": 1024,
+    },
     "4b": {
         "repo": "huihui-ai/Huihui-Qwen3.5-4B-Claude-4.6-Opus-abliterated",
         "spec_name": "Qwen3.5-4B",
