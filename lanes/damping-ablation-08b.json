@@ -37,7 +37,23 @@
     "parallel": "tensor"
   },
   "conditions": [
-    {"name": "enonly-d1e-2", "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt"},
-    {"name": "mixed50-d1e-2", "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt"}
+    {
+      "name": "enonly-d1e-2",
+      "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt"
+    },
+    {
+      "name": "mixed50-d1e-2",
+      "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt"
+    },
+    {
+      "name": "enonly-d1e-1",
+      "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt",
+      "damping": 0.1
+    },
+    {
+      "name": "mixed50-d1e-1",
+      "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt",
+      "damping": 0.1
+    }
   ]
 }
