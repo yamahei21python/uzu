@@ -36,6 +36,41 @@ python scripts/publish_kit.py \
   --message "Rebuild: <commit>"
 ```
 
+## 外部実行環境（Muse など）に渡す確認
+
+kit は in-place 更新なので `built_from_commit` は rebuild のたびに変わる。**exact hash を assert しない。**
+
+### 1. kit の能力を確認（起動時）
+
+```python
+import json, pathlib
+manifest = json.loads(pathlib.Path("/kaggle/working/kit/kit_manifest.json").read_text())
+caps = set(manifest.get("capabilities", []))
+need = {"rht_int4_convert.layer_filter", "preflight", "env_fingerprint"}
+assert need <= caps, f"kit too old: missing {sorted(need - caps)}"
+```
+
+### 2. lalamo が RHT 付きか確認
+
+```python
+import json
+from importlib.metadata import distribution
+info = json.loads(distribution("lalamo").read_text("direct_url.json") or "{}")
+print((info.get("vcs_info") or {}).get("commit_id"))  # e401e177... であること
+import lalamo.compressed.incoherence                     # ImportError なら PyPI 版
+```
+
+同等の確認は `python scripts/preflight.py --json /tmp/pf.json` でもできる:
+`environment.lalamo_commit` と `probes.quant_roundtrip` を見る。
+
+### 3. 結果を混ぜてよい条件
+
+- `lalamo_commit` が `e401e17761f2fcd337b0cf20218d67d656e6ecba`
+- `probes.quant_roundtrip == "pass"`
+- manifest の `environment_fingerprint.lalamo_hash_complete == "true"`
+
+1 つでも欠けたら **owner の数値と比較しない**。内部比較のみ。
+
 ## 判定
 
 - `lalamo_compressed_incoherence_sha256` が両方に存在し一致 → 比較可能
