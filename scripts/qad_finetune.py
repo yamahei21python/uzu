@@ -18,7 +18,9 @@ Usage:
   JAX_PLATFORM_NAME=cpu python scripts/qad_finetune.py \
     --teacher-dir /tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg \
     --student-dir /tmp/qwen35_0.8b_yaqa_hin_hout_lalamo_eval \
-    --corpus experiments/qwen35-0.8b/data/calibration_en_wikitext2.txt \
+    --corpus experiments/qwen35-0.8b/data/calibration_en_wikitext2_dedup.txt \
+    --eval-corpus experiments/qwen35-0.8b/data/eval_en_wikitext2.txt \
+    --eval-corpus experiments/qwen35-0.8b/data/eval_ja_wikipedia.txt \
     --output-dir /tmp/qwen35_0.8b_qad_lalamo \
     --steps 50 --seq 128 --lr 1e-4
 """
