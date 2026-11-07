@@ -622,6 +622,9 @@ def main() -> None:
     parser.add_argument("--hf-results", default=None, help="upload <lane_dir> to this HF dataset repo")
     parser.add_argument("--skip-merge", action="store_true")
     parser.add_argument("--work", default=None, help="override spec.paths.work")
+    parser.add_argument("--jax-platform", choices=("cpu", "gpu"), default=None, help="override spec.paths.jax_platform")
+    parser.add_argument("--eval-dtype", choices=("bfloat16", "float32"), default=None, help="override the eval model dtype")
+    parser.add_argument("--parallel", choices=("tensor", "replicated"), default=None, help="override convert/calibration sharding")
     parser.add_argument(
         "--shard",
         default=None,
@@ -649,6 +652,13 @@ def main() -> None:
             raise SystemExit(f"shard {args.shard} has no conditions")
         spec["conditions"] = conditions
         spec["lane"] = f"{spec['lane']}-shard{index + 1}of{count}"
+
+    if args.jax_platform:
+        spec.setdefault("paths", {})["jax_platform"] = args.jax_platform
+    if args.eval_dtype:
+        spec.setdefault("eval", {})["dtype"] = args.eval_dtype
+    if args.parallel:
+        spec.setdefault("convert", {})["parallel"] = args.parallel
 
     runner = Runner(spec, args.spec, dry_run=args.dry_run)
     if args.work:
