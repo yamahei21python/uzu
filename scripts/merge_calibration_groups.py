@@ -67,7 +67,7 @@ def main() -> None:
         raise SystemExit(f"missing layers: {missing_layers}")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    tmp = args.output.with_name(args.output.name + ".tmp")
+    tmp = args.output.with_name(args.output.name + ".tmp.npz")
     np.savez(tmp, **merged)
     os.replace(tmp, args.output)
     print(
