@@ -107,14 +107,17 @@ def test_smoke_spec_is_cheap_and_single_condition() -> None:
 
 
 def test_calib_dtype_is_passed_to_calibration() -> None:
+    spec = json.loads((LANES / "damping-ablation-08b.json").read_text(encoding="utf-8"))
     result = run_lane(LANES / "damping-ablation-08b.json")
     assert result.returncode == 0, result.stdout + result.stderr
     calibration = [
         line for line in result.stdout.splitlines() if line.startswith("$ ") and "yaqa_calibration.py" in line
     ]
-    assert len(calibration) == 2
+    assert len(calibration) == len(spec["conditions"])
     assert all("--calib-dtype float32" in line for line in calibration)
-    assert all("--damping 0.01" in line for line in calibration)
+    default_damping = spec["condition_defaults"]["damping"]
+    for condition, line in zip(spec["conditions"], calibration):
+        assert f"--damping {condition.get('damping', default_damping)}" in line
 
 
 def test_rtn_condition_skips_calibration_and_preconditioners() -> None:
