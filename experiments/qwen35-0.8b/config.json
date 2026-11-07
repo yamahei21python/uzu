@@ -11,8 +11,8 @@
     "max_tokens": 128,
     "min_tokens": 16,
     "corpora": {
-      "en": "experiments/qwen35-0.8b/data/eval_en_wikitext2.txt",
-      "ja": "experiments/qwen35-0.8b/data/eval_ja_wikipedia.txt"
+      "en": "experiments/qwen35-0.8b/data/eval_en_wikitext2_dedup.txt",
+      "ja": "experiments/qwen35-0.8b/data/eval_ja_wikipedia_dedup.txt"
     }
   },
   "calibration": {

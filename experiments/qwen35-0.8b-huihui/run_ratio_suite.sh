@@ -26,8 +26,8 @@ run_condition() {
   JAX_PLATFORM_NAME=cpu "$PY" scripts/yaqa_calibration.py \
     --model-dir "$BF16" \
     --corpus "$corpus" \
-    --eval-corpus "$DATA/eval_en_wikitext2.txt" \
-    --eval-corpus "$DATA/eval_ja_wikipedia.txt" \
+    --eval-corpus "$DATA/eval_en_wikitext2_dedup.txt" \
+    --eval-corpus "$DATA/eval_ja_wikipedia_dedup.txt" \
     --output "$out/calibration.npz" \
     --json-out "$out/calibration.json" \
     --samples 32 --max-tokens 128 \
@@ -49,7 +49,7 @@ run_condition() {
   JAX_PLATFORM_NAME=cpu "$PY" scripts/eval_quantized.py \
     --bf16-dir "$BF16" \
     --candidate-dir "$tmpeval" \
-    --corpus "$DATA/eval_en_wikitext2.txt" \
+    --corpus "$DATA/eval_en_wikitext2_dedup.txt" \
     --max-sequences 100 --max-tokens 128 \
     --json-out "$out/ppl_en.json" >> "$LOG" 2>&1 || { log "ERROR eval EN $name"; return 1; }
 
@@ -57,7 +57,7 @@ run_condition() {
   JAX_PLATFORM_NAME=cpu "$PY" scripts/eval_quantized.py \
     --bf16-dir "$BF16" \
     --candidate-dir "$tmpeval" \
-    --corpus "$DATA/eval_ja_wikipedia.txt" \
+    --corpus "$DATA/eval_ja_wikipedia_dedup.txt" \
     --max-sequences 100 --max-tokens 128 \
     --json-out "$out/ppl_ja.json" >> "$LOG" 2>&1 || { log "ERROR eval JA $name"; return 1; }
 
