@@ -121,6 +121,21 @@ BF16 は 3 seed とも EN 35.364 / JA 43.422（完全一致）。
 ---
 
 
+
+### Hessian 混合 vs コーパス混合（2026-11-08 / 100 chunks / d1e-3）
+
+| 条件 | EN BPC Δ | JA BPC Δ |
+|---|---:|---:|
+| clean mixed50（コーパス混合） | +3.36% | +3.70% |
+| balanced-50（Hessian 混合） | +2.33% | +3.12% |
+| **balanced-65** | **+2.32%** | **+2.72%** |
+| balanced-35 | +2.54% | +2.82% |
+
+- EN で約 1.0pp、JA で 0.6〜1.0pp 改善。seed 幅を超える
+- JA は balanced-65 が最良
+- damping 1e-2 + コーパス混合（EN 2.16 / JA 2.73）と同程度 → **2つは独立レバーの可能性**
+- 次の候補は併用（balanced-h を d1e-2 で）
+
 ### damping 1e-2 は 1e-3 より明確に良い（2026-11-08 / 100 chunks / CPU）
 
 | 条件 | EN BPC Δ | JA BPC Δ |
