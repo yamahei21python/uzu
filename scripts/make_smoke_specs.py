@@ -61,6 +61,7 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
+    args.out_dir.mkdir(parents=True, exist_ok=True)
     written = []
     for path in sorted(args.lanes_dir.glob("*.json")):
         if path.name.startswith("smoke-") or path.stem in DEFAULT_SKIP:
