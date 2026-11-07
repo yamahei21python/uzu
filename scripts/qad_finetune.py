@@ -153,6 +153,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--val-chunks", type=int, default=2, help="fixed chunks used for comparable validation loss")
     parser.add_argument("--val-every", type=int, default=5, help="evaluate fixed validation chunks every N steps")
     parser.add_argument("--save-every", type=int, default=10, help="checkpoint interval; 0 = only final")
+    parser.add_argument(
+        "--skip-checkpoint",
+        action="store_true",
+        help="do not write orbax checkpoints (isolates the export-phase OOM)",
+    )
     parser.add_argument("--checkpoint-dir", type=Path, default=None, help="default: <output-dir>/checkpoints")
     parser.add_argument("--resume", default=None, help="'auto' or a checkpoint directory")
     parser.add_argument("--keep-checkpoints", type=int, default=2, help="retain the newest N checkpoints")
