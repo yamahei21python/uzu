@@ -27,6 +27,14 @@
 - 50 chunks の旧結果は archive。新しい表に混ぜない
 - BF16 baseline は全条件で同一値でなければならない。違えば表を作らない
 
+### 2.5 汚染防止は入口で止める
+- `yaqa_calibration.py` / `qad_finetune.py` は `--eval-corpus` 必須
+- 校正/QAD コーパスと評価コーパスの exact line 重複を検出したら即停止
+- `--allow-overlap` は解析目的のみ。通常実験では使わない
+- `make_mixed_corpus.py` も `--eval-corpus` を受け取り、生成直後に検査
+- 重複除去は `scripts/dedup_calibration.py`。`*_dedup.txt` を使う
+- `check_experiment.py` で事後監査も行う
+
 ### 3. 校正プロトコルを統一
 - 1モデル内の全 YAQA 条件で同じ `samples` / `max_tokens` / `output_block` / `damping`
 - 4B/9B は layer-grouped。group filter と merge 元を `calibration.json` に残す

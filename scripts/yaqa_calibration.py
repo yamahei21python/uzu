@@ -75,6 +75,8 @@ def parse_args() -> argparse.Namespace:
         help="model dtype during calibration; bfloat16 halves memory for 4B/9B",
     )
     parser.add_argument("--json-out", type=Path, default=None)
+    parser.add_argument("--eval-corpus", type=Path, action="append", default=[], help="evaluation corpus to keep disjoint")
+    parser.add_argument("--allow-overlap", action="store_true", help="allow calibration/eval overlap for analysis only")
     parser.add_argument("--progress-jsonl", type=Path, default=None, help="default: <output>.progress.jsonl")
     parser.add_argument("--checkpoint-every", type=int, default=0, help="save partial accumulators every N samples; 0=off")
     parser.add_argument("--checkpoint-path", type=Path, default=None, help="default: <output>.partial.npz")
@@ -84,6 +86,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    from corpus_guard import assert_disjoint
+
+    assert_disjoint(args.corpus, args.eval_corpus, allow_overlap=args.allow_overlap)
     progress_path = args.progress_jsonl or args.output.with_suffix(".progress.jsonl")
     progress_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint_path = args.checkpoint_path or args.output.with_suffix(".partial.npz")
@@ -431,6 +436,8 @@ def main() -> None:
     summary = {
         "model_dir": str(args.model_dir),
         "corpus": str(args.corpus),
+        "eval_corpora": [str(path) for path in args.eval_corpus],
+        "overlap_checked": bool(args.eval_corpus),
         "samples": args.samples,
         "max_tokens": args.max_tokens,
         "output_block": args.output_block,

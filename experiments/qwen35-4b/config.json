@@ -47,6 +47,7 @@
     "save_every": 5,
     "val_chunks": 2,
     "val_every": 5,
-    "parallel": "tensor"
+    "parallel": "tensor",
+    "corpus": "experiments/qwen35-0.8b/data/calibration_en_wikitext2_dedup.txt"
   }
 }

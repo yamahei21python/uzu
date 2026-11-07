@@ -44,6 +44,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--student-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--corpus", type=Path, required=True)
+    parser.add_argument("--eval-corpus", type=Path, action="append", default=[], help="evaluation corpus to keep disjoint")
+    parser.add_argument("--allow-overlap", action="store_true", help="allow training/eval overlap for analysis only")
     parser.add_argument("--lalamo-path", default=os.environ.get("LALAMO_PATH", "/tmp/lalamo-direct"))
     parser.add_argument("--steps", type=int, default=50)
     parser.add_argument("--seq", type=int, default=128)
@@ -76,6 +78,10 @@ def main() -> None:
     args = parse_args()
     sys.path.insert(0, args.lalamo_path)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+    from corpus_guard import assert_disjoint
+
+    assert_disjoint(args.corpus, args.eval_corpus, allow_overlap=args.allow_overlap)
 
     import equinox as eqx
     import jax
@@ -253,6 +259,8 @@ def main() -> None:
     checkpoint_meta = {
         "teacher_dir": str(args.teacher_dir),
         "student_dir": str(args.student_dir),
+        "eval_corpora": [str(path) for path in args.eval_corpus],
+        "overlap_checked": bool(args.eval_corpus),
         "seq": args.seq,
         "optimizer": args.optimizer,
         "lr": args.lr,
