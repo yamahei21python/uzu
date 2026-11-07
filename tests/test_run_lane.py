@@ -71,6 +71,17 @@ def test_smoke_spec_is_cheap_and_single_condition() -> None:
     assert all("--max-sequences 2" in line for line in evals)
 
 
+def test_calib_dtype_is_passed_to_calibration() -> None:
+    result = run_lane(LANES / "damping-ablation-08b.json")
+    assert result.returncode == 0, result.stdout + result.stderr
+    calibration = [
+        line for line in result.stdout.splitlines() if line.startswith("$ ") and "yaqa_calibration.py" in line
+    ]
+    assert len(calibration) == 2
+    assert all("--calib-dtype float32" in line for line in calibration)
+    assert all("--damping 0.01" in line for line in calibration)
+
+
 def test_missing_spec_fields_fail_loudly(tmp_path: Path) -> None:
     spec = tmp_path / "bad.json"
     spec.write_text(json.dumps({"lane": "bad", "paths": {"kit": "kit", "work": str(tmp_path)}}), encoding="utf-8")

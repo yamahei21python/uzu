@@ -48,6 +48,7 @@ KIT_SCRIPTS = [
     "make_qad_dataset.py",
     "ag_fetch.py",
     "lalamo_forward.py",
+    "kaggle_usage.py",
     "eval_generation.py",
     "pull_results.py",
     # guards / audits
@@ -78,6 +79,7 @@ KIT_LANES = [
     "smoke-08b.json",
     "clean-suite-08b.json",
     "balanced-h-08b.json",
+    "damping-ablation-08b.json",
     "robustness-08b-shard1of3.json",
     "robustness-08b-shard2of3.json",
     "robustness-08b-shard3of3.json",
