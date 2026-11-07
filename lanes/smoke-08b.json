@@ -5,7 +5,8 @@
     "spec_name": "Qwen3.5-0.8B",
     "bf16_dir": "bf16-lalamo",
     "bf16_source": "/kaggle/input/uzu-bf16-08b-lalamo",
-    "bf16_raw_dir": "bf16-raw"
+    "bf16_raw_dir": "bf16-raw",
+    "bf16_source_auto": true
   },
   "paths": {
     "kit": "kit",
@@ -36,6 +37,9 @@
     "parallel": "tensor"
   },
   "conditions": [
-    {"name": "mix65", "calibration_corpus": "data/calibration_mixed_ja65_en35_dedup.txt"}
+    {
+      "name": "mix65",
+      "calibration_corpus": "data/calibration_mixed_ja65_en35_dedup.txt"
+    }
   ]
 }

@@ -4,7 +4,8 @@
     "hf_repo": "Qwen/Qwen3.5-0.8B",
     "spec_name": "Qwen3.5-0.8B",
     "bf16_dir": "bf16-lalamo",
-    "bf16_source": "/kaggle/input/uzu-bf16-08b-lalamo"
+    "bf16_source": "/kaggle/input/uzu-bf16-08b-lalamo",
+    "bf16_source_auto": true
   },
   "paths": {
     "kit": "kit",
