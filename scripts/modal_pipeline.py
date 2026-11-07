@@ -55,6 +55,7 @@ image = (
     .add_local_file("scripts/corpus_guard.py", "/workspace/scripts/corpus_guard.py")
     .add_local_file("scripts/eval_quantized.py", "/workspace/scripts/eval_quantized.py")
     .add_local_file("scripts/qad_finetune.py", "/workspace/scripts/qad_finetune.py")
+    .add_local_file("scripts/lalamo_forward.py", "/workspace/scripts/lalamo_forward.py")
     # imported by this entrypoint at startup; must sit beside it, not in /workspace/scripts
     .add_local_file("scripts/modal_targets.py", "/root/modal_targets.py")
     .add_local_file(
