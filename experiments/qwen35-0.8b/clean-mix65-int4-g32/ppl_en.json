@@ -1,0 +1,27 @@
+{
+  "bf16_dir": "/tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg",
+  "candidate_dir": "/tmp/cpu_lane/int4-clean-suite-08b-mix65-eval",
+  "corpus": "/tmp/kit_cpu/data/eval_en_wikitext2_dedup.txt",
+  "config": {
+    "corpus": "/tmp/kit_cpu/data/eval_en_wikitext2_dedup.txt",
+    "corpus_sha256": "342e8f6a77fb9db7",
+    "max_sequences": 100,
+    "max_tokens": 128,
+    "min_tokens": 16
+  },
+  "config_hash": "1910663bf3270ebd",
+  "chunks": 100,
+  "tokens": 12700,
+  "chars": 52220,
+  "tokens_per_char": 0.2432018383761011,
+  "bf16_ppl": 35.37584015335258,
+  "candidate_ppl": 40.52371967896562,
+  "bpc_bf16": 1.2511986754153313,
+  "bpc_candidate": 1.2988667693238292,
+  "delta_nll_per_token": 0.13585836816021768,
+  "top1_agreement": 0.8225196850393701,
+  "top5_overlap": 0.8220314960629902,
+  "kl_bf16_candidate": 0.10629932824082262,
+  "cosine_logits": 0.9854192898968074,
+  "mean_abs_top1_margin_delta": 0.3898080708661417
+}
