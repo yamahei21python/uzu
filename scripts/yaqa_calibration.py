@@ -118,7 +118,7 @@ def main() -> None:
     import numpy as np
 
     from lalamo.model import Model
-    from lalamo_forward import apply_attention_env, describe
+    from lalamo_forward import apply_attention_env, describe, force_float32_activations
     from lalamo.module import Keychain
     from lalamo.modules import DecoderForwardPassConfig, ForwardPassMode
     from lalamo.modules.linear import Linear
@@ -136,7 +136,7 @@ def main() -> None:
         sharding = ShardingConfig.replicated()
     keychain = Keychain.init(seed=args.seed, sharding_config=sharding)
     forward_pass_config = DecoderForwardPassConfig.for_inference(mode=ForwardPassMode.MULTI_TOKEN)
-    forward_pass_config = apply_attention_env(forward_pass_config)
+    forward_pass_config = force_float32_activations(apply_attention_env(forward_pass_config))
     print(f"attention: {describe()}", flush=True)
 
     dtype = jnp.dtype(args.calib_dtype)

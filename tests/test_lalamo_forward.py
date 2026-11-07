@@ -135,3 +135,36 @@ def test_explicit_pallas_wins_over_auto(monkeypatch) -> None:
     monkeypatch.setenv("UZU_ATTENTION_IMPL", "pallas")
     monkeypatch.setattr(lalamo_forward, "gpu_capabilities", lambda: [7.5])
     assert lalamo_forward.requested() == "pallas"
+
+
+@dataclass
+class FakeEmbeddingConfig:
+    activation_dtype: object = "placeholder"
+
+
+@dataclass
+class FakeFullConfig:
+    embedding_forward_pass_config: FakeEmbeddingConfig = field(default_factory=FakeEmbeddingConfig)
+
+
+def test_force_f32_activations_on_pre_ampere(monkeypatch) -> None:
+    import jax.numpy as jnp
+
+    monkeypatch.setattr(lalamo_forward, "gpu_capabilities", lambda: [7.5])
+    config = FakeFullConfig(FakeEmbeddingConfig(jnp.bfloat16))
+    patched = lalamo_forward.force_float32_activations(config)
+    assert patched.embedding_forward_pass_config.activation_dtype == jnp.float32
+
+
+def test_force_f32_activations_keeps_ampere_dtype(monkeypatch) -> None:
+    import jax.numpy as jnp
+
+    monkeypatch.setattr(lalamo_forward, "gpu_capabilities", lambda: [8.0])
+    config = FakeFullConfig(FakeEmbeddingConfig(jnp.bfloat16))
+    assert lalamo_forward.force_float32_activations(config) is config
+
+
+def test_force_f32_activations_without_gpu_is_a_noop(monkeypatch) -> None:
+    monkeypatch.setattr(lalamo_forward, "gpu_capabilities", lambda: [])
+    config = FakeFullConfig(FakeEmbeddingConfig("placeholder"))
+    assert lalamo_forward.force_float32_activations(config) is config

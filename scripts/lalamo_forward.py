@@ -76,6 +76,31 @@ def requested() -> str | None:
     return None
 
 
+def force_float32_activations(config):
+    """Use f32 activations on GPUs without BF16 tensor cores.
+
+    ``Model.load(..., dtype=float32)`` only fixes the weights: the embedding
+    forward config still defaults to ``activation_dtype=bfloat16``, so the
+    residual stream (and therefore attention's q/k/v) stays bf16 and the dot
+    lowers to ALG_DOT_BF16_BF16_F32, which Turing does not implement.
+    """
+    capabilities = gpu_capabilities()
+    if not capabilities or not any(capability < BF16_MIN_CAPABILITY for capability in capabilities):
+        return config
+
+    from dataclasses import replace
+
+    import jax.numpy as jnp
+
+    embedding = config.embedding_forward_pass_config
+    if embedding.activation_dtype == jnp.float32:
+        return config
+    return replace(
+        config,
+        embedding_forward_pass_config=replace(embedding, activation_dtype=jnp.float32),
+    )
+
+
 def apply_attention_env(config):
     """Return config with the attention implementation overridden, if requested."""
     mode = requested()

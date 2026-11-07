@@ -172,6 +172,7 @@ def detect_capabilities(root: Path) -> list[str]:
         "lane.continue_on_failure": ("scripts/run_lane.py", "def run_conditions"),
         "lane.resume_hf_results": ("scripts/run_lane.py", "def pull"),
         "attention.auto_xla": ("scripts/lalamo_forward.py", "def gpu_capabilities"),
+        "attention.f32_activations": ("scripts/lalamo_forward.py", "def force_float32_activations"),
     }
     found = []
     for name, (relative, needle) in wanted.items():
