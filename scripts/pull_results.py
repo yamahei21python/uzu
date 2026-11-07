@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Pull a results repository and summarise what landed.
 
-The Kaggle operator uploads ``<lane>/manifest.json`` + per-condition JSON to
-``<user>/uzu-results``. This downloads it and prints what is complete, what is
+The Kaggle operator uploads ``<namespace>/<lane>/manifest.json`` + per-condition
+JSON to ``yamahei21/uzu-results`` (private). This downloads it and prints what is complete, what is
 missing, and whether any manifest reported problems, so nobody has to eyeball a
 directory tree.
 
 Usage:
-    python scripts/pull_results.py --repo kentasatomuse/uzu-results --out results/kentasatomuse
-    python scripts/pull_results.py --out results/kentasatomuse --skip-download
+    python scripts/pull_results.py --repo yamahei21/uzu-results --out results/shared
+    python scripts/pull_results.py --out results/shared --skip-download
     python scripts/pull_results.py --repo ... --out ... --json results/summary.json
 """
 
@@ -82,7 +82,7 @@ def download(repo: str, out: Path, revision: str | None) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--repo", default=None, help="HF dataset repo, e.g. <user>/uzu-results")
+    parser.add_argument("--repo", default="yamahei21/uzu-results", help="HF dataset repo")
     parser.add_argument("--revision", default=None)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--skip-download", action="store_true")
