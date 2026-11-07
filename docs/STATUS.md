@@ -44,6 +44,18 @@ RTN は動作確認。本番は YAQA calibration 後。
 - 4B/9B は **g64 まで可、g128 は不可**。group size の判断は 4B で行う
 - 出典: 各モデルの `model.safetensors` ヘッダ（2D Linear のみ、`.conv.` を除外）
 
+### T4 (cc 7.5) の制約（2026-11-07 実測）
+
+| 項目 | 事実 | 対策 |
+|---|---|---|
+| BF16 matmul | **不可**。実形状の attention で `ALG_DOT_BF16_BF16_F32` が UNIMPLEMENTED | `--calib-dtype float32` / `--eval-dtype float32` 固定 |
+| Pallas-Triton | 不可（Triton は cc>=8.0） | `UZU_ATTENTION_IMPL=xla`。未設定なら cc から自動選択（`5e61da84`） |
+| preflight | 小形状 probe は T4 でも pass していた | 実形状（512×1024 dot / 1×12×512×64 sdpa）に変更 |
+| bf16 指定 | 起動時に拒否 | `eval_quantized.py` / `yaqa_calibration.py` が cc<8.0 で明示エラー |
+| TP=2 | `--parallel tensor` で 2 枚を 1 メモリプールに | 0.8B q512 を実測中 |
+
+`attention=xla` は Triton だけを回避する。BF16 の問題とは独立。
+
 ---
 
 ## 2. インフラ
