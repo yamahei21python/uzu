@@ -25,6 +25,7 @@ python kit/scripts/run_lane.py \
 |---|---|---:|---:|
 | A | `seed-variance-08b` + `group-size-ablation-08b` | 6 | 6〜9h |
 | B | `damping-ablation-08b` + `bit-alloc-ablation-08b` | 4 | 4〜6h |
+| C1〜C5 | `robustness-08b-shard{1..5}of5` | 6/6/5/5/5 | 各 5〜8h |
 
 12h 制限に収まるよう 2 本に分けている。片方が落ちても、もう片方は独立。
 
