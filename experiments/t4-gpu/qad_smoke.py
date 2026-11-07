@@ -42,8 +42,10 @@ subprocess.run([sys.executable, str(kit / "scripts/make_qad_dataset.py"),
     "--damping", "1e-3", "--parallel", "tensor"], check=True)
 print(f"dataset+convert {time.time()-started:.0f}s", flush=True)
 
-started = time.time()
-subprocess.run([sys.executable, str(kit / "scripts/qad_finetune.py"),
+# a silent death after the last step points at the OOM killer; skip orbax first
+# to separate checkpoint serialization from the export path
+skip_checkpoint = os.environ.get("QAD_SMOKE_SKIP_CHECKPOINT", "1") == "1"
+qad_command = [sys.executable, str(kit / "scripts/qad_finetune.py"),
     "--teacher-dir", str(bf16), "--student-dir", "/kaggle/working/qad/student",
     "--corpus", str(kit / "data/calibration_mixed_en_ja_dedup.txt"),
     "--eval-corpus", str(kit / "data/eval_en_wikitext2_dedup.txt"),
@@ -52,7 +54,12 @@ subprocess.run([sys.executable, str(kit / "scripts/qad_finetune.py"),
     "--steps", "10", "--seq", "128", "--optimizer", "adamw",
     "--lr", "2e-5", "--scale-lr", "1e-6", "--freeze-scales", "--warmup-steps", "5",
     "--val-every", "5", "--val-chunks", "2", "--save-every", "0",
-    "--parallel", "tensor"], check=True)
+    "--parallel", "tensor"]
+if skip_checkpoint:
+    qad_command.append("--skip-checkpoint")
+print("skip_checkpoint:", skip_checkpoint, flush=True)
+started = time.time()
+subprocess.run(qad_command, check=True)
 print(f"qad 10 steps {time.time()-started:.0f}s", flush=True)
 
 run = Path("/kaggle/working/qad/run")
