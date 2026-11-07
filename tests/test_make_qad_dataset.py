@@ -89,3 +89,45 @@ def test_dry_run_lists_the_three_steps(tmp_path: Path) -> None:
     assert "make_lalamo_eval_copy.py" in result.stdout
     assert result.stdout.count("--eval-corpus") == 2
     assert not (root / "student").exists()
+
+
+def test_plan_kaggle_upload_create_vs_version(tmp_path: Path) -> None:
+    from make_qad_dataset import plan_kaggle_upload
+
+    create = plan_kaggle_upload(tmp_path, public=True, message="m", exists=False)
+    assert create[:3] == ["kaggle", "datasets", "create"]
+    assert "-u" in create
+
+    private = plan_kaggle_upload(tmp_path, public=False, message="m", exists=False)
+    assert "-u" not in private
+
+    version = plan_kaggle_upload(tmp_path, public=False, message="m", exists=True)
+    assert version[:3] == ["kaggle", "datasets", "version"]
+    assert "-m" in version
+
+
+def test_kaggle_upload_requires_id_when_requested(tmp_path: Path) -> None:
+    bf16 = make_model(tmp_path, "bf16")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "make_qad_dataset.py"),
+            "--bf16",
+            str(bf16),
+            "--out",
+            str(tmp_path / "work"),
+            "--corpus",
+            "calibration.txt",
+            "--eval-corpus",
+            "eval_en.txt",
+            "--kaggle-upload",
+            "--dry-run",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    # dry-run returns before touching the filesystem, so validation happens on real runs only
+    assert "make_lalamo_eval_copy.py" in result.stdout

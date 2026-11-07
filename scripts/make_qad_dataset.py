@@ -76,6 +76,30 @@ def validate_student(bf16: Path, student: Path) -> list[str]:
     return problems
 
 
+def plan_kaggle_upload(out: Path, public: bool, message: str, exists: bool) -> list[str]:
+    """First upload creates the dataset; later ones add a version."""
+    if exists:
+        return ["kaggle", "datasets", "version", "-p", str(out), "-m", message, "-r", "zip", "-q"]
+    command = ["kaggle", "datasets", "create", "-p", str(out), "-r", "zip", "-q"]
+    if public:
+        command.append("-u")
+    return command
+
+
+def upload_to_kaggle(out: Path, public: bool, message: str, dry_run: bool) -> int:
+    create = plan_kaggle_upload(out, public, message, exists=False)
+    print("$ " + " ".join(create), flush=True)
+    if dry_run:
+        return 0
+    first = subprocess.run(create, check=False)
+    if first.returncode == 0:
+        return 0
+    version = plan_kaggle_upload(out, public, message, exists=True)
+    print("create failed; trying a new version", flush=True)
+    print("$ " + " ".join(version), flush=True)
+    return subprocess.run(version, check=False).returncode
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--bf16", type=Path, required=True, help="raw lalamo BF16 directory")
@@ -91,6 +115,9 @@ def main() -> None:
     parser.add_argument("--calibration-json", type=Path, default=None, help="reuse an existing calibration.json")
     parser.add_argument("--calibration-npz", type=Path, default=None, help="reuse an existing calibration.npz")
     parser.add_argument("--kaggle-id", default=None, help="write dataset-metadata.json for this Kaggle id")
+    parser.add_argument("--kaggle-upload", action="store_true", help="create or version the Kaggle dataset after validating")
+    parser.add_argument("--kaggle-public", action="store_true", help="create the dataset as public")
+    parser.add_argument("--kaggle-message", default="QAD student (clean calibration)")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -213,6 +240,15 @@ def main() -> None:
 
     print(f"student ready: {student}")
     print(f"manifest: {out / 'qad_dataset.json'}")
+
+    if args.kaggle_upload:
+        if not args.kaggle_id:
+            raise SystemExit("--kaggle-upload needs --kaggle-id")
+        if not (out / "dataset-metadata.json").exists():
+            raise SystemExit("missing dataset-metadata.json; pass --kaggle-id")
+        code = upload_to_kaggle(out, args.kaggle_public, args.kaggle_message, args.dry_run)
+        if code != 0:
+            raise SystemExit(f"kaggle upload failed with code {code}")
 
 
 if __name__ == "__main__":

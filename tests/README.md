@@ -20,7 +20,7 @@ pytest -q tests/
 - lane spec のコマンド生成・resume・検証（`run_lane.py`）
 - シャード分割とスイープ生成（`--shard`, `make_sweep_spec.py`）
 - シャード manifest の統合（`combine_lane_manifests.py`）
-- QAD student の検証（`make_qad_dataset.py`）
+- QAD student の検証と Kaggle アップロード計画（`make_qad_dataset.py`）
 - アングラ fetch の再試行とログ復元（`ag_fetch.py`）
 - 環境容量の掃除と UTC 時刻の扱い（`ag_queue.py cleanup-envs`）
 - 生成評価の採点（`eval_generation.py`）と結果回収（`pull_results.py`）
