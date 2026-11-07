@@ -39,7 +39,7 @@ subprocess.run([sys.executable, str(kit / "scripts/make_qad_dataset.py"),
     "--eval-corpus", str(kit / "data/eval_en_wikitext2_dedup.txt"),
     "--eval-corpus", str(kit / "data/eval_ja_wikipedia_dedup.txt"),
     "--samples", "8", "--max-tokens", "128", "--output-block", "small",
-    "--damping", "1e-3", "--parallel", "replicated"], check=True)
+    "--damping", "1e-3", "--parallel", "tensor"], check=True)
 print(f"dataset+convert {time.time()-started:.0f}s", flush=True)
 
 started = time.time()
@@ -51,7 +51,8 @@ subprocess.run([sys.executable, str(kit / "scripts/qad_finetune.py"),
     "--output-dir", "/kaggle/working/qad/run",
     "--steps", "10", "--seq", "128", "--optimizer", "adamw",
     "--lr", "2e-5", "--scale-lr", "1e-6", "--freeze-scales", "--warmup-steps", "5",
-    "--val-every", "5", "--val-chunks", "2", "--save-every", "0"], check=True)
+    "--val-every", "5", "--val-chunks", "2", "--save-every", "0",
+    "--parallel", "tensor"], check=True)
 print(f"qad 10 steps {time.time()-started:.0f}s", flush=True)
 
 run = Path("/kaggle/working/qad/run")
