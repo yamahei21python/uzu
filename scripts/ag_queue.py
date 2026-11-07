@@ -35,6 +35,9 @@ import signal
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +46,9 @@ ROOT = SCRIPT_DIR.parent
 TASKS = ROOT / "antigravity" / "tasks"
 LOCK = ROOT / "antigravity" / ".queue.lock"
 DEFAULT_WRAPPER = Path.home() / ".config" / "opencode" / "antigravity" / "antigravity.py"
+AG_HOME = DEFAULT_WRAPPER.parent
+CREDENTIALS = AG_HOME / "credentials.json"
+API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 CAPACITY = 3
 TERMINAL = {"done", "failed", "cancelled"}
 
@@ -112,6 +118,156 @@ def tail(path: Path, limit: int = 4000) -> str:
         return path.read_text(encoding="utf-8", errors="replace")[-limit:]
     except OSError:
         return ""
+
+
+# ---------- environment cleanup ----------
+
+ENV_DELETED_LOG = ROOT / "logs" / time.strftime("%Y-%m-%d") / "antigravity_deleted_envs.txt"
+
+
+def api_key() -> str | None:
+    for name in ("ANTIGRAVITY_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        value = os.environ.get(name)
+        if value:
+            return value
+    try:
+        return json.loads(CREDENTIALS.read_text(encoding="utf-8"))["api_key"]
+    except (OSError, KeyError, json.JSONDecodeError):
+        return None
+
+
+def active_env_ids() -> set[str]:
+    """Environments that a recorded session still points at. Never delete these."""
+    ids: set[str] = set()
+    candidates: list[Path] = []
+    candidates.extend(Path("/tmp").glob("ag_*.json"))
+    for sub in ("sessions", "pending"):
+        directory = AG_HOME / sub
+        if directory.exists():
+            candidates.extend(directory.glob("*.json"))
+    for path in candidates:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        env_id = payload.get("environment_id")
+        if isinstance(env_id, str) and env_id:
+            ids.add(env_id)
+    return ids
+
+
+def parse_created(value: Any) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    text = value.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(tz=None).replace(tzinfo=None)
+    return parsed
+
+
+def select_deletable(
+    environments: list[dict[str, Any]],
+    keep: set[str],
+    older_than_days: float,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Pure selector so it can be tested without touching the API."""
+    cutoff = (now or datetime.now(timezone.utc).replace(tzinfo=None)) - timedelta(days=older_than_days)
+    selected = []
+    for environment in environments:
+        env_id = environment.get("id")
+        if not isinstance(env_id, str) or env_id in keep:
+            continue
+        created = parse_created(environment.get("created"))
+        if created is None:
+            continue  # unknown age: keep it
+        if created <= cutoff:
+            selected.append(environment)
+    return selected
+
+
+def fetch_environments(api_base: str, key: str) -> list[dict[str, Any]]:
+    request = urllib.request.Request(
+        f"{api_base}/environments?pageSize=100", headers={"x-goog-api-key": key}
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8")).get("environments", [])
+
+
+def delete_environment(api_base: str, key: str, env_id: str) -> bool:
+    request = urllib.request.Request(
+        f"{api_base}/environments/{env_id}", headers={"x-goog-api-key": key}, method="DELETE"
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30):
+            return True
+    except urllib.error.HTTPError as error:
+        print(f"delete {env_id} failed: {error.code}")
+        return False
+    except urllib.error.URLError as error:
+        print(f"delete {env_id} failed: {error.reason}")
+        return False
+
+
+def cleanup_envs(
+    older_than_days: float,
+    dry_run: bool = False,
+    api_base: str = API_BASE,
+    env_list_file: Path | None = None,
+    keep_extra: set[str] | None = None,
+) -> dict[str, Any]:
+    """Delete idle Antigravity environments. 429 is often environment saturation."""
+    keep = active_env_ids() | (keep_extra or set())
+    if env_list_file is not None:
+        environments = json.loads(env_list_file.read_text(encoding="utf-8"))
+        if isinstance(environments, dict):
+            environments = environments.get("environments", [])
+    else:
+        key = api_key()
+        if not key:
+            print("no API key: set ANTIGRAVITY_API_KEY or credentials.json")
+            return {"error": "no-api-key"}
+        try:
+            environments = fetch_environments(api_base, key)
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as error:
+            print(f"cannot list environments: {error}")
+            return {"error": str(error)}
+
+    selected = select_deletable(environments, keep, older_than_days)
+    deleted: list[str] = []
+    for environment in selected:
+        env_id = environment["id"]
+        created = environment.get("created", "?")
+        size = environment.get("size_bytes", "?")
+        print(f"{'[dry-run] ' if dry_run else ''}delete {env_id} created={created} size={size}")
+        if dry_run:
+            continue
+        key = api_key()
+        if not key:
+            return {"error": "no-api-key", "deleted": deleted}
+        if delete_environment(api_base, key, env_id):
+            deleted.append(env_id)
+
+    if deleted and not dry_run:
+        ENV_DELETED_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with ENV_DELETED_LOG.open("a", encoding="utf-8") as handle:
+            for env_id in deleted:
+                handle.write(f"{now()} {env_id}\n")
+
+    summary = {
+        "total": len(environments),
+        "kept_active": len([env for env in environments if env.get("id") in keep]),
+        "selected": len(selected),
+        "deleted": len(deleted),
+        "dry_run": dry_run,
+        "older_than_days": older_than_days,
+    }
+    print(json.dumps(summary, ensure_ascii=False))
+    return summary
 
 
 # ---------- commands ----------
@@ -278,6 +434,8 @@ def cmd_pump(args: argparse.Namespace) -> None:
             if "Rate limit" in log_tail and int(meta.get("attempts", 0)) < int(meta.get("max_attempts", 3)):
                 meta["queue_status"] = "queued"
                 print(f"requeue {meta['slug']} (rate limit)")
+                # 429 is often environment saturation, not just QPS: free old sandboxes first
+                cleanup_envs(getattr(args, "env_ttl_days", 1.0))
             else:
                 meta["queue_status"] = "failed"
                 print(f"failed {meta['slug']} (pid gone, no state)")
@@ -299,6 +457,18 @@ def cmd_pump(args: argparse.Namespace) -> None:
 
     running = sum(1 for meta in tickets() if meta["queue_status"] == "running") + manual_active
     print(f"active={running} capacity={CAPACITY} max_active={args.max_active} free_slots={max(0, CAPACITY - running)}")
+
+
+def cmd_cleanup_envs(args: argparse.Namespace) -> None:
+    summary = cleanup_envs(
+        older_than_days=args.older_than_days,
+        dry_run=args.dry_run,
+        api_base=args.api_base,
+        env_list_file=Path(args.env_list_file).expanduser() if args.env_list_file else None,
+        keep_extra=set(args.keep or []),
+    )
+    if summary.get("error"):
+        raise SystemExit(1)
 
 
 def cmd_watch(args: argparse.Namespace) -> None:
@@ -338,10 +508,19 @@ def main() -> None:
 
     pump = sub.add_parser("pump")
     pump.add_argument("--max-active", type=int, default=2)
+    pump.add_argument("--env-ttl-days", type=float, default=1.0, help="delete idle environments older than this on 429")
 
     watch = sub.add_parser("watch")
     watch.add_argument("--max-active", type=int, default=2)
     watch.add_argument("--interval", type=int, default=300)
+    watch.add_argument("--env-ttl-days", type=float, default=1.0)
+
+    cleanup = sub.add_parser("cleanup-envs", help="delete idle Antigravity environments")
+    cleanup.add_argument("--older-than-days", type=float, default=1.0)
+    cleanup.add_argument("--dry-run", action="store_true")
+    cleanup.add_argument("--api-base", default=API_BASE)
+    cleanup.add_argument("--env-list-file", default=None, help="offline JSON list (tests)")
+    cleanup.add_argument("--keep", nargs="*", default=[], help="extra environment ids to keep")
 
     for name in ("retry", "cancel"):
         command = sub.add_parser(name)
@@ -359,6 +538,8 @@ def main() -> None:
         cmd_retry(args)
     elif args.command == "cancel":
         cmd_cancel(args)
+    elif args.command == "cleanup-envs":
+        cmd_cleanup_envs(args)
     elif args.command in ("pump", "watch"):
         lock = acquire_lock()
         try:
