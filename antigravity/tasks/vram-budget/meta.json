@@ -1,0 +1,16 @@
+{
+  "slug": "vram-budget",
+  "label": "vram-budget",
+  "state": "/tmp/ag_vram_budget.json",
+  "log": "logs/2026-11-07/local/antigravity_vram_budget.log",
+  "fetch_dir": "/private/tmp/ag_vram_budget_fetch",
+  "deliverables": [
+    "research/vram_budget_4b_9b.md",
+    "research/vram_budget.json",
+    "research/vram_measurements.txt",
+    "scripts/memory_model.py"
+  ],
+  "status": "running",
+  "started": "2026-11-07T13:10:00",
+  "note": "4B YAQA OOM の主因特定 + T4 で通る枝"
+}

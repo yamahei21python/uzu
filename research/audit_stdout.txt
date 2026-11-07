@@ -1,0 +1,60 @@
+=== [Step 1] Loading uzu corpora from /workspace/uzu-quant-kit/data ===
+  Loaded `eval_en`: total=2092 lines, valid(>=40)=757 lines, valid_chars=492,078
+  Loaded `eval_ja`: total=9905 lines, valid(>=40)=3054 lines, valid_chars=415,937
+  Loaded `cal_en`: total=2125 lines, valid(>=40)=778 lines, valid_chars=491,488
+  Loaded `cal_ja`: total=11524 lines, valid(>=40)=2893 lines, valid_chars=453,784
+  Loaded `cal_mixed_en_ja`: total=1191 lines, valid(>=40)=795 lines, valid_chars=325,087
+  Loaded `cal_mixed_ja65`: total=2111 lines, valid(>=40)=911 lines, valid_chars=262,902
+
+=== [Step 2] Streaming WikiText-2 raw splits ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+  WikiText-2 train: total=23767 lines, valid=16930 lines (3.26s)
+  WikiText-2 validation: total=2461 lines, valid=1796 lines (0.71s)
+  WikiText-2 test: total=2891 lines, valid=2043 lines (0.73s)
+
+=== [Step 3] Streaming Japanese Wikipedia (max 200,000 lines) ===
+  JA Wikipedia streamed: 200,014 lines (951 articles), valid=47,526 lines, unique_norm=47,413 (3.92s)
+
+=== [Step 4] Auditing Corpus vs Public Datasets ===
+  eval_en          vs wt2_train      | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  eval_en          vs wt2_validation | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  eval_en          vs wt2_test       | raw:  757 (100.00%) | norm:  757 (100.00%) | char: 100.00%
+  eval_en          vs wiki_ja_sample | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  eval_ja          vs wt2_train      | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  eval_ja          vs wt2_validation | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  eval_ja          vs wt2_test       | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  eval_ja          vs wiki_ja_sample | raw: 3054 (100.00%) | norm: 3054 (100.00%) | char: 100.00%
+  cal_en           vs wt2_train      | raw:  778 (100.00%) | norm:  778 (100.00%) | char: 100.00%
+  cal_en           vs wt2_validation | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  cal_en           vs wt2_test       | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  cal_en           vs wiki_ja_sample | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  cal_ja           vs wt2_train      | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  cal_ja           vs wt2_validation | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  cal_ja           vs wt2_test       | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  cal_ja           vs wiki_ja_sample | raw: 2893 (100.00%) | norm: 2893 (100.00%) | char: 100.00%
+  cal_mixed_en_ja  vs wt2_train      | raw:  416 ( 52.33%) | norm:  416 ( 52.33%) | char:  79.23%
+  cal_mixed_en_ja  vs wt2_validation | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  cal_mixed_en_ja  vs wt2_test       | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  cal_mixed_en_ja  vs wiki_ja_sample | raw:  379 ( 47.67%) | norm:  379 ( 47.67%) | char:  20.77%
+  cal_mixed_ja65   vs wt2_train      | raw:    0 (  0.00%) | norm:  262 ( 28.76%) | char:  62.52%
+  cal_mixed_ja65   vs wt2_validation | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  cal_mixed_ja65   vs wt2_test       | raw:    0 (  0.00%) | norm:    0 (  0.00%) | char:   0.00%
+  cal_mixed_ja65   vs wiki_ja_sample | raw:  534 ( 58.62%) | norm:  649 ( 71.24%) | char:  37.48%
+
+=== [Step 5] Auditing Corpus vs Corpus Cross-Intersections ===
+  eval_en          vs cal_en           | raw:    0 (  0.00%) | norm:    0 (  0.00%)
+  eval_ja          vs cal_ja           | raw:    0 (  0.00%) | norm:    0 (  0.00%)
+  eval_en          vs cal_mixed_en_ja  | raw:    0 (  0.00%) | norm:    0 (  0.00%)
+  eval_en          vs cal_mixed_ja65   | raw:    0 (  0.00%) | norm:    0 (  0.00%)
+  eval_ja          vs cal_mixed_en_ja  | raw:    0 (  0.00%) | norm:    0 (  0.00%)
+  eval_ja          vs cal_mixed_ja65   | raw:    0 (  0.00%) | norm:    0 (  0.00%)
+  eval_en          vs eval_ja          | raw:    0 (  0.00%) | norm:    0 (  0.00%)
+  cal_en           vs cal_mixed_en_ja  | raw:  416 ( 53.47%) | norm:  416 ( 53.47%)
+  cal_en           vs cal_mixed_ja65   | raw:    0 (  0.00%) | norm:  262 ( 33.68%)
+  cal_ja           vs cal_mixed_en_ja  | raw:  379 ( 13.10%) | norm:  379 ( 13.10%)
+  cal_ja           vs cal_mixed_ja65   | raw:  534 ( 18.46%) | norm:  649 ( 22.43%)
+
+[+] JSON output written to research/public_corpus_audit.json
+[+] Markdown report written to research/public_corpus_audit.md
+
+=== Audit completed successfully in 9.82s ===

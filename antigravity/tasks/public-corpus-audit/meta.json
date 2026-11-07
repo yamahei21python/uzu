@@ -1,0 +1,16 @@
+{
+  "slug": "public-corpus-audit",
+  "label": "public-corpus-audit",
+  "state": "/tmp/ag_public_corpus_audit.json",
+  "log": "logs/2026-11-07/local/antigravity_public_corpus_audit.log",
+  "fetch_dir": "/private/tmp/ag_public_corpus_audit_fetch",
+  "deliverables": [
+    "research/public_corpus_audit.md",
+    "research/public_corpus_audit.json",
+    "research/audit_stdout.txt",
+    "scripts/audit_public_corpus.py"
+  ],
+  "status": "collected",
+  "collected_at": "2026-11-07T13:00:00",
+  "note": "verified locally: all 17 cross rows identical (PR #41)"
+}

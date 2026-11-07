@@ -1,0 +1,16 @@
+{
+  "slug": "qad-convergence",
+  "label": "qad-convergence",
+  "state": "/tmp/ag_qad_convergence.json",
+  "log": "logs/2026-11-07/local/antigravity_qad_convergence.log",
+  "fetch_dir": "/private/tmp/ag_qad_convergence_fetch",
+  "deliverables": [
+    "research/qad_convergence_diagnosis.md",
+    "research/qad_scale_repro_results.json",
+    "research/qad_repro_stdout.txt",
+    "scripts/qad_scale_repro.py"
+  ],
+  "status": "running",
+  "started": "2026-11-07T13:10:20",
+  "note": "loss 0.156->1.74 と scale collapse の原因"
+}
