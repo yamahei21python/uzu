@@ -24,3 +24,23 @@ def test_capabilities_are_detected_from_source(tmp_path: Path) -> None:
 
 def test_missing_files_are_not_claimed(tmp_path: Path) -> None:
     assert detect_capabilities(tmp_path) == []
+
+
+def test_lane_and_attention_capabilities(tmp_path: Path) -> None:
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    (scripts / "run_lane.py").write_text(
+        "--exclude\ndef run_conditions():\n    pass\ndef pull():\n    pass\n", encoding="utf-8"
+    )
+    (scripts / "lalamo_forward.py").write_text("def gpu_capabilities():\n    pass\n", encoding="utf-8")
+    (scripts / "qad_finetune.py").write_text("def early_stop_decision():\n    pass\n", encoding="utf-8")
+    (scripts / "preflight.py").write_text("jnp.ones((512, 1024)\n", encoding="utf-8")
+    caps = set(detect_capabilities(tmp_path))
+    assert {
+        "lane.exclude",
+        "lane.continue_on_failure",
+        "lane.resume_hf_results",
+        "attention.auto_xla",
+        "qad.early_stop_nonfatal",
+        "preflight.real_shapes",
+    } <= caps

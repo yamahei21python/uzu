@@ -164,8 +164,14 @@ def detect_capabilities(root: Path) -> list[str]:
         "eval_quantized.dtype": ("scripts/eval_quantized.py", "--dtype"),
         "preflight": ("scripts/preflight.py", "def verdict"),
         "preflight.sdpa_xla": ("scripts/preflight.py", "sdpa_xla"),
+        "preflight.real_shapes": ("scripts/preflight.py", "jnp.ones((512, 1024)"),
         "env_fingerprint": ("scripts/env_fingerprint.py", "lalamo_code_hashes"),
         "qad.freeze_scales": ("scripts/qad_finetune.py", "--freeze-scales"),
+        "qad.early_stop_nonfatal": ("scripts/qad_finetune.py", "def early_stop_decision"),
+        "lane.exclude": ("scripts/run_lane.py", "--exclude"),
+        "lane.continue_on_failure": ("scripts/run_lane.py", "def run_conditions"),
+        "lane.resume_hf_results": ("scripts/run_lane.py", "def pull"),
+        "attention.auto_xla": ("scripts/lalamo_forward.py", "def gpu_capabilities"),
     }
     found = []
     for name, (relative, needle) in wanted.items():
