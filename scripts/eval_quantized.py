@@ -23,10 +23,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
 import sys
+import time
 from pathlib import Path
 
 os.environ.setdefault("JAX_PLATFORM_NAME", "cpu")
@@ -42,6 +44,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-tokens", type=int, default=128)
     parser.add_argument("--min-tokens", type=int, default=16)
     parser.add_argument("--json-out", type=Path, default=None)
+    parser.add_argument(
+        "--progress-jsonl",
+        type=Path,
+        default=None,
+        help="default: <json-out>.progress.jsonl or <candidate-dir>/eval_progress.jsonl",
+    )
     return parser.parse_args()
 
 
@@ -54,6 +62,42 @@ def chunks_from_text(tokenizer, text: str, max_tokens: int, min_tokens: int, lim
 
 def main() -> None:
     args = parse_args()
+    if args.progress_jsonl:
+        progress_path = args.progress_jsonl
+    elif args.json_out:
+        progress_path = args.json_out.with_suffix(".progress.jsonl")
+    else:
+        progress_path = args.candidate_dir / "eval_progress.jsonl"
+    progress_path.parent.mkdir(parents=True, exist_ok=True)
+    run_id = time.strftime("%Y%m%d-%H%M%S")
+    progress_path.write_text("", encoding="utf-8")
+    eval_config = {
+        "corpus": str(args.corpus),
+        "corpus_sha256": hashlib.sha256(args.corpus.read_bytes()).hexdigest()[:16],
+        "max_sequences": args.max_sequences,
+        "max_tokens": args.max_tokens,
+        "min_tokens": args.min_tokens,
+    }
+    config_hash = hashlib.sha256(json.dumps(eval_config, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+
+    def progress(record: dict) -> None:
+        record = {"run_id": run_id, "config_hash": config_hash, **record}
+        with open(progress_path, "a", encoding="utf-8") as file:
+            file.write(json.dumps(record) + "\n")
+
+    corpus_lines = [
+        line.strip()
+        for line in args.corpus.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    duplicate_lines = len(corpus_lines) - len(set(corpus_lines))
+    if duplicate_lines:
+        raise SystemExit(
+            f"eval corpus has {duplicate_lines} duplicate non-empty lines; "
+            "use scripts/dedup_lines.py first"
+        )
+    text = "\n".join(corpus_lines)
+
     sys.path.insert(0, args.lalamo_path)
 
     import jax
@@ -66,6 +110,24 @@ def main() -> None:
     from lalamo.utils.sharding import ShardingConfig
     from tokenizers import Tokenizer
 
+    for label, directory in (("bf16", args.bf16_dir), ("candidate", args.candidate_dir)):
+        config_path = directory / "config.json"
+        if not config_path.exists():
+            raise SystemExit(f"{label}: missing {config_path}")
+        lalamo_config = json.loads(config_path.read_text())
+        token_codec = lalamo_config.get("token_codec_config", {})
+        if "response_format" not in token_codec:
+            raise SystemExit(
+                f"{label}: {directory} is uzu-normalized; create a lalamo eval copy "
+                "(scripts/make_lalamo_eval_copy.py)"
+            )
+
+    def tokenizer_hash(directory: Path) -> str:
+        return hashlib.sha256((directory / "tokenizer.json").read_bytes()).hexdigest()
+
+    if tokenizer_hash(args.bf16_dir) != tokenizer_hash(args.candidate_dir):
+        raise SystemExit("bf16/candidate tokenizer.json mismatch")
+
     sharding = ShardingConfig.replicated()
     keychain = Keychain.init(seed=0, sharding_config=sharding)
     forward_pass_config = DecoderForwardPassConfig.for_inference(mode=ForwardPassMode.MULTI_TOKEN)
@@ -77,7 +139,7 @@ def main() -> None:
     tokenizer = Tokenizer.from_file(str(args.bf16_dir / "tokenizer.json"))
     print("loaded")
 
-    text = args.corpus.read_text(encoding="utf-8")
+    text = "\n".join(corpus_lines)
     chunks = chunks_from_text(tokenizer, text, args.max_tokens, args.min_tokens, args.max_sequences)
     if not chunks:
         raise SystemExit("no chunks: corpus too small or min-tokens too high")
@@ -105,6 +167,7 @@ def main() -> None:
     kl_sum = 0.0
     cosine_sum = 0.0
     margin_delta_sum = 0.0
+    started_at = time.time()
 
     for index, ids in enumerate(chunks):
         bf_logits = logits_for(bf16, ids)
@@ -150,6 +213,20 @@ def main() -> None:
         qa_margin = np.sort(qa_pred, axis=-1)[:, -1] - np.sort(qa_pred, axis=-1)[:, -2]
         margin_delta_sum += float(np.abs(bf_margin - qa_margin).sum())
 
+        if total_positions:
+            progress(
+                {
+                    "chunk": index + 1,
+                    "chunks": len(chunks),
+                    "tokens": total_positions,
+                    "bf16_ppl": math.exp(total_nll_bf16 / total_positions),
+                    "candidate_ppl": math.exp(total_nll_candidate / total_positions),
+                    "delta_nll_per_token": (total_nll_candidate - total_nll_bf16) / total_positions,
+                    "top1_agreement": top1_matches / total_positions,
+                    "kl_bf16_candidate": kl_sum / total_positions,
+                    "elapsed_s": time.time() - started_at,
+                }
+            )
         if (index + 1) % 10 == 0 or index + 1 == len(chunks):
             print(f"  {index + 1}/{len(chunks)} chunks")
 
@@ -159,6 +236,8 @@ def main() -> None:
         "bf16_dir": str(args.bf16_dir),
         "candidate_dir": str(args.candidate_dir),
         "corpus": str(args.corpus),
+        "config": eval_config,
+        "config_hash": config_hash,
         "chunks": len(chunks),
         "tokens": total_positions,
         "bf16_ppl": math.exp(mean_nll_bf16),

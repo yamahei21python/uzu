@@ -50,7 +50,7 @@ JAX_PLATFORM_NAME=cpu python scripts/rht_int4_convert.py \
 ```bash
 JAX_PLATFORM_NAME=cpu python scripts/yaqa_calibration.py \
   --model-dir /tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg \
-  --corpus $DATA/calibration_en_wikitext2.txt \
+  --corpus $DATA/calibration_en_wikitext2_dedup.txt \
   --output $EXP/yaqa-hin-int4-g32/calibration.npz \
   --json-out $EXP/yaqa-hin-int4-g32/calibration.json \
   --samples 32 --max-tokens 512 \
@@ -71,7 +71,7 @@ H_O は `out_dim^2`。`in_proj` (8224) を含めると 1 層で 270 MB なので
 ```bash
 JAX_PLATFORM_NAME=cpu python scripts/yaqa_calibration.py \
   --model-dir /tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg \
-  --corpus $DATA/calibration_en_wikitext2.txt \
+  --corpus $DATA/calibration_en_wikitext2_dedup.txt \
   --output $EXP/yaqa-hin-hout-int4-g32/calibration.npz \
   --json-out $EXP/yaqa-hin-hout-int4-g32/calibration.json \
   --samples 32 --max-tokens 128 \
@@ -164,3 +164,20 @@ JAX_PLATFORM_NAME=cpu python scripts/rht_int4_convert.py \
 - 96 層の H_O 全部は 16GB では厳しい。まず `small`（out_dim <= 2048）で検証する。
 
 旧校正（token sum, 64 token, 1e-3, H_in のみ）は `yaqa-hin-old` として扱い、YAQA 本命と混同しない。
+
+## 12. ログ永続化（必須）
+
+`/tmp` は再起動で消える。実行ログは必ず repo 側へ残す。
+
+```
+LOGDIR=logs/$(date +%Y-%m-%d)
+mkdir -p "$LOGDIR"/{local,kaggle,modal,scripts}
+```
+
+- ローカル: `command 2>&1 | tee -a "$LOGDIR/local/<job>.log"`
+- Kaggle: `kaggle kernels output ...` の log を `$LOGDIR/kaggle/<kernel>/<version>_<status>.log`
+- Modal: `modal run ... 2>&1 | tee -a "$LOGDIR/modal/<run>.log"`
+- 実行スクリプト: `$LOGDIR/scripts/` にコピー
+- 日次サマリ: `logs/YYYY-MM-DD/INDEX.md` にジョブ・状態・失敗原因・主要指標を追記
+
+分析時は `logs/YYYY-MM-DD/INDEX.md` を最初に読む。

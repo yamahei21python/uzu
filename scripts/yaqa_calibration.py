@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 import os
 import sys
 from dataclasses import dataclass
@@ -65,6 +66,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--layer-filter", default="", help="only paths containing this substring")
     parser.add_argument("--output-block", choices=("none", "small", "all"), default="none")
     parser.add_argument("--output-block-limit", type=int, default=2048)
+    parser.add_argument("--raw-output", action="store_true", help="save raw H before normalization/damping (for language-balanced merge)")
     parser.add_argument("--damping", type=float, default=1e-2, help="initial sigma_reg after mean-diagonal normalization")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
@@ -74,11 +76,36 @@ def parse_args() -> argparse.Namespace:
         help="model dtype during calibration; bfloat16 halves memory for 4B/9B",
     )
     parser.add_argument("--json-out", type=Path, default=None)
+    parser.add_argument("--eval-corpus", type=Path, action="append", default=[], help="evaluation corpus to keep disjoint")
+    parser.add_argument("--allow-overlap", action="store_true", help="allow calibration/eval overlap for analysis only")
+    parser.add_argument("--progress-jsonl", type=Path, default=None, help="default: <output>.progress.jsonl")
+    parser.add_argument("--checkpoint-every", type=int, default=0, help="save partial accumulators every N samples; 0=off")
+    parser.add_argument("--checkpoint-path", type=Path, default=None, help="default: <output>.partial.npz")
+    parser.add_argument("--resume", default=None, help="'auto' or a partial npz path")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    from corpus_guard import assert_disjoint
+
+    assert_disjoint(args.corpus, args.eval_corpus, allow_overlap=args.allow_overlap)
+    progress_path = args.progress_jsonl or args.output.with_suffix(".progress.jsonl")
+    progress_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_path = args.checkpoint_path or args.output.with_suffix(".partial.npz")
+    if checkpoint_path.suffix != ".npz":
+        checkpoint_path = checkpoint_path.with_suffix(".npz")
+    if checkpoint_path.resolve() == args.output.resolve():
+        raise SystemExit("--checkpoint-path must differ from --output")
+    run_id = time.strftime("%Y%m%d-%H%M%S")
+    if not args.resume:
+        progress_path.write_text("", encoding="utf-8")
+
+    def progress(record: dict) -> None:
+        record = {"run_id": run_id, **record}
+        with open(progress_path, "a", encoding="utf-8") as file:
+            file.write(json.dumps(record) + "\n")
+
     sys.path.insert(0, args.lalamo_path)
 
     import equinox as eqx
@@ -241,10 +268,68 @@ def main() -> None:
             }
         )
 
+    meta = {
+        "site_keys": [site.key for site in sites],
+        "site_shapes": [[site.in_dim, site.out_dim] for site in sites],
+        "output_block": args.output_block,
+        "output_block_limit": args.output_block_limit,
+        "corpus": str(args.corpus),
+        "seed": args.seed,
+        "samples": args.samples,
+        "model_dir": str(args.model_dir) if args.model_dir else None,
+        "calib_dtype": args.calib_dtype,
+        "parallel": args.parallel,
+    }
+
+    def save_partial() -> None:
+        arrays: dict[str, np.ndarray] = {}
+        for site, accumulator in zip(sites, accumulators):
+            arrays[f"{site.key}/input"] = accumulator["input"]
+            if accumulator["output"] is not None:
+                arrays[f"{site.key}/output"] = accumulator["output"]
+            arrays[f"{site.key}/samples"] = np.asarray([accumulator["samples"]], dtype=np.int64)
+        arrays["processed"] = np.asarray([processed], dtype=np.int64)
+        arrays["sample_index"] = np.asarray([sample_index], dtype=np.int64)
+        arrays["__meta__"] = np.asarray(json.dumps(meta, sort_keys=True))
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = checkpoint_path.with_name(checkpoint_path.name + ".tmp.npz")
+        np.savez(tmp_path, **arrays)
+        os.replace(tmp_path, checkpoint_path)
+        print(f"  checkpoint -> {checkpoint_path}", flush=True)
+
+    processed = 0
+    sample_index = 0
+    if args.resume:
+        if args.resume == "auto":
+            resume_path = checkpoint_path if checkpoint_path.exists() else None
+        else:
+            resume_path = Path(args.resume)
+        if resume_path is None:
+            print("resume: no partial checkpoint found; starting from 0", flush=True)
+        elif not resume_path.exists():
+            raise SystemExit(f"checkpoint not found: {resume_path}")
+        else:
+            with np.load(resume_path) as saved:
+                if "__meta__" not in saved:
+                    raise SystemExit("partial checkpoint missing __meta__; refusing to resume")
+                saved_meta = json.loads(str(saved["__meta__"]))
+                if saved_meta != meta:
+                    raise SystemExit(
+                        "partial checkpoint metadata mismatch; refusing to mix runs\n"
+                        f"saved={saved_meta}\ncurrent={meta}"
+                    )
+                for site, accumulator in zip(sites, accumulators):
+                    accumulator["input"] = saved[f"{site.key}/input"]
+                    if accumulator["output"] is not None and f"{site.key}/output" in saved:
+                        accumulator["output"] = saved[f"{site.key}/output"]
+                    accumulator["samples"] = int(saved[f"{site.key}/samples"][0])
+                processed = int(saved["processed"][0])
+                sample_index = int(saved["sample_index"][0])
+            print(f"resumed from {resume_path}: processed={processed} sample_index={sample_index}", flush=True)
+
     grad_fn = jax.grad(per_sample_loss)
     rng = np.random.default_rng(args.seed)
-    sample_index = 0
-    processed = 0
+    started_at = time.time()
     while processed < args.samples:
         ids = chunks[sample_index]
         sample_index += 1
@@ -269,6 +354,16 @@ def main() -> None:
                         accumulator["output"][component] += g @ g.T
             accumulator["samples"] += 1
         processed += 1
+        progress(
+            {
+                "sample": processed,
+                "samples": args.samples,
+                "sample_index": sample_index,
+                "elapsed_s": time.time() - started_at,
+            }
+        )
+        if args.checkpoint_every and processed % args.checkpoint_every == 0:
+            save_partial()
         if processed % 4 == 0:
             print(f"  sample {processed}/{args.samples}")
 
@@ -298,7 +393,10 @@ def main() -> None:
         count = max(accumulator["samples"], 1)
         H_I = accumulator["input"] / count
         H_O = None if accumulator["output"] is None else accumulator["output"] / count
-        H_I, damping_input = regularize(H_I, f"{site.key}/input_block")
+        if args.raw_output:
+            damping_input = None
+        else:
+            H_I, damping_input = regularize(H_I, f"{site.key}/input_block")
         record = {
             "path": site.key,
             "in_dim": site.in_dim,
@@ -321,7 +419,10 @@ def main() -> None:
             record["input_condition"] = float("inf")
         arrays[f"{site.key}/input_block"] = H_I
         if H_O is not None:
-            H_O, damping_output = regularize(H_O, f"{site.key}/output_block")
+            if args.raw_output:
+                damping_output = None
+            else:
+                H_O, damping_output = regularize(H_O, f"{site.key}/output_block")
             arrays[f"{site.key}/output_block"] = H_O
             record["output_damping"] = damping_output
             try:
@@ -335,11 +436,16 @@ def main() -> None:
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     np.savez(args.output, **arrays)
+    if checkpoint_path.exists():
+        checkpoint_path.unlink()
     print(f"saved {args.output} ({len(arrays)} arrays)")
 
     summary = {
         "model_dir": str(args.model_dir),
         "corpus": str(args.corpus),
+        "eval_corpora": [str(path) for path in args.eval_corpus],
+        "overlap_checked": bool(args.eval_corpus),
+        "raw_output": bool(args.raw_output),
         "samples": args.samples,
         "max_tokens": args.max_tokens,
         "output_block": args.output_block,

@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -47,6 +48,13 @@ def parse_args() -> argparse.Namespace:
         help="JAX device sharding: tensor/fsdp use all visible GPUs as one memory pool",
     )
     parser.add_argument("--bits", type=int, default=4, choices=(4, 8))
+    parser.add_argument(
+        "--embedding-bits",
+        type=int,
+        default=None,
+        choices=(4, 8),
+        help="Override --bits for the tied/untied embedding and readout only",
+    )
     parser.add_argument("--group-size", type=int, default=32)
     parser.add_argument("--block-size", type=int, default=32, choices=(32, 64, 128))
     parser.add_argument(
@@ -67,6 +75,18 @@ def parse_args() -> argparse.Namespace:
         "--preconditioners",
         default=None,
         help="NPZ from scripts/yaqa_calibration.py; keys are '<path>/input_block' and optional '/output_block'",
+    )
+    parser.add_argument(
+        "--calibration-json",
+        type=Path,
+        default=None,
+        help="calibration.json paired with --preconditioners; embedded into provenance.json",
+    )
+    parser.add_argument(
+        "--progress-jsonl",
+        type=Path,
+        default=None,
+        help="default: <output-dir>/convert_progress.jsonl",
     )
     return parser.parse_args()
 
@@ -114,6 +134,16 @@ def main() -> None:
     os.environ.setdefault("JAX_PLATFORM_NAME", "cpu")
     if args.hf_token:
         os.environ["HF_TOKEN"] = args.hf_token
+
+    progress_path = args.progress_jsonl or (Path(args.output_dir) / "convert_progress.jsonl")
+    progress_path.parent.mkdir(parents=True, exist_ok=True)
+    run_id = time.strftime("%Y%m%d-%H%M%S")
+    progress_path.write_text("", encoding="utf-8")
+
+    def progress(record: dict) -> None:
+        record = {"run_id": run_id, **record}
+        with open(progress_path, "a", encoding="utf-8") as file:
+            file.write(json.dumps(record) + "\n")
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     sys.path.insert(0, args.lalamo_path)
@@ -191,6 +221,7 @@ def main() -> None:
         print(f"save BF16 baseline -> {bf16_dir}")
         model.save(bf16_dir)
         normalize_config_for_uzu(bf16_dir)
+        (bf16_dir / "COMPLETE").write_text("ok\n", encoding="utf-8")
         print("BF16 baseline saved")
 
     linear_list = select_nodes_of_type(Linear, model)
@@ -246,9 +277,12 @@ def main() -> None:
         )
 
     def quantize_linear(path, linear: Linear) -> Linear:
+        started = time.time()
+        key = "/".join(path)
         shape = tuple(int(x) for x in linear.weights.shape)
         if len(shape) != 2 or any(dimension % required_divisor for dimension in shape):
             counts["skipped"] += 1
+            progress({"path": key, "shape": shape, "status": "skipped", "elapsed_s": time.time() - started})
             if not args.skip_incompatible:
                 raise ValueError(f"incompatible Linear {path}: {shape}")
             return linear
@@ -256,12 +290,34 @@ def main() -> None:
         preconditioner = preconditioner_for(path)
         if preconditioner is not None:
             counts["yaqa"] += 1
-        new_weights = hybrid_spec.compress(
-            linear.weights.decompress(),
-            key=quantize_key,
-            preconditioner=preconditioner,
-            sharding_config=linear.weights.sharding_config,
-            is_sharded=linear.weights.is_sharded,
+        progress({"path": key, "shape": shape, "status": "started"})
+        try:
+            new_weights = hybrid_spec.compress(
+                linear.weights.decompress(),
+                key=quantize_key,
+                preconditioner=preconditioner,
+                sharding_config=linear.weights.sharding_config,
+                is_sharded=linear.weights.is_sharded,
+            )
+        except Exception as error:
+            progress(
+                {
+                    "path": key,
+                    "shape": shape,
+                    "status": "failed",
+                    "error": repr(error),
+                    "elapsed_s": time.time() - started,
+                }
+            )
+            raise
+        progress(
+            {
+                "path": key,
+                "shape": shape,
+                "status": "quantized",
+                "yaqa": preconditioner is not None,
+                "elapsed_s": time.time() - started,
+            }
         )
         return eqx.tree_at(lambda x: x.weights, linear, new_weights)
 
@@ -271,18 +327,26 @@ def main() -> None:
 
     if args.no_rht:
         print(f"quantize -> plain INT{args.bits} group {args.group_size} (symmetric=False, layout=output_input)")
+        if args.embedding_bits is not None:
+            print(f"embedding quantize -> plain INT{args.embedding_bits} group {args.group_size} (symmetric=False)")
     else:
         print(
             f"quantize -> RHT block {args.block_size} + INT{args.bits} group {args.group_size} "
             f"(symmetric=False, layout=output_input)"
         )
+        if args.embedding_bits is not None:
+            print(
+                f"embedding quantize -> RHT block {args.block_size} + INT{args.embedding_bits} group {args.group_size} "
+                f"(symmetric=False)"
+            )
     quantized_model = map_nodes_of_type_with_path(Linear, quantize_linear, model)
     print(f"quantized: {counts['quantized']}, skipped: {counts['skipped']}, yaqa: {counts['yaqa']}")
 
     def embedding_spec(layout: Layout, mode: IncoherenceProcessingMode | None) -> HybridSpec:
+        embedding_bits = args.embedding_bits if args.embedding_bits is not None else args.bits
         return HybridSpec(
             quantization_spec=IntSpec(
-                bits=args.bits,
+                bits=embedding_bits,
                 group_size=args.group_size,
                 is_symmetric=False,
                 layout=layout,
@@ -294,6 +358,7 @@ def main() -> None:
         )
 
     def quantize_matrix(matrix, layout: Layout, mode: IncoherenceProcessingMode | None, label: str):
+        started = time.time()
         embedding_dim = int(matrix.shape[-1])
         if not args.no_rht and embedding_dim % args.block_size:
             raise SystemExit(f"{label} dim {embedding_dim} is not divisible by block size {args.block_size}")
@@ -303,7 +368,9 @@ def main() -> None:
             sharding_config=matrix.sharding_config,
             is_sharded=matrix.is_sharded,
         )
-        print(f"{label} quantized: shape={tuple(int(x) for x in matrix.shape)}")
+        shape = tuple(int(x) for x in matrix.shape)
+        print(f"{label} quantized: shape={shape}")
+        progress({"path": label, "shape": shape, "status": "quantized", "yaqa": False, "elapsed_s": time.time() - started})
         return new_matrix
 
     if args.quantize_embedding:
@@ -357,7 +424,29 @@ def main() -> None:
 
     encoding = {"type": "hanashi", "name": "qwen3.5"}
     (output_dir / "encoding.json").write_text(json.dumps(encoding, indent=2) + "\n")
-    print("encoding.json written")
+
+    calibration_summary = None
+    if args.calibration_json and args.calibration_json.exists():
+        calibration_summary = json.loads(args.calibration_json.read_text())
+    source = args.hf_repo or (str(args.hf_dir) if args.hf_dir else None) or args.load_from or args.spec_name
+    provenance = {
+        "kind": "yaqa" if args.preconditioners else "rtn",
+        "source": source,
+        "preconditioners": args.preconditioners,
+        "calibration_json": str(args.calibration_json) if args.calibration_json else None,
+        "calibration": calibration_summary,
+        "overlap_checked": (
+            bool(calibration_summary.get("overlap_checked"))
+            if calibration_summary is not None
+            else args.preconditioners is None
+        ),
+    }
+    (output_dir / "provenance.json").write_text(
+        json.dumps(provenance, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    (output_dir / "COMPLETE").write_text("ok\n", encoding="utf-8")
+    print("encoding.json / provenance.json written")
 
     for f in sorted(output_dir.iterdir()):
         if f.is_file():
