@@ -44,6 +44,7 @@ KIT_SCRIPTS = [
     "compute_bpc.py",
     "run_lane.py",
     "make_sweep_spec.py",
+    "combine_lane_manifests.py",
     # guards / audits
     "corpus_guard.py",
     "dedup_lines.py",
