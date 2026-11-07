@@ -335,6 +335,45 @@ def select_by_size(
     return selected
 
 
+def env_total_gib(api_base: str = API_BASE) -> float | None:
+    key = api_key()
+    if not key:
+        return None
+    try:
+        environments = fetch_environments(api_base, key)
+    except Exception:  # noqa: BLE001
+        return None
+    return sum(int(env.get("size_bytes", 0) or 0) for env in environments) / 1024**3
+
+
+def cleanup_under_pressure(target_gib: float = 0.8, min_age_minutes: float = 10.0) -> dict[str, Any]:
+    """Escalate until storage is actually under control.
+
+    Normal cleanup protects sessions and finished-task state. When that frees
+    nothing, drop the session protection, and finally ignore everything.
+    """
+    stages = (
+        {"protect_sessions": True, "force": False},
+        {"protect_sessions": False, "force": False},
+        {"protect_sessions": False, "force": True},
+    )
+    summary: dict[str, Any] = {}
+    for stage in stages:
+        summary = cleanup_envs(
+            older_than_days=0,
+            mode="auto",
+            target_gib=target_gib,
+            min_age_minutes=min_age_minutes,
+            protect_sessions=stage["protect_sessions"],
+            force=stage["force"],
+        )
+        if summary.get("error"):
+            return summary
+        if float(summary.get("total_gib_after", 0) or 0) <= target_gib:
+            return summary
+    return summary
+
+
 def cleanup_envs(
     older_than_days: float,
     dry_run: bool = False,
@@ -617,9 +656,7 @@ def cmd_pump(args: argparse.Namespace) -> None:
                 print(f"requeue {meta['slug']} (environment pressure)")
                 # quota/429 mean the sandbox store is full, not that the task is wrong.
                 # Free the largest finished environments before retrying.
-                cleanup_envs(
-                    older_than_days=0,
-                    mode="auto",
+                cleanup_under_pressure(
                     target_gib=getattr(args, "target_gib", 0.8),
                     min_age_minutes=getattr(args, "min_env_age_minutes", 10.0),
                 )
@@ -627,6 +664,13 @@ def cmd_pump(args: argparse.Namespace) -> None:
                 meta["queue_status"] = "failed"
                 print(f"failed {meta['slug']} (pid gone, no state)")
             save(meta)
+
+    if getattr(args, "preemptive_cleanup", False):
+        total = env_total_gib()
+        threshold = getattr(args, "env_cleanup_gib", 0.9)
+        if total is not None and total > threshold:
+            print(f"environment storage {total:.2f} GiB > {threshold:.2f}; cleaning", flush=True)
+            cleanup_under_pressure(target_gib=getattr(args, "target_gib", 0.8))
 
     # manually started tasks (outside the queue) still occupy a slot until done
     manual_active = sum(
@@ -705,6 +749,8 @@ def main() -> None:
     pump.add_argument("--target-gib", type=float, default=0.8, help="storage target for quota-driven cleanup")
     pump.add_argument("--min-env-age-minutes", type=float, default=10.0)
     pump.add_argument("--pid-grace-seconds", type=float, default=300.0, help="wait this long before treating a dead pid as failure")
+    pump.add_argument("--preemptive-cleanup", action="store_true", help="clean environments before dispatch when storage is high")
+    pump.add_argument("--env-cleanup-gib", type=float, default=0.9)
     pump.add_argument("--fetch-retries", type=int, default=6)
     pump.add_argument("--fetch-base-delay", type=float, default=15.0)
 
@@ -715,6 +761,8 @@ def main() -> None:
     watch.add_argument("--target-gib", type=float, default=0.8)
     watch.add_argument("--min-env-age-minutes", type=float, default=10.0)
     watch.add_argument("--pid-grace-seconds", type=float, default=300.0)
+    watch.add_argument("--preemptive-cleanup", action="store_true", default=True)
+    watch.add_argument("--env-cleanup-gib", type=float, default=0.9)
     watch.add_argument("--fetch-retries", type=int, default=6)
     watch.add_argument("--fetch-base-delay", type=float, default=15.0)
 
