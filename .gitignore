@@ -42,3 +42,20 @@ Package.resolved
 experiments/**/data/
 experiments/**/*.npz
 experiments/**/records.jsonl
+
+# Local-only model/runtime artifacts
+.deps/
+.venv/
+.perch/
+.playwright-mcp/
+/models/
+/logs/
+/research/lalamo/
+*.out
+response.txt
+test_models.py
+fix_config.py
+queue_bench_dl.sh
+dl9b.sh
+seg_dl.sh
+bench_3engines.sh
