@@ -63,6 +63,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--adam-b2", type=float, default=0.95, help="short QAD (<100 steps) uses 0.95, not 0.999")
     parser.add_argument("--scale-min", type=float, default=1e-6, help="lower clamp for scale params; 0 disables")
     parser.add_argument("--grad-clip", type=float, default=1.0, help="global norm clip; 0 disables")
+    parser.add_argument("--scale-lr", type=float, default=1e-6, help="AdamW lr for scales/zero-points")
+    parser.add_argument("--early-stop-patience", type=int, default=2, help="stop after N non-improving val evals")
+    parser.add_argument("--student-provenance", type=Path, default=None, help="default: <student-dir>/provenance.json")
+    parser.add_argument("--allow-unverified-student", action="store_true")
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--val-chunks", type=int, default=2, help="fixed chunks used for comparable validation loss")
@@ -128,6 +132,22 @@ def main() -> None:
     if tokenizer_hash(args.teacher_dir) != tokenizer_hash(args.student_dir):
         raise SystemExit("teacher/student tokenizer.json mismatch")
 
+    provenance_path = args.student_provenance or (args.student_dir / "provenance.json")
+    if not provenance_path.exists():
+        if not args.allow_unverified_student:
+            raise SystemExit(
+                f"student provenance missing: {provenance_path}. "
+                "Rebuild the student with a clean calibration or pass --allow-unverified-student for analysis."
+            )
+        provenance = {"overlap_checked": False, "kind": "unknown"}
+    else:
+        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+        if not provenance.get("overlap_checked") and not args.allow_unverified_student:
+            raise SystemExit(
+                f"student provenance says overlap_checked=false: {provenance_path}"
+            )
+    print(f"student provenance: kind={provenance.get('kind')} overlap_checked={provenance.get('overlap_checked')}")
+
     print("loading teacher...")
     teacher = Model.load(args.teacher_dir, sharding, dtype=jnp.bfloat16)
     print("loading student...")
@@ -181,17 +201,31 @@ def main() -> None:
     total_elements = sum(int(np.prod(value.shape)) for value in params.values())
     print(f"trainable elements: {total_elements / 1e6:.1f}M")
 
+    def is_scale_key(key: str) -> bool:
+        return key.endswith("scales") or key.endswith("master_zero_points")
+
     if args.optimizer == "adamw":
-        optimizer = optax.adamw(
-            args.lr,
-            b1=args.adam_b1,
-            b2=args.adam_b2,
-            weight_decay=0.0,
+        labels = {
+            key: ("scale" if is_scale_key(key) else "weight")
+            for key in params
+        }
+        optimizer = optax.multi_transform(
+            {
+                "weight": optax.adamw(args.lr, b1=args.adam_b1, b2=args.adam_b2, weight_decay=0.0),
+                "scale": optax.adamw(args.scale_lr, b1=args.adam_b1, b2=args.adam_b2, weight_decay=0.0),
+            },
+            labels,
         )
-        print("optimizer: AdamW (all trainables)", flush=True)
+        print(f"optimizer: AdamW weight_lr={args.lr} scale_lr={args.scale_lr}", flush=True)
     else:
         labels = {
-            key: ("muon" if key.endswith("master_weights") and value.ndim >= 2 else "adam")
+            key: (
+                "muon"
+                if key.endswith("master_weights") and value.ndim >= 2
+                else "scale"
+                if is_scale_key(key)
+                else "adam"
+            )
             for key, value in params.items()
         }
         optimizer = optax.multi_transform(
@@ -200,10 +234,11 @@ def main() -> None:
                 # weight_decay=0.0 is required: optax.adamw defaults to 1e-4 and would
                 # shrink scales/zero-points towards zero every step (scale collapse).
                 "adam": optax.adamw(args.lr, b1=args.adam_b1, b2=args.adam_b2, weight_decay=0.0),
+                "scale": optax.adamw(args.scale_lr, b1=args.adam_b1, b2=args.adam_b2, weight_decay=0.0),
             },
             labels,
         )
-        print("optimizer: Muon(master) + AdamW(scales/zero)", flush=True)
+        print(f"optimizer: Muon(master) + AdamW(scale_lr={args.scale_lr})", flush=True)
 
     if args.grad_clip > 0:
         optimizer = optax.chain(optax.clip_by_global_norm(args.grad_clip), optimizer)
@@ -266,7 +301,13 @@ def main() -> None:
         "seq": args.seq,
         "optimizer": args.optimizer,
         "lr": args.lr,
+        "scale_lr": args.scale_lr,
         "muon_lr": args.muon_lr,
+        "student_provenance_sha256": (
+            hashlib.sha256(provenance_path.read_bytes()).hexdigest()
+            if provenance_path.exists()
+            else None
+        ),
         "adam_b1": args.adam_b1,
         "adam_b2": args.adam_b2,
         "scale_min": args.scale_min,
@@ -354,6 +395,8 @@ def main() -> None:
     initial_scale_min, initial_scale_max = scale_stats(params)
     started_at = time.time()
     initial_val = validation_loss(params)
+    best_val = initial_val
+    bad_val_evals = 0
     if initial_val is not None:
         progress({"step": 0, "val_loss": initial_val, "elapsed_s": 0.0})
         print(f"step 0/{args.steps}  val_kl={initial_val:.6f}", flush=True)
@@ -392,6 +435,26 @@ def main() -> None:
         val_loss = None
         if val_ids and ((step + 1) % args.val_every == 0 or step + 1 == args.steps):
             val_loss = validation_loss(params)
+            if val_loss is not None:
+                if best_val is None or val_loss < best_val:
+                    best_val = val_loss
+                    bad_val_evals = 0
+                else:
+                    bad_val_evals += 1
+                    if args.early_stop_patience > 0 and bad_val_evals >= args.early_stop_patience:
+                        progress(
+                            {
+                                "step": step + 1,
+                                "status": "early_stop",
+                                "val_loss": val_loss,
+                                "best_val_loss": best_val,
+                                "elapsed_s": now - started_at,
+                            }
+                        )
+                        raise RuntimeError(
+                            f"QAD early stop at step {step + 1}: val loss did not improve "
+                            f"(best={best_val:.6f}, current={val_loss:.6f})"
+                        )
         record = {
             "run_id": run_id,
             "step": step + 1,

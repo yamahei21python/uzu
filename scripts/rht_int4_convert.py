@@ -77,6 +77,12 @@ def parse_args() -> argparse.Namespace:
         help="NPZ from scripts/yaqa_calibration.py; keys are '<path>/input_block' and optional '/output_block'",
     )
     parser.add_argument(
+        "--calibration-json",
+        type=Path,
+        default=None,
+        help="calibration.json paired with --preconditioners; embedded into provenance.json",
+    )
+    parser.add_argument(
         "--progress-jsonl",
         type=Path,
         default=None,
@@ -418,8 +424,29 @@ def main() -> None:
 
     encoding = {"type": "hanashi", "name": "qwen3.5"}
     (output_dir / "encoding.json").write_text(json.dumps(encoding, indent=2) + "\n")
+
+    calibration_summary = None
+    if args.calibration_json and args.calibration_json.exists():
+        calibration_summary = json.loads(args.calibration_json.read_text())
+    source = args.hf_repo or (str(args.hf_dir) if args.hf_dir else None) or args.load_from or args.spec_name
+    provenance = {
+        "kind": "yaqa" if args.preconditioners else "rtn",
+        "source": source,
+        "preconditioners": args.preconditioners,
+        "calibration_json": str(args.calibration_json) if args.calibration_json else None,
+        "calibration": calibration_summary,
+        "overlap_checked": (
+            bool(calibration_summary.get("overlap_checked"))
+            if calibration_summary is not None
+            else args.preconditioners is None
+        ),
+    }
+    (output_dir / "provenance.json").write_text(
+        json.dumps(provenance, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     (output_dir / "COMPLETE").write_text("ok\n", encoding="utf-8")
-    print("encoding.json written")
+    print("encoding.json / provenance.json written")
 
     for f in sorted(output_dir.iterdir()):
         if f.is_file():
