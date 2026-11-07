@@ -88,7 +88,8 @@ def test_dead_pid_with_completed_log_is_fetched_not_failed(tmp_path: Path) -> No
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "finished in the log" in result.stdout
-    meta = json.loads((task / "meta.json").read_text(encoding="utf-8"))
+    state_file = tmp_path / "antigravity" / ".state" / "demo.json"
+    meta = json.loads(state_file.read_text(encoding="utf-8"))
     assert meta["queue_status"] == "done"
     assert meta["status"] in {"collected", "recovered"}
     assert (tmp_path / "research" / "demo.md").exists()
@@ -134,7 +135,7 @@ def test_dead_pid_without_log_completion_waits_before_failing(tmp_path: Path) ->
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    meta = json.loads((task / "meta.json").read_text(encoding="utf-8"))
+    meta = json.loads((tmp_path / "antigravity" / ".state" / "demo.json").read_text(encoding="utf-8"))
     # first sighting only starts the grace timer
     assert meta["queue_status"] == "running"
     assert "pid_gone_at" in meta

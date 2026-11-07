@@ -46,6 +46,23 @@ def setup(tmp_path: Path) -> tuple[Path, Path]:
     return wrapper, prompt
 
 
+
+
+def state_path(root: Path, slug: str) -> Path:
+    return root / "antigravity" / ".state" / f"{slug}.json"
+
+
+def read_state(root: Path, slug: str) -> dict:
+    return json.loads(state_path(root, slug).read_text(encoding="utf-8"))
+
+
+def write_state(root: Path, slug: str, **values) -> None:
+    path = state_path(root, slug)
+    current = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    current.update(values)
+    path.write_text(json.dumps(current), encoding="utf-8")
+
+
 def add_ticket(root: Path, wrapper: Path, prompt: Path, slug: str, priority: int = 50) -> None:
     result = run(
         root,
@@ -170,10 +187,7 @@ def test_cleanup_envs_offline_dry_run(tmp_path: Path) -> None:
 def test_manual_task_occupies_a_slot(tmp_path: Path) -> None:
     wrapper, prompt = setup(tmp_path)
     add_ticket(tmp_path, wrapper, prompt, "manual-one")
-    meta_path = tmp_path / "antigravity" / "tasks" / "manual-one" / "meta.json"
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    meta["queue_status"] = "manual"
-    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    write_state(tmp_path, "manual-one", queue_status="manual")
     for slug in ("q1", "q2"):
         add_ticket(tmp_path, wrapper, prompt, slug)
 
@@ -186,13 +200,10 @@ def test_manual_task_occupies_a_slot(tmp_path: Path) -> None:
 def test_retry_requeues_failed_ticket(tmp_path: Path) -> None:
     wrapper, prompt = setup(tmp_path)
     add_ticket(tmp_path, wrapper, prompt, "a1")
-    meta_path = tmp_path / "antigravity" / "tasks" / "a1" / "meta.json"
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    meta["queue_status"] = "failed"
-    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    write_state(tmp_path, "a1", queue_status="failed")
     result = run(tmp_path, wrapper, "retry", "a1")
     assert result.returncode == 0, result.stderr
-    assert json.loads(meta_path.read_text(encoding="utf-8"))["queue_status"] == "queued"
+    assert read_state(tmp_path, "a1")["queue_status"] == "queued"
 
 
 def test_cancel_marks_terminal(tmp_path: Path) -> None:
@@ -200,5 +211,4 @@ def test_cancel_marks_terminal(tmp_path: Path) -> None:
     add_ticket(tmp_path, wrapper, prompt, "a1")
     result = run(tmp_path, wrapper, "cancel", "a1")
     assert result.returncode == 0, result.stderr
-    meta = json.loads((tmp_path / "antigravity" / "tasks" / "a1" / "meta.json").read_text(encoding="utf-8"))
-    assert meta["queue_status"] == "cancelled"
+    assert read_state(tmp_path, "a1")["queue_status"] == "cancelled"

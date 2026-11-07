@@ -9,10 +9,7 @@
     "research/int4_hyperparameter_evidence.json",
     "research/int4_citations.txt"
   ],
-  "status": "queued",
-  "queue_status": "queued",
   "priority": 50,
-  "attempts": 0,
   "max_attempts": 3,
   "note": "group/damping/block の根拠と判断表",
   "created_at": "2026-11-07T13:11:02"

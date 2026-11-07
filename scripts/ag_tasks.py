@@ -49,6 +49,13 @@ def load_meta(directory: Path) -> dict[str, Any]:
     meta = json.loads((directory / "meta.json").read_text(encoding="utf-8"))
     meta.setdefault("slug", directory.name)
     meta.setdefault("deliverables", [])
+    # runtime fields (status, pid, attempts) live outside the tracked file
+    runtime = ROOT / "antigravity" / ".state" / f"{directory.name}.json"
+    if runtime.exists():
+        try:
+            meta.update(json.loads(runtime.read_text(encoding="utf-8")))
+        except json.JSONDecodeError:
+            pass
     return meta
 
 

@@ -45,6 +45,17 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parent
 TASKS = ROOT / "antigravity" / "tasks"
 LOCK = ROOT / "antigravity" / ".queue.lock"
+RUNTIME_DIR = ROOT / "antigravity" / ".state"
+RUNTIME_KEYS = (
+    "queue_status",
+    "status",
+    "pid",
+    "attempts",
+    "started_at",
+    "finished_at",
+    "pid_gone_at",
+    "collected_at",
+)
 DEFAULT_WRAPPER = Path.home() / ".config" / "opencode" / "antigravity" / "antigravity.py"
 AG_HOME = DEFAULT_WRAPPER.parent
 CREDENTIALS = AG_HOME / "credentials.json"
@@ -54,14 +65,37 @@ TERMINAL = {"done", "failed", "cancelled"}
 
 
 def set_root(root: Path) -> None:
-    global ROOT, TASKS, LOCK
+    global ROOT, TASKS, LOCK, RUNTIME_DIR
     ROOT = root
     TASKS = root / "antigravity" / "tasks"
     LOCK = root / "antigravity" / ".queue.lock"
+    RUNTIME_DIR = root / "antigravity" / ".state"
 
 
 def now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def runtime_path(slug: str) -> Path:
+    return RUNTIME_DIR / f"{slug}.json"
+
+
+def load_runtime(slug: str) -> dict[str, Any]:
+    path = runtime_path(slug)
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def save_runtime(slug: str, values: dict[str, Any]) -> None:
+    """Runtime state lives outside meta.json so a git checkout cannot wipe it."""
+    RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+    current = load_runtime(slug)
+    current.update({key: values.get(key) for key in RUNTIME_KEYS if key in values})
+    runtime_path(slug).write_text(json.dumps(current, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def tickets() -> list[dict[str, Any]]:
@@ -73,8 +107,16 @@ def tickets() -> list[dict[str, Any]]:
         if not meta_path.exists():
             continue
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        meta.setdefault("slug", directory.name)
-        meta.setdefault("queue_status", meta.get("status", "queued"))
+        slug = meta.setdefault("slug", directory.name)
+        # one-time migration: pull stale runtime fields out of the tracked file
+        stale = {key: meta.pop(key) for key in RUNTIME_KEYS if key in meta}
+        if stale:
+            merged = load_runtime(slug)
+            merged.update({key: value for key, value in stale.items() if key not in merged})
+            save_runtime(slug, merged)
+            meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        meta.update(load_runtime(slug))
+        meta.setdefault("queue_status", "queued")
         meta.setdefault("priority", 50)
         meta.setdefault("attempts", 0)
         meta.setdefault("max_attempts", 3)
@@ -84,8 +126,8 @@ def tickets() -> list[dict[str, Any]]:
 
 
 def save(meta: dict[str, Any]) -> None:
-    directory = TASKS / meta["slug"]
-    (directory / "meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    """Persist runtime fields only; meta.json stays stable for git."""
+    save_runtime(meta["slug"], meta)
 
 
 def alive(pid: int | None) -> bool:
@@ -398,6 +440,8 @@ def cmd_add(args: argparse.Namespace) -> None:
         "note": args.note or "",
         "created_at": now(),
     }
+    static = {key: value for key, value in meta.items() if key not in RUNTIME_KEYS}
+    (directory / "meta.json").write_text(json.dumps(static, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     save(meta)
     print(f"queued {args.slug} (priority {args.priority})")
 
