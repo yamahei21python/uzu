@@ -111,6 +111,23 @@
 | 9B calibration | Modal A100 | 同上 |
 | eval（全サイズ） | CPU で可。4B/9B は Modal | 数値はデバイス間で 0.02% 以内で一致 |
 
+
+## 再計測の予定（保留 2026-11-08）
+
+50 chunks の旧結果は**同じ chunks 数の中だけで有効**。100 chunks の結果と混ぜない。
+全面再計測はしない。判断に使うものだけ揃える。
+
+| 対象 | 状態 | 理由 | 目安 |
+|---|---|---|---|
+| `rtn-int4-g32` → 100 chunks | **明日** | clean suite の Δ の基準にする | 約 60 分 |
+| `official-0.8b-m` eval → 100 chunks | **明日** | 報告・model card で引用する | 約 50 分 |
+| emb4 / emb8 → 100 chunks | 4B 設計の直前 | 4B 設定が `embedding_bits: 4` のため | 各約 100 分 |
+| yaqa-hin-hout mixed/mix35/mix65/jaonly | **捨てる** | clean suite が 100 chunks で上位互換 | — |
+| yaqa-hin 初期（q64/s8） | **捨てる** | 設計が古い | — |
+| yaqa-hin-hout 初期（q512/d1e-2） | **捨てる** | q512 probe が GPU で 100 chunks 済み | — |
+
+保留理由: owner / Muse とも CPU 5 枠が埋まっている（2026-11-07 夜）。空き次第、上から順に投入する。
+
 ## ギャップ
 
 - `calibration.json` には device が入っていない（eval のみ `device` を記録）
