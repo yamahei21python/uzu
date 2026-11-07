@@ -1,0 +1,13 @@
+{
+  "default": 4,
+  "rules": [
+    {
+      "match": "mlp/down_projection",
+      "bits": 8
+    },
+    {
+      "match": "mixer/out_projection",
+      "bits": 8
+    }
+  ]
+}

@@ -41,9 +41,9 @@
       "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt"
     },
     {
-      "name": "mixed50-down-out6",
+      "name": "mixed50-down-out8",
       "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt",
-      "layer_bits_json": "lanes/bits-down-out-6.json"
+      "layer_bits_json": "lanes/bits-down-out-8.json"
     }
   ]
 }
