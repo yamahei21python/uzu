@@ -58,6 +58,19 @@ def test_balanced_spec_skips_raw_conversion_and_merges_three_ratios() -> None:
     assert len(convert) == 3
 
 
+def test_smoke_spec_is_cheap_and_single_condition() -> None:
+    result = run_lane(LANES / "smoke-08b.json")
+    assert result.returncode == 0, result.stdout + result.stderr
+    commands = [line for line in result.stdout.splitlines() if line.startswith("$ ")]
+    calibration = [line for line in commands if "yaqa_calibration.py" in line]
+    assert len(calibration) == 1
+    assert "--samples 2" in calibration[0]
+    assert "--max-tokens 32" in calibration[0]
+    evals = [line for line in commands if "eval_quantized.py" in line]
+    assert len(evals) == 2
+    assert all("--max-sequences 2" in line for line in evals)
+
+
 def test_missing_spec_fields_fail_loudly(tmp_path: Path) -> None:
     spec = tmp_path / "bad.json"
     spec.write_text(json.dumps({"lane": "bad", "paths": {"kit": "kit", "work": str(tmp_path)}}), encoding="utf-8")
