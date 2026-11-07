@@ -10,10 +10,6 @@
     "research/qad_repro_stdout.txt",
     "scripts/qad_scale_repro.py"
   ],
-  "status": "collected",
   "started": "2026-11-07T13:10:20",
-  "note": "sandbox fs failure; numbers were NOT reproducible, code-reading finding kept (lalamo int.py:146 stop_gradient)",
-  "queue_status": "done",
-  "attempts": 2,
-  "collected_at": "2026-11-07T13:22:00"
+  "note": "sandbox fs failure; numbers were NOT reproducible, code-reading finding kept (lalamo int.py:146 stop_gradient)"
 }

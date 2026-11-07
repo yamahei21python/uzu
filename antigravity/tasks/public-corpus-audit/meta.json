@@ -10,7 +10,5 @@
     "research/audit_stdout.txt",
     "scripts/audit_public_corpus.py"
   ],
-  "status": "collected",
-  "collected_at": "2026-11-07T13:00:00",
   "note": "verified locally: all 17 cross rows identical (PR #41)"
 }

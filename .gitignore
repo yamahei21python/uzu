@@ -61,3 +61,5 @@ seg_dl.sh
 bench_3engines.sh
 
 antigravity/.queue.lock
+
+antigravity/.state/
