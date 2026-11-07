@@ -1,0 +1,16 @@
+{
+  "id": "kentasatomuse/uzu-qad-gpu-smoke",
+  "title": "uzu qad gpu smoke",
+  "code_file": "qad_smoke.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": ["gpu"],
+  "dataset_sources": ["yamahei21python/uzu-bf16-08b-lalamo"],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}
