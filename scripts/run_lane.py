@@ -441,6 +441,8 @@ class Runner:
         for key in ("bits", "group_size", "block_size", "parallel"):
             if key in convert_settings:
                 convert_command += [f"--{key.replace('_', '-')}", str(convert_settings[key])]
+        if convert_settings.get("layer_filter"):
+            convert_command += ["--layer-filter", str(convert_settings["layer_filter"])]
         if condition.get("layer_bits_json"):
             bits_path = self.resolve(condition["layer_bits_json"])
             assert bits_path is not None
