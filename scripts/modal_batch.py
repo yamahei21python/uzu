@@ -2,9 +2,9 @@
 """Run a Modal command matrix with a hard timeout per command.
 
 ``modal run`` has no client-side timeout. When a function fails during startup
-(a missing mount, an import error) the client can sit there for hours instead of
-returning, which is how a six-command smoke run consumed nine hours and produced
-one line of log.
+(a missing mount, an import error) the client can print the remote traceback and
+then stop responding instead of returning; on 2026-11-07 a smoke batch sat like
+that until it was killed hours later.
 
 This wrapper makes each step bounded and visible:
 
@@ -34,13 +34,16 @@ DEFAULT_MODAL = ".deps/venv-lalamo/bin/modal"
 DEFAULT_SCRIPT = "scripts/modal_pipeline.py"
 EVAL_FLAGS = ("--candidate", "int4-rtn")
 
-# The Modal client can exit 0 while the remote function failed during startup,
-# and print "App completed" anyway. These markers override a zero exit code.
+# The timeout below is what actually bounds a startup failure: the client prints
+# the remote traceback and then stops responding (observed on 2026-11-07: output
+# ended at 17:46 and the run was killed hours later, with no "App completed").
+# These markers are a secondary net only for the case where the client does
+# return normally despite the remote failure. Keep them Modal-specific: a generic
+# "Traceback" or "ModuleNotFoundError" can also come from handled code inside a
+# successful run and would fail a healthy step.
 FAILURE_MARKERS = (
-    "Traceback (most recent call last):",
-    "Runner failed with exception",
     "failed during startup",
-    "ModuleNotFoundError",
+    "Runner failed with exception",
 )
 
 
@@ -70,10 +73,11 @@ def build_commands(
 
 
 def failure_marker(output: str) -> str | None:
-    """Return the first remote-failure marker, if any.
+    """Return the first Modal startup-failure marker, if any.
 
-    A zero exit code is not proof of success: Modal reports function startup
-    failures in the output and still ends the local app normally.
+    Defensive only: the timeout normally catches a startup failure, because the
+    client hangs rather than returning. This still guards the case where the
+    client returns 0 after a remote failure.
     """
     for marker in FAILURE_MARKERS:
         if marker in output:

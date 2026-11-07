@@ -68,9 +68,20 @@ def test_remote_startup_failure_is_not_reported_as_success() -> None:
     output = (
         "Function fu-abc failed during startup.\n"
         "Runner failed with exception: ModuleNotFoundError(\"No module named 'modal_targets'\")\n"
-        "✓ App completed.\n"
     )
-    assert failure_marker(output) == "Runner failed with exception"
+    assert failure_marker(output) == "failed during startup"
+
+
+def test_generic_traceback_from_handled_code_is_not_a_failure_marker() -> None:
+    from modal_batch import failure_marker
+
+    output = (
+        "Traceback (most recent call last):\n"
+        "ModuleNotFoundError: No module named 'optional_dep'\n"
+        "falling back to the slow path\n"
+        "/out/smoke-4b/int4-rtn\n"
+    )
+    assert failure_marker(output) is None
 
 
 def test_clean_output_has_no_failure_marker() -> None:
