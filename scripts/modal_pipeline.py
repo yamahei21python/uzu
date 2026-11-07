@@ -29,7 +29,7 @@ import subprocess
 
 import modal
 
-from modal_targets import COMMANDS, default_run_name, spec
+from modal_targets import COMMANDS, calibration_defaults, default_run_name, qad_defaults, spec
 
 APP_NAME = "uzu-quant-pipeline"
 
@@ -193,7 +193,8 @@ def rtn(size: str, run_name: str, quantize_embedding: bool) -> str:
     memory=65536,
     timeout=14400,
 )
-def calibrate(size: str, run_name: str, samples: int, max_tokens: int, group_size: int, corpus: str) -> str:
+def calibrate(size: str, run_name: str, samples: int, max_tokens: int, group_size: int, corpus: str,
+              damping: float = 1e-3, output_block: str = "none") -> str:
     """Calibrate in layer groups so the Hessian accumulators fit in memory."""
     os.environ["JAX_PLATFORM_NAME"] = "cuda"
     # JAX otherwise reserves 75% of the device and OOMs before the Hessian fits
@@ -242,11 +243,11 @@ def calibrate(size: str, run_name: str, samples: int, max_tokens: int, group_siz
                 "--min-tokens",
                 str(max(8, max_tokens // 8)),
                 "--output-block",
-                "none",
+                output_block,
                 "--layer-filter",
                 filters,
                 "--damping",
-                "1e-2",
+                str(damping),
                 "--calib-dtype",
                 "bfloat16",
                 "--checkpoint-every",
@@ -281,8 +282,8 @@ def calibrate(size: str, run_name: str, samples: int, max_tokens: int, group_siz
         "corpus": corpus_path,
         "samples": samples,
         "max_tokens": max_tokens,
-        "output_block": "none",
-        "damping": 1e-2,
+        "output_block": output_block,
+        "damping": damping,
         "calib_dtype": "bfloat16",
         "calibration_corpora": [corpus_path],
         "eval_corpora": ["/workspace/data/eval_en_dedup.txt", "/workspace/data/eval_ja_dedup.txt"],
@@ -380,6 +381,10 @@ def evaluate(size: str, run_name: str, candidate: str, max_sequences: int) -> st
                 str(max_sequences),
                 "--max-tokens",
                 "128",
+                # A100 supports bf16; 4B/9B weights in float32 would double the
+                # memory and time. The dtype is recorded in the JSON output.
+                "--dtype",
+                "bfloat16",
                 "--json-out",
                 json_out,
             ]
@@ -424,6 +429,7 @@ def qad(
     warmup_steps: int,
     save_every: int,
     corpus: str,
+    seq: int = 128,
 ) -> str:
     """Distill the teacher into the quantized student.
 
@@ -453,6 +459,8 @@ def qad(
         out,
         "--steps",
         str(steps),
+        "--seq",
+        str(seq),
         "--optimizer",
         optimizer,
         "--lr",
@@ -486,8 +494,8 @@ def main(
     command: str = "check",
     size: str = "9b",
     run_name: str = "",
-    samples: int = 8,
-    max_tokens: int = 512,
+    samples: int = 0,
+    max_tokens: int = 0,
     group_size: int = 4,
     corpus: str = "calibration_en_dedup.txt",
     quantize_embedding: bool = False,
@@ -495,6 +503,8 @@ def main(
     max_sequences: int = 100,
     student: str = "student",
     steps: int = 10,
+    seq: int = 0,
+    damping: float = 0.0,
     optimizer: str = "adamw",
     # 2e-5 is a finetuning lr. The 4-bit quantizer rounds an update that small
     # away, so val_kl never moves and early stop fires on a run that learned
@@ -510,6 +520,13 @@ def main(
     if command not in COMMANDS:
         raise SystemExit(f"unknown command: {command}; choose {COMMANDS}")
     run_name = run_name or default_run_name(size)
+    # configs are the single source of truth; explicit CLI args still win
+    calibration = calibration_defaults(size)
+    samples = samples or int(calibration.get("samples", 8))
+    max_tokens = max_tokens or int(calibration.get("max_tokens", 512))
+    damping = damping or float(calibration.get("damping", 1e-3))
+    output_block = str(calibration.get("output_block", "none"))
+    seq = seq or int(qad_defaults(size).get("seq", 128))
 
     if command == "check":
         print(check_env.remote())
@@ -518,7 +535,7 @@ def main(
     elif command == "rtn":
         print(rtn.remote(size, run_name, quantize_embedding))
     elif command == "calibrate":
-        print(calibrate.remote(size, run_name, samples, max_tokens, group_size, corpus))
+        print(calibrate.remote(size, run_name, samples, max_tokens, group_size, corpus, damping, output_block))
     elif command == "yaqa":
         print(yaqa.remote(size, run_name, quantize_embedding))
     elif command == "eval":
@@ -537,6 +554,7 @@ def main(
                 warmup_steps,
                 save_every,
                 corpus,
+                seq,
             )
         )
     elif command == "fetch":

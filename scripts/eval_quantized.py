@@ -275,6 +275,9 @@ def main() -> None:
         "corpus": str(args.corpus),
         "config": eval_config,
         "config_hash": config_hash,
+        # dtype changes absolute PPL (0.8B runs float32 on CPU/T4, 4B/9B run
+        # bfloat16 on A100), so it must travel with the number.
+        "eval_dtype": args.dtype,
         "chunks": len(chunks),
         "tokens": total_positions,
         "chars": char_total,

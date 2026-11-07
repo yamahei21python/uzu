@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+CONFIG_ROOT = Path(__file__).resolve().parents[1] / "experiments"
+
 MODEL_SPECS = {
     "0.8b": {
         "repo": "Qwen/Qwen3.5-0.8B",
@@ -35,3 +40,23 @@ def spec(size: str) -> dict:
 def default_run_name(size: str) -> str:
     spec(size)
     return f"huihui-{size}"
+
+
+def model_config(size: str) -> dict:
+    """Read experiments/qwen35-<size>/config.json (single source of truth)."""
+    spec(size)
+    path = CONFIG_ROOT / f"qwen35-{size}" / "config.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def calibration_defaults(size: str) -> dict:
+    """Calibration hyperparameters for this size.
+
+    The Modal entrypoint used to hardcode damping 1e-2 and max_tokens 512,
+    which silently disagreed with the config (1e-3 and 256 for 4B).
+    """
+    return dict(model_config(size)["calibration"])
+
+
+def qad_defaults(size: str) -> dict:
+    return dict(model_config(size).get("qad", {}))

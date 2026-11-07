@@ -8,7 +8,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from modal_targets import COMMANDS, default_run_name, spec  # noqa: E402
+from modal_targets import COMMANDS, calibration_defaults, default_run_name, qad_defaults, spec  # noqa: E402
 
 
 def test_both_sizes_are_defined() -> None:
@@ -45,3 +45,22 @@ def test_default_run_name() -> None:
 def test_commands_cover_the_pipeline() -> None:
     for required in ("import", "rtn", "calibrate", "yaqa", "eval", "qad", "fetch"):
         assert required in COMMANDS
+
+
+def test_calibration_defaults_come_from_the_config() -> None:
+    import json
+
+    for size in ("0.8b", "4b", "9b"):
+        config = json.loads((ROOT / f"experiments/qwen35-{size}/config.json").read_text(encoding="utf-8"))
+        assert calibration_defaults(size) == config["calibration"]
+
+
+def test_4b_does_not_silently_use_the_9b_defaults() -> None:
+    # the entrypoint used to hardcode max_tokens 512 and damping 1e-2
+    assert calibration_defaults("4b")["max_tokens"] == 256
+    assert calibration_defaults("4b")["damping"] == 0.001
+    assert calibration_defaults("9b")["max_tokens"] == 512
+
+
+def test_qad_seq_comes_from_the_config() -> None:
+    assert qad_defaults("4b")["seq"] == 256
