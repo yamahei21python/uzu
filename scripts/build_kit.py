@@ -80,27 +80,7 @@ KIT_DATA = [
     "eval_ja_wikipedia_dedup.txt",
 ]
 
-KIT_LANES = [
-    "README.md",
-    "smoke-08b.json",
-    "clean-suite-08b.json",
-    "balanced-h-08b.json",
-    "damping-ablation-08b.json",
-    "eval-4b-rtn.json",
-    "seed-variance-08b.json",
-    "group-size-ablation-08b.json",
-    "bit-alloc-ablation-08b.json",
-    "bits-down-out-6.json",
-    "cpu-tuning-08b.json",
-    "robustness-08b-shard1of3.json",
-    "robustness-08b-shard2of3.json",
-    "robustness-08b-shard3of3.json",
-    "robustness-08b-shard1of5.json",
-    "robustness-08b-shard2of5.json",
-    "robustness-08b-shard3of5.json",
-    "robustness-08b-shard4of5.json",
-    "robustness-08b-shard5of5.json",
-]
+KIT_LANES = sorted(path.name for path in (ROOT / "lanes").glob("*") if path.is_file())
 
 KIT_TESTS = [
     "test_experiment_guards.py",
