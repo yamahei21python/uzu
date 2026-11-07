@@ -40,6 +40,18 @@ from pathlib import Path
 os.environ.setdefault("JAX_PLATFORM_NAME", "cpu")
 
 
+def peak_rss_mb() -> float:
+    """Peak resident memory of this process, in MB.
+
+    A silent death right after the last step (no traceback in the log, no
+    checkpoint) looks like the OOM killer; this number says which phase grew.
+    """
+    import resource
+
+    usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    return usage / (1024 * 1024) if sys.platform == "darwin" else usage / 1024
+
+
 def early_stop_decision(bad_val_evals: int, patience: int, step: int, steps: int) -> str:
     """Decide what to do after a non-improving validation.
 
@@ -653,29 +665,51 @@ def main() -> None:
             flush=True,
         )
         completed_steps = step + 1
-        if args.save_every and (step + 1) % args.save_every == 0:
+        if args.save_every and (step + 1) % args.save_every == 0 and not args.skip_checkpoint:
+            print(f"checkpoint {step + 1} start peak_rss={peak_rss_mb():.0f}MB", flush=True)
             save_checkpoint(step + 1, params, opt_state, rng)
+            print(f"checkpoint {step + 1} done  peak_rss={peak_rss_mb():.0f}MB", flush=True)
             last_saved_step = step + 1
 
     if stop_reason:
         completed_text = f"final step {completed_steps}" if completed_steps >= args.steps else f"step {completed_steps}"
         print(f"early stop at {completed_text}: {stop_reason}", flush=True)
 
-    if args.steps > 0 and completed_steps > 0 and completed_steps > last_saved_step:
+    print(f"training done peak_rss={peak_rss_mb():.0f}MB", flush=True)
+    if (
+        args.steps > 0
+        and completed_steps > 0
+        and completed_steps > last_saved_step
+        and not args.skip_checkpoint
+    ):
+        print(f"final checkpoint start peak_rss={peak_rss_mb():.0f}MB", flush=True)
         save_checkpoint(completed_steps, params, opt_state, rng)
+        print(f"final checkpoint done  peak_rss={peak_rss_mb():.0f}MB", flush=True)
 
+    print(f"export start peak_rss={peak_rss_mb():.0f}MB", flush=True)
     if args.master_dtype != "bfloat16":
         params = {key: value.astype(master_dtypes.get(key, value.dtype)) for key, value in params.items()}
     trained = inject_params(student, params)
+    del params
+    opt_state = None
+    try:
+        import jax
+
+        jax.clear_caches()
+    except Exception:  # noqa: BLE001 - freeing memory must never break export
+        pass
     trained = map_nodes_of_type_with_path(
         HybridMatrix,
         lambda path, matrix: matrix.switch_implementation(CompressionImplementation.INFERENCE),
         trained,
     )
+    print(f"export injected peak_rss={peak_rss_mb():.0f}MB", flush=True)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     trained.save(args.output_dir)
+    print(f"export saved peak_rss={peak_rss_mb():.0f}MB", flush=True)
     rewrite(args.output_dir / "model.safetensors")
     normalize(args.output_dir)
+    print(f"export done peak_rss={peak_rss_mb():.0f}MB", flush=True)
     print(f"saved QAD model -> {args.output_dir}")
 
 

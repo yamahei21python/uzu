@@ -87,3 +87,11 @@ def test_finetuning_lr_is_flagged_as_absorbed_by_the_quantizer() -> None:
     assert update_is_absorbed(2e-5, step) is True
     assert update_is_absorbed(1e-3, step) is False
     assert update_is_absorbed(1e-3, None) is False
+
+
+def test_peak_rss_is_reported_in_mb() -> None:
+    from qad_finetune import peak_rss_mb
+
+    value = peak_rss_mb()
+    assert value > 0
+    assert value < 200_000  # sanity: not bytes
