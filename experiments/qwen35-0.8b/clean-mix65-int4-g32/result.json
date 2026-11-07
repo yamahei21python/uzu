@@ -1,0 +1,39 @@
+{
+  "name": "mix65",
+  "calibration": {
+    "corpus": "/tmp/kit_cpu/data/calibration_mixed_ja65_en35_dedup.txt",
+    "samples": 32,
+    "max_tokens": 128,
+    "output_block": "small",
+    "damping": 0.001,
+    "calib_dtype": null,
+    "raw_output": false,
+    "ja_ratio": null,
+    "overlap_checked": true
+  },
+  "ppl": {
+    "en": {
+      "chunks": 100,
+      "tokens": 12700,
+      "bf16_ppl": 35.37584015335258,
+      "candidate_ppl": 40.52371967896562,
+      "delta_nll_per_token": 0.13585836816021768,
+      "config_hash": "1910663bf3270ebd"
+    },
+    "ja": {
+      "chunks": 100,
+      "tokens": 12700,
+      "bf16_ppl": 43.421380419755735,
+      "candidate_ppl": 49.59222160896425,
+      "delta_nll_per_token": 0.13288204283226168,
+      "config_hash": "ad9b12bbd17905d4"
+    }
+  },
+  "status": "complete",
+  "env": {
+    "JAX_PLATFORM_NAME": "cpu",
+    "jax_version": "0.12.0.1"
+  },
+  "finished": "2026-11-07T15:35:10",
+  "spec": "/tmp/cpu_test.json"
+}

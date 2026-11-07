@@ -1,0 +1,50 @@
+[
+  {
+    "corpus": "/tmp/kit_cpu/data/eval_en_wikitext2_dedup.txt",
+    "corpus_sha256": "342e8f6a77fb9db7",
+    "tokenizer": "models/huihui-0.8b-abliterated-bf16-lalamo",
+    "config": {
+      "max_tokens": 128,
+      "min_tokens": 16,
+      "max_sequences": 100
+    },
+    "chunks": 100,
+    "tokens": 12700,
+    "chars": 52573,
+    "tokens_per_char": 0.24156886614802275,
+    "reproduced": {
+      "chunks_match": true,
+      "tokens_match": true
+    },
+    "bpc_bf16": 1.2427975354305174,
+    "ppl_bf16": 35.37584015335258,
+    "bpc_candidate": 1.2901455631995578,
+    "ppl_candidate": 40.52371967896562,
+    "bpc_delta": 0.047348027769040506,
+    "source": "experiments/qwen35-0.8b/clean-mix65-int4-g32/ppl_en.json"
+  },
+  {
+    "corpus": "/tmp/kit_cpu/data/eval_ja_wikipedia_dedup.txt",
+    "corpus_sha256": "707c9a6c951dd0b8",
+    "tokenizer": "models/huihui-0.8b-abliterated-bf16-lalamo",
+    "config": {
+      "max_tokens": 128,
+      "min_tokens": 16,
+      "max_sequences": 100
+    },
+    "chunks": 100,
+    "tokens": 12700,
+    "chars": 20036,
+    "tokens_per_char": 0.633859053703334,
+    "reproduced": {
+      "chunks_match": true,
+      "tokens_match": true
+    },
+    "bpc_bf16": 3.448404762444896,
+    "ppl_bf16": 43.421380419755735,
+    "bpc_candidate": 3.569920781388781,
+    "ppl_candidate": 49.59222160896425,
+    "bpc_delta": 0.12151601894388571,
+    "source": "experiments/qwen35-0.8b/clean-mix65-int4-g32/ppl_ja.json"
+  }
+]

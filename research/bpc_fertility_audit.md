@@ -40,6 +40,8 @@ JA は EN の約 2.6 倍の token を消費する。同じ文字数でも JA の
 | enonly | eval_ja_wikipedia_dedup | 43.42 | 62.52 | 3.4484 | 3.7817 | +0.3333 | +9.67% |
 | mixed50 | eval_en_wikitext2_dedup | 35.38 | 39.87 | 1.2428 | 1.2845 | +0.0417 | **+3.36%** |
 | mixed50 | eval_ja_wikipedia_dedup | 43.42 | 49.93 | 3.4484 | 3.5761 | +0.1277 | **+3.70%** |
+| mix65 | eval_en_wikitext2_dedup | 35.38 | 40.52 | 1.2428 | 1.2901 | +0.0473 | +3.81% |
+| mix65 | eval_ja_wikipedia_dedup | 43.42 | 49.59 | 3.4484 | 3.5699 | +0.1215 | +3.52% |
 
 生データ:
 - `experiments/qwen35-0.8b/clean-enonly-int4-g32/bpc/report.json`
@@ -50,6 +52,7 @@ JA は EN の約 2.6 倍の token を消費する。同じ文字数でも JA の
 - PPL だけ見ると enonly は「EN +11%、JA +44%」で JA が極端に悪く見える
 - BPC では enonly が EN +3.0% / JA +9.7%
 - **mixed50 で EN +3.36% / JA +3.70%**。相対劣化がほぼ 1:1 に揃う
+- mix65 は EN +3.81% / JA +3.52%。JA 比重を上げると EN が少し悪化、JA が少し改善する（想定どおりのトレードオフ）
 - 合計は 12.7% → 7.1%。EN を犠牲にして JA を救ったのではなく、**両方が改善**した
 - したがって `ja_ratio 0.5` は「等分点」の有力候補。mix65 と balanced H で上下を確認する
 - BPC は文字あたりの情報量が言語で違うため、**EN と JA の絶対値は比較できない**。比較してよいのは同一言語内の Δ
