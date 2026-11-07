@@ -47,14 +47,19 @@ image = (
     .add_local_file("scripts/yaqa_calibration.py", "/workspace/scripts/yaqa_calibration.py")
     .add_local_file("scripts/make_lalamo_eval_copy.py", "/workspace/scripts/make_lalamo_eval_copy.py")
     .add_local_file("scripts/merge_calibration_groups.py", "/workspace/scripts/merge_calibration_groups.py")
+    .add_local_file("scripts/corpus_guard.py", "/workspace/scripts/corpus_guard.py")
     .add_local_file("scripts/compare_logits.py", "/workspace/scripts/compare_logits.py")
     .add_local_file(
-        "experiments/qwen35-0.8b/data/calibration_en_wikitext2.txt",
+        "experiments/qwen35-0.8b/data/calibration_en_wikitext2_dedup.txt",
         "/workspace/data/calibration_en.txt",
     )
     .add_local_file(
         "experiments/qwen35-0.8b/data/eval_en_wikitext2.txt",
         "/workspace/data/eval_en.txt",
+    )
+    .add_local_file(
+        "experiments/qwen35-0.8b/data/eval_ja_wikipedia.txt",
+        "/workspace/data/eval_ja.txt",
     )
 )
 
@@ -205,6 +210,10 @@ def calibrate_9b(
                 bf16,
                 "--corpus",
                 "/workspace/data/calibration_en.txt",
+                "--eval-corpus",
+                "/workspace/data/eval_en.txt",
+                "--eval-corpus",
+                "/workspace/data/eval_ja.txt",
                 "--output",
                 output,
                 "--json-out",
