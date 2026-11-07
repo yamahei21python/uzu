@@ -54,6 +54,15 @@ T4（compute capability 7.5）では XLA の Triton GEMM が使えず、calibrat
 - 明示的に足したい場合は `paths.xla_flags` に書く
 - 検出できなかった場合は何も足さない。その場合は spec に書く
 
+さらに lalamo の推論は既定で **Pallas-Triton flash attention** を使い、これも T4 ではコンパイルできない。
+`run_lane` は cc < 8.0 を検出すると `UZU_ATTENTION_IMPL=xla` も渡す（`scripts/lalamo_forward.py`）。
+手動で切り替える場合:
+
+```bash
+UZU_ATTENTION_IMPL=xla python scripts/eval_quantized.py ...
+UZU_ATTENTION_IMPL=pallas ...   # 既定に戻す
+```
+
 ## シャード実行
 
 1 セッション 12h を跨ぐ条件列は、spec を分けるか `--shard` で切る。

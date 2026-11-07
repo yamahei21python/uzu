@@ -31,6 +31,7 @@ from typing import Any
 
 DEFAULT_CONDITION = {
     "samples": 32,
+    "calib_dtype": "float32",
     "max_tokens": 128,
     "output_block": "small",
     "output_block_limit": 2048,
@@ -142,6 +143,9 @@ class Runner:
         flags = list(self.spec.get("paths", {}).get("xla_flags", []))
         if self.triton_off:
             flags.append("--xla_gpu_enable_triton_gemm=false")
+            # lalamo inference defaults to the Pallas-Triton flash attention kernel,
+            # which T4 cannot compile. XLA attention is the supported path there.
+            env.setdefault("UZU_ATTENTION_IMPL", "xla")
         existing = env.get("XLA_FLAGS", "")
         for flag in flags:
             if flag not in existing:
@@ -263,6 +267,7 @@ class Runner:
                 "max_tokens": base.get("max_tokens"),
                 "output_block": base.get("output_block"),
                 "damping": base.get("damping"),
+                "calib_dtype": base.get("calib_dtype"),
                 "raw_output": base.get("raw_output"),
                 "ja_ratio": base.get("ja_ratio"),
                 "overlap_checked": base.get("overlap_checked"),
@@ -350,6 +355,8 @@ class Runner:
             ]
             for eval_corpus in self.eval_corpora().values():
                 command += ["--eval-corpus", str(eval_corpus)]
+            if settings.get("calib_dtype"):
+                command += ["--calib-dtype", str(settings["calib_dtype"])]
             if settings.get("raw_output"):
                 command.append("--raw-output")
             if self.spec.get("convert", {}).get("parallel"):
