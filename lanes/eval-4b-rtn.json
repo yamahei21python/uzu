@@ -30,9 +30,12 @@
     "bits": 4,
     "group_size": 32,
     "block_size": 32,
-    "parallel": "tensor"
+    "parallel": "replicated"
   },
   "conditions": [
-    {"name": "rtn", "rtn": true}
+    {
+      "name": "rtn",
+      "rtn": true
+    }
   ]
 }
