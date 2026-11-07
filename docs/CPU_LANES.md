@@ -45,6 +45,14 @@ python kit/scripts/run_lane.py \
 | Muse | 5 | `balanced-h-08b` |
 
 合計 10 セッション。1 つあたり 12h 以内に収まる。
+
+### push 前の必須チェック
+
+```bash
+python scripts/kaggle_slots.py     # cpu 5 / gpu 2 を超えたら exit 1
+```
+
+上限を超えて push すると、Kaggle がどれを落とすか分からない。**6 本目は待たせる**。
 **予備は owner 側に置く**（owner は 4 本だけ作業に使い、5 本目を空ける）。
 
 ## 前提
