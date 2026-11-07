@@ -136,16 +136,63 @@ def api_key() -> str | None:
         return None
 
 
-def active_env_ids() -> set[str]:
-    """Environments that a recorded session still points at. Never delete these."""
+TERMINAL_STATES = {"done", "failed", "cancelled", "collected"}
+PRESSURE_MARKERS = (
+    "rate limit",
+    "too_many_requests",
+    "storage quota",
+    "quota exceeded",
+    "environment limit",
+    "resource_exhausted",
+)
+
+
+def is_pressure(text: str) -> bool:
+    """Environment saturation shows up under several names; all mean 'free old sandboxes'."""
+    lowered = text.lower()
+    return any(marker in lowered for marker in PRESSURE_MARKERS)
+
+
+def active_env_ids(protect_completed: bool = False) -> set[str]:
+    """Environments that must survive a cleanup.
+
+    With ``protect_completed=False`` (the default) a finished task no longer pins
+    its environment: finished sandboxes are the main storage hogs and blocking
+    them is what caused "Project environment storage quota exceeded".
+    ``pending/`` and ``sessions/`` are always protected because a ``continue``
+    needs them.
+    """
     ids: set[str] = set()
-    candidates: list[Path] = []
-    candidates.extend(Path("/tmp").glob("ag_*.json"))
     for sub in ("sessions", "pending"):
         directory = AG_HOME / sub
-        if directory.exists():
-            candidates.extend(directory.glob("*.json"))
-    for path in candidates:
+        if not directory.exists():
+            continue
+        for path in directory.glob("*.json"):
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            env_id = payload.get("environment_id")
+            if isinstance(env_id, str) and env_id:
+                ids.add(env_id)
+
+    live: list[Path] = []
+    for meta_path in sorted((ROOT / "antigravity" / "tasks").glob("*/meta.json")):
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        state = meta.get("queue_status") or meta.get("status") or ""
+        state_path = Path(meta.get("state", f"/tmp/ag_{meta_path.parent.name}.json")).expanduser()
+        if not protect_completed:
+            if state in TERMINAL_STATES:
+                continue
+            # a manual task that already produced its state file is finished
+            if state == "manual" and state_path.exists():
+                continue
+        if state_path.exists():
+            live.append(state_path)
+    for path in live:
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -165,7 +212,7 @@ def parse_created(value: Any) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is not None:
-        parsed = parsed.astimezone(tz=None).replace(tzinfo=None)
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
     return parsed
 
 
@@ -213,15 +260,57 @@ def delete_environment(api_base: str, key: str, env_id: str) -> bool:
         return False
 
 
+def select_by_size(
+    environments: list[dict[str, Any]],
+    keep: set[str],
+    target_gib: float,
+    min_age_minutes: float,
+    now: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Pick environments to delete until the total fits the storage target."""
+    current = datetime.now(timezone.utc).replace(tzinfo=None) if now is None else now
+    total = sum(int(env.get("size_bytes", 0) or 0) for env in environments)
+    target = target_gib * 1024**3
+    candidates = []
+    for environment in environments:
+        env_id = environment.get("id")
+        if not isinstance(env_id, str) or env_id in keep:
+            continue
+        created = parse_created(environment.get("created"))
+        if created is None:
+            continue
+        age_minutes = (current - created).total_seconds() / 60
+        if age_minutes < min_age_minutes:
+            continue
+        candidates.append(environment)
+    candidates.sort(key=lambda env: (-int(env.get("size_bytes", 0) or 0), env.get("created", "")))
+    selected = []
+    for environment in candidates:
+        if total <= target:
+            break
+        total -= int(environment.get("size_bytes", 0) or 0)
+        selected.append(environment)
+    return selected
+
+
 def cleanup_envs(
     older_than_days: float,
     dry_run: bool = False,
     api_base: str = API_BASE,
     env_list_file: Path | None = None,
     keep_extra: set[str] | None = None,
+    mode: str = "age",
+    target_gib: float = 0.8,
+    min_age_minutes: float = 10.0,
+    protect_completed: bool = False,
 ) -> dict[str, Any]:
-    """Delete idle Antigravity environments. 429 is often environment saturation."""
-    keep = active_env_ids() | (keep_extra or set())
+    """Delete idle Antigravity environments.
+
+    ``mode="age"`` deletes everything older than ``older_than_days``.
+    ``mode="auto"`` deletes the largest finished environments until the total
+    fits ``target_gib``; this is what a storage-quota or 429 error needs.
+    """
+    keep = active_env_ids(protect_completed=protect_completed) | (keep_extra or set())
     if env_list_file is not None:
         environments = json.loads(env_list_file.read_text(encoding="utf-8"))
         if isinstance(environments, dict):
@@ -237,7 +326,11 @@ def cleanup_envs(
             print(f"cannot list environments: {error}")
             return {"error": str(error)}
 
-    selected = select_deletable(environments, keep, older_than_days)
+    if mode == "auto":
+        selected = select_by_size(environments, keep, target_gib, min_age_minutes)
+    else:
+        selected = select_deletable(environments, keep, older_than_days)
+    before_gib = sum(int(env.get("size_bytes", 0) or 0) for env in environments) / 1024**3
     deleted: list[str] = []
     for environment in selected:
         env_id = environment["id"]
@@ -259,12 +352,24 @@ def cleanup_envs(
                 handle.write(f"{now()} {env_id}\n")
 
     summary = {
+        "mode": mode,
         "total": len(environments),
+        "total_gib_before": round(before_gib, 3),
+        "total_gib_after": round(
+            sum(
+                int(env.get("size_bytes", 0) or 0)
+                for env in environments
+                if env.get("id") not in deleted
+            )
+            / 1024**3,
+            3,
+        ),
         "kept_active": len([env for env in environments if env.get("id") in keep]),
         "selected": len(selected),
         "deleted": len(deleted),
         "dry_run": dry_run,
         "older_than_days": older_than_days,
+        "target_gib": target_gib,
     }
     print(json.dumps(summary, ensure_ascii=False))
     return summary
@@ -437,11 +542,17 @@ def cmd_pump(args: argparse.Namespace) -> None:
                 continue
             log_tail = tail(ROOT / meta["log"])
             meta["pid"] = None
-            if "Rate limit" in log_tail and int(meta.get("attempts", 0)) < int(meta.get("max_attempts", 3)):
+            if is_pressure(log_tail) and int(meta.get("attempts", 0)) < int(meta.get("max_attempts", 3)):
                 meta["queue_status"] = "queued"
-                print(f"requeue {meta['slug']} (rate limit)")
-                # 429 is often environment saturation, not just QPS: free old sandboxes first
-                cleanup_envs(getattr(args, "env_ttl_days", 1.0))
+                print(f"requeue {meta['slug']} (environment pressure)")
+                # quota/429 mean the sandbox store is full, not that the task is wrong.
+                # Free the largest finished environments before retrying.
+                cleanup_envs(
+                    older_than_days=0,
+                    mode="auto",
+                    target_gib=getattr(args, "target_gib", 0.8),
+                    min_age_minutes=getattr(args, "min_env_age_minutes", 10.0),
+                )
             else:
                 meta["queue_status"] = "failed"
                 print(f"failed {meta['slug']} (pid gone, no state)")
@@ -472,6 +583,10 @@ def cmd_cleanup_envs(args: argparse.Namespace) -> None:
         api_base=args.api_base,
         env_list_file=Path(args.env_list_file).expanduser() if args.env_list_file else None,
         keep_extra=set(args.keep or []),
+        mode=args.mode,
+        target_gib=args.target_gib,
+        min_age_minutes=args.min_age_minutes,
+        protect_completed=args.protect_completed,
     )
     if summary.get("error"):
         raise SystemExit(1)
@@ -515,6 +630,8 @@ def main() -> None:
     pump = sub.add_parser("pump")
     pump.add_argument("--max-active", type=int, default=2)
     pump.add_argument("--env-ttl-days", type=float, default=1.0, help="delete idle environments older than this on 429")
+    pump.add_argument("--target-gib", type=float, default=0.8, help="storage target for quota-driven cleanup")
+    pump.add_argument("--min-env-age-minutes", type=float, default=10.0)
     pump.add_argument("--fetch-retries", type=int, default=6)
     pump.add_argument("--fetch-base-delay", type=float, default=15.0)
 
@@ -522,6 +639,8 @@ def main() -> None:
     watch.add_argument("--max-active", type=int, default=2)
     watch.add_argument("--interval", type=int, default=300)
     watch.add_argument("--env-ttl-days", type=float, default=1.0)
+    watch.add_argument("--target-gib", type=float, default=0.8)
+    watch.add_argument("--min-env-age-minutes", type=float, default=10.0)
     watch.add_argument("--fetch-retries", type=int, default=6)
     watch.add_argument("--fetch-base-delay", type=float, default=15.0)
 
@@ -531,6 +650,10 @@ def main() -> None:
     cleanup.add_argument("--api-base", default=API_BASE)
     cleanup.add_argument("--env-list-file", default=None, help="offline JSON list (tests)")
     cleanup.add_argument("--keep", nargs="*", default=[], help="extra environment ids to keep")
+    cleanup.add_argument("--mode", choices=("age", "auto"), default="age")
+    cleanup.add_argument("--target-gib", type=float, default=0.8)
+    cleanup.add_argument("--min-age-minutes", type=float, default=10.0)
+    cleanup.add_argument("--protect-completed", action="store_true", help="also keep environments of finished tasks")
 
     for name in ("retry", "cancel"):
         command = sub.add_parser(name)
