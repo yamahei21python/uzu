@@ -1,5 +1,7 @@
 # Lane specs
 
+> ここに書いた処理はモデルをロードする。**ローカルで流さない**。手順は `docs/LOCAL_POLICY.md`。
+
 実験をデータとして定義する。owner が spec を書き、Kaggle 実行担当は `run_lane.py` を回すだけ。
 
 ```bash

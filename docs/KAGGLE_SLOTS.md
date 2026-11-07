@@ -17,12 +17,16 @@
 2. 本実験が 2 本埋まると、修正版の再投入が**待ち**になる。待ち時間が一番高いコスト
 3. 12h 制限・クォータ（30h/週）は枠を埋めるほど無駄が出る。失敗 1 本で数百秒が飛ぶ
 
+> ローカル実行の可否は `docs/LOCAL_POLICY.md`。モデルをロードする処理はローカルで流さない。
+
 ## 手順
 
 ### 1. smoke で確認（枠 2）
 `run_lane` の smoke spec を使う。2 sample / 32 token / 2 chunks。
-実測（M3 / CPU で変換まで回した場合）: calibration 2 分、変換 9.5 分、eval 各 12 秒 = 約 12 分。
-T4x2 なら変換が短くなるので **5〜12 分**。
+T4x2 で **5〜12 分**。
+
+> 参考として M3 / CPU で 1 回だけ測った値: calibration 2 分、変換 9.5 分、eval 各 12 秒 = 約 12 分。
+> この計測はもう繰り返さない（`docs/LOCAL_POLICY.md`）。smoke は**必ず Kaggle の検証枠**で回す。
 
 ```python
 import subprocess, sys
