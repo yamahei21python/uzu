@@ -63,3 +63,6 @@ bench_3engines.sh
 antigravity/.queue.lock
 
 antigravity/.state/
+
+*.progress.jsonl
+*.partial.npz
