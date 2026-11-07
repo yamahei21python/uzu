@@ -22,8 +22,10 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import json
 import shutil
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,6 +78,19 @@ KIT_TESTS = [
 DATA_ROOT = ROOT / "experiments" / "qwen35-0.8b" / "data"
 
 
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def source_commit() -> str | None:
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=False
+        ).stdout.strip() or None
+    except OSError:
+        return None
+
+
 def build(output: Path) -> list[str]:
     copied: list[str] = []
     layout = {
@@ -93,6 +108,15 @@ def build(output: Path) -> list[str]:
                 raise SystemExit(f"missing source: {source}")
             shutil.copy2(source, target_dir / name)
             copied.append(f"{subdir}/{name}")
+
+    MANIFEST_NAME = "kit_manifest.json"
+    manifest = {
+        "built_from_commit": source_commit(),
+        "files": {
+            name: sha256(output / name) for name in copied
+        },
+    }
+    (output / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return copied
 
 
@@ -134,6 +158,15 @@ def check(kit: Path) -> list[str]:
             compile(path.read_text(encoding="utf-8"), str(path), "exec")
         except SyntaxError as error:
             problems.append(f"syntax error in {path.name}: {error}")
+
+    manifest_path = kit / "kit_manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        for name, expected in manifest.get("files", {}).items():
+            target = kit / name
+            if target.exists() and sha256(target) != expected:
+                problems.append(f"hash mismatch: {name}")
+        print(f"built_from_commit: {manifest.get('built_from_commit')}")
 
     for module, importers in local_modules(scripts).items():
         if not (kit / "scripts" / f"{module}.py").exists():
