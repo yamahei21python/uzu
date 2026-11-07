@@ -1,0 +1,61 @@
+{
+  "lane": "group-size-ablation-08b",
+  "model": {
+    "hf_repo": "Qwen/Qwen3.5-0.8B",
+    "spec_name": "Qwen3.5-0.8B",
+    "bf16_dir": "bf16-lalamo",
+    "bf16_source": "/kaggle/input/uzu-bf16-08b-lalamo",
+    "bf16_source_auto": true
+  },
+  "paths": {
+    "kit": "kit",
+    "work": "/kaggle/working",
+    "jax_platform": "gpu"
+  },
+  "eval": {
+    "max_sequences": 100,
+    "max_tokens": 128,
+    "min_tokens": 16,
+    "corpora": {
+      "en": "data/eval_en_wikitext2_dedup.txt",
+      "ja": "data/eval_ja_wikipedia_dedup.txt"
+    }
+  },
+  "condition_defaults": {
+    "samples": 32,
+    "max_tokens": 128,
+    "output_block": "small",
+    "output_block_limit": 2048,
+    "damping": 0.001,
+    "raw_output": false
+  },
+  "convert": {
+    "bits": 4,
+    "group_size": 32,
+    "block_size": 32,
+    "parallel": "tensor"
+  },
+  "conditions": [
+    {
+      "name": "enonly-g32",
+      "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt",
+      "convert": {
+        "group_size": 32
+      }
+    },
+    {
+      "name": "enonly-g64",
+      "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt",
+      "convert": {
+        "group_size": 64
+      }
+    },
+    {
+      "name": "enonly-g128",
+      "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt",
+      "convert": {
+        "group_size": 128
+      }
+    }
+  ]
+}

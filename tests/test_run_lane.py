@@ -95,6 +95,19 @@ def test_rtn_condition_skips_calibration_and_preconditioners() -> None:
     assert len([line for line in commands if "eval_quantized.py" in line]) == 2
 
 
+def test_seed_and_convert_overrides_reach_the_commands() -> None:
+    seeds = run_lane(LANES / "seed-variance-08b.json")
+    assert "--seed 0" in seeds.stdout and "--seed 1" in seeds.stdout and "--seed 2" in seeds.stdout
+
+    groups = run_lane(LANES / "group-size-ablation-08b.json")
+    for size in ("32", "64", "128"):
+        assert f"--group-size {size}" in groups.stdout
+
+    bits = run_lane(LANES / "bit-alloc-ablation-08b.json")
+    assert "--layer-bits-json" in bits.stdout
+    assert bits.stdout.count("--layer-bits-json") == 1
+
+
 def test_missing_spec_fields_fail_loudly(tmp_path: Path) -> None:
     spec = tmp_path / "bad.json"
     spec.write_text(json.dumps({"lane": "bad", "paths": {"kit": "kit", "work": str(tmp_path)}}), encoding="utf-8")
