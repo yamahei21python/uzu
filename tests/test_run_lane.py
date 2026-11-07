@@ -31,7 +31,12 @@ def test_clean_suite_spec_builds_guarded_commands() -> None:
         # both eval corpora must be passed so the overlap guard runs
         assert line.count("--eval-corpus") == 2
         assert "--raw-output" not in line
-    assert len([line for line in commands if "rht_int4_convert.py" in line]) == 3
+    imports = [line for line in commands if "rht_int4_convert.py" in line and "--dry-run" in line]
+    conversions = [line for line in commands if "rht_int4_convert.py" in line and "--dry-run" not in line]
+    assert len(imports) == 1
+    assert len(conversions) == 3
+    # the import output is uzu-normalized; calibration needs the lalamo copy
+    assert len([line for line in commands if "make_lalamo_eval_copy.py" in line]) == 4
     assert len([line for line in commands if "eval_quantized.py" in line]) == 6
 
 
@@ -46,7 +51,9 @@ def test_balanced_spec_skips_raw_conversion_and_merges_three_ratios() -> None:
     assert len(merge) == 3
     ratios = [line.split("--ja-ratio ")[1].split()[0] for line in merge]
     assert ratios == ["0.5", "0.65", "0.35"]
-    convert = [line for line in commands if "rht_int4_convert.py" in line]
+    convert = [
+        line for line in commands if "rht_int4_convert.py" in line and "--dry-run" not in line
+    ]
     # raw conditions are not converted, only the three merged ones
     assert len(convert) == 3
 
