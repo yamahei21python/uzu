@@ -64,3 +64,41 @@ python3 ~/.config/opencode/antigravity/antigravity.py --state /tmp/ag_vram_budge
 - 検証に使ったコマンドと結果を PR 本文かタスクの note に残す
 - プロンプトには「捏造禁止 / 推定と実測を区別」を必ず入れる
 - コード修正は owner。アングラには調査・生成・sandbox 検証までを渡す
+
+## チケットキュー（常時 2 本 + 自由枠 1 本）
+
+`ag_queue.py` がチケットを回す。容量 3、常時 2 本を自動で流し、1 本は手動用に空ける。
+
+```bash
+# 積む
+python scripts/ag_queue.py add --slug <slug> --prompt prompt.txt \
+  --deliverables research/x.md scripts/y.py --priority 60 --note "一行"
+
+# 見る
+python scripts/ag_queue.py list
+
+# 1 回だけ回す（cron でも可）
+python scripts/ag_queue.py pump --max-active 2
+
+# 常駐（120 秒ごと）
+nohup python scripts/ag_queue.py watch --max-active 2 --interval 120 \
+  > logs/$(date +%F)/local/ag_queue_watch.log 2>&1 &
+```
+
+- `pump` は「完了検知 → fetch → collect」と「空き枠への dispatch」を 1 回でやる
+- 完了判定は state ファイルの `interaction_id`。ラッパーは成功時にしか state を書かないため、実行中は pid の生存で判定する
+- 失敗（pid 死亡 + state なし）は `Rate limit` を含むログなら再キュー、それ以外は `failed`
+- `manual` のチケットはキューが触らない。ただし**実行中は枠を 1 つ占有**する（state が無い間）
+- `watch` は `antigravity/.queue.lock` を握る。常駐中に手動 `pump` すると「another queue process holds the lock」で終わる（二重起動防止）
+
+### 状態
+
+| queue_status | 意味 |
+|---|---|
+| `queued` | 順番待ち。priority 降順、同時刻は作成順 |
+| `running` | キューが起動。pid 生存中 |
+| `manual` | 手で起動。キューは触らないが枠は占有 |
+| `done` | fetch + collect 済み |
+| `failed` | pid 死亡 + state 無し。`retry` で戻せる |
+| `cancelled` | `cancel` 済み |
+

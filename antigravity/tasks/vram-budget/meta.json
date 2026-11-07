@@ -12,5 +12,7 @@
   ],
   "status": "running",
   "started": "2026-11-07T13:10:00",
-  "note": "4B YAQA OOM の主因特定 + T4 で通る枝"
+  "note": "4B YAQA OOM の主因特定 + T4 で通る枝",
+  "queue_status": "manual",
+  "attempts": 1
 }
