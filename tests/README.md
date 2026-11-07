@@ -21,5 +21,6 @@ pytest -q tests/
 - kit の完全性（`build_kit.py`、遅延 import の欠落検出）
 - 公開コーパス監査の交差判定（`audit_public_corpus.py --no-public`）
 - アングラ委任の記録・回収（`ag_tasks.py`）
+- 委任結果の数値検証（実測と一致しない数値は捨てる）
 
 モデル重み・private dataset は不要。公開 tokenizer のみ使う。
