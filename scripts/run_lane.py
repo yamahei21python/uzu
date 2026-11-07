@@ -141,6 +141,12 @@ class Runner:
         for key, value in self.environment().items():
             if key.startswith(prefixes):
                 seen[key] = value
+        try:
+            from importlib.metadata import version
+
+            seen["jax_version"] = version("jax")
+        except Exception:  # noqa: BLE001 - provenance must never break a run
+            pass
         return seen
 
     def environment(self, base: dict[str, str] | None = None) -> dict[str, str]:
@@ -370,6 +376,8 @@ class Runner:
                 command += ["--eval-corpus", str(eval_corpus)]
             if settings.get("calib_dtype"):
                 command += ["--calib-dtype", str(settings["calib_dtype"])]
+            if settings.get("seed") is not None:
+                command += ["--seed", str(settings["seed"])]
             if settings.get("raw_output"):
                 command.append("--raw-output")
             if self.spec.get("convert", {}).get("parallel"):
@@ -416,9 +424,15 @@ class Runner:
                 "--calibration-json",
                 str(out / "calibration.json"),
             ]
+        convert_settings = dict(self.spec.get("convert", {}))
+        convert_settings.update(condition.get("convert") or {})
         for key in ("bits", "group_size", "block_size", "parallel"):
-            if key in self.spec.get("convert", {}):
-                convert_command += [f"--{key.replace('_', '-')}", str(self.spec["convert"][key])]
+            if key in convert_settings:
+                convert_command += [f"--{key.replace('_', '-')}", str(convert_settings[key])]
+        if condition.get("layer_bits_json"):
+            bits_path = self.resolve(condition["layer_bits_json"])
+            assert bits_path is not None
+            convert_command += ["--layer-bits-json", str(bits_path)]
         self.run(f"{name} convert", convert_command, out / "lane.log")
         self.run(
             f"{name} eval copy",
