@@ -66,6 +66,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--layer-filter", default="", help="only paths containing this substring")
     parser.add_argument("--output-block", choices=("none", "small", "all"), default="none")
     parser.add_argument("--output-block-limit", type=int, default=2048)
+    parser.add_argument("--raw-output", action="store_true", help="save raw H before normalization/damping (for language-balanced merge)")
     parser.add_argument("--damping", type=float, default=1e-2, help="initial sigma_reg after mean-diagonal normalization")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
@@ -392,7 +393,10 @@ def main() -> None:
         count = max(accumulator["samples"], 1)
         H_I = accumulator["input"] / count
         H_O = None if accumulator["output"] is None else accumulator["output"] / count
-        H_I, damping_input = regularize(H_I, f"{site.key}/input_block")
+        if args.raw_output:
+            damping_input = None
+        else:
+            H_I, damping_input = regularize(H_I, f"{site.key}/input_block")
         record = {
             "path": site.key,
             "in_dim": site.in_dim,
@@ -415,7 +419,10 @@ def main() -> None:
             record["input_condition"] = float("inf")
         arrays[f"{site.key}/input_block"] = H_I
         if H_O is not None:
-            H_O, damping_output = regularize(H_O, f"{site.key}/output_block")
+            if args.raw_output:
+                damping_output = None
+            else:
+                H_O, damping_output = regularize(H_O, f"{site.key}/output_block")
             arrays[f"{site.key}/output_block"] = H_O
             record["output_damping"] = damping_output
             try:
@@ -438,6 +445,7 @@ def main() -> None:
         "corpus": str(args.corpus),
         "eval_corpora": [str(path) for path in args.eval_corpus],
         "overlap_checked": bool(args.eval_corpus),
+        "raw_output": bool(args.raw_output),
         "samples": args.samples,
         "max_tokens": args.max_tokens,
         "output_block": args.output_block,
