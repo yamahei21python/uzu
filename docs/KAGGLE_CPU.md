@@ -42,6 +42,7 @@
 2. 1 カーネル 12h を超えそうなら `--shard` で分ける。`result.json` がある条件は再実行で skip
 3. `/kaggle/working` を圧迫しないよう、`calibration.npz` は変換後に削除（`run_lane` が実施）
 4. 同時は **アカウントあたり 5 本**（owner 5 + Muse 5 = 合計 10）。各セッションは 12h 以内
+5. **予備枠は owner が持つ**。owner は作業 4 本 + 予備 1 本。Muse は 5 本すべて作業に使ってよい
 5. 結果は `kaggle kernels output` で回収し、`<user>/uzu-results` に上げる
 
 ## 未確認（推測で運用しない）
