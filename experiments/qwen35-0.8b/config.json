@@ -1,0 +1,50 @@
+{
+  "name": "qwen35-0.8b",
+  "model": {
+    "repo": "Qwen/Qwen3.5-0.8B",
+    "tied_embedding": true,
+    "layers": 24,
+    "hidden": 1024
+  },
+  "eval": {
+    "max_sequences": 100,
+    "max_tokens": 128,
+    "min_tokens": 16,
+    "corpora": {
+      "en": "experiments/qwen35-0.8b/data/eval_en_wikitext2.txt",
+      "ja": "experiments/qwen35-0.8b/data/eval_ja_wikipedia.txt"
+    }
+  },
+  "calibration": {
+    "samples": 32,
+    "max_tokens": 128,
+    "output_block": "small",
+    "output_block_limit": 2048,
+    "damping": 0.001,
+    "corpora": {
+      "en": "experiments/qwen35-0.8b/data/calibration_en_wikitext2_dedup.txt",
+      "ja": "experiments/qwen35-0.8b/data/calibration_ja_wikipedia_dedup.txt",
+      "mixed50": "experiments/qwen35-0.8b/data/calibration_mixed_en_ja_dedup.txt",
+      "mix65": "experiments/qwen35-0.8b/data/calibration_mixed_ja65_en35_dedup.txt",
+      "mix35": "experiments/qwen35-0.8b/data/calibration_mixed_ja35_en65_dedup.txt"
+    }
+  },
+  "quantization": {
+    "bits": 4,
+    "embedding_bits": 4,
+    "group_size": 32,
+    "block_size": 32,
+    "symmetric": false,
+    "layout": "output_input"
+  },
+  "qad": {
+    "optimizer": "adamw",
+    "steps": 10,
+    "seq": 128,
+    "lr": 2e-05,
+    "save_every": 2,
+    "val_chunks": 2,
+    "val_every": 2,
+    "parallel": "replicated"
+  }
+}

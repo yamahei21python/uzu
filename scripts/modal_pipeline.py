@@ -46,6 +46,7 @@ image = (
     .add_local_file("scripts/normalize_lalamo_config.py", "/workspace/scripts/normalize_lalamo_config.py")
     .add_local_file("scripts/yaqa_calibration.py", "/workspace/scripts/yaqa_calibration.py")
     .add_local_file("scripts/make_lalamo_eval_copy.py", "/workspace/scripts/make_lalamo_eval_copy.py")
+    .add_local_file("scripts/merge_calibration_groups.py", "/workspace/scripts/merge_calibration_groups.py")
     .add_local_file("scripts/compare_logits.py", "/workspace/scripts/compare_logits.py")
     .add_local_file(
         "experiments/qwen35-0.8b/data/calibration_en_wikitext2.txt",
@@ -63,6 +64,30 @@ app = modal.App(APP_NAME)
 def run(command: list[str]) -> None:
     print("+", " ".join(command), flush=True)
     subprocess.run(command, check=True)
+
+
+def ensure_bf16_eval(run_name: str) -> str:
+    """Return a lalamo-loadable copy of the import_9b output.
+
+    import_9b normalizes config.json for uzu, so lalamo cannot load that
+    directory directly. make_lalamo_eval_copy restores config.lalamo.json and
+    hardlinks the 18GB weights.
+    """
+    source = f"/out/{run_name}/bf16"
+    dest = f"/out/{run_name}/bf16-lalamo"
+    if not os.path.exists(f"{dest}/config.json"):
+        run(
+            [
+                "python",
+                "/workspace/scripts/make_lalamo_eval_copy.py",
+                "--source",
+                source,
+                "--dest",
+                dest,
+            ]
+        )
+        output_volume.commit()
+    return dest
 
 
 @app.function(image=image, cpu=2, memory=4096, timeout=900)
@@ -84,6 +109,9 @@ def check_env() -> str:
 def import_9b(run_name: str) -> str:
     """Download HF 9B and save a BF16 lalamo model to /out/<run>/bf16."""
     os.environ["JAX_PLATFORM_NAME"] = "cpu"
+    if os.path.exists(f"/out/{run_name}/bf16/COMPLETE"):
+        print(f"skip import: /out/{run_name}/bf16/COMPLETE exists", flush=True)
+        return f"/out/{run_name}/bf16"
     run(
         [
             "python",
@@ -115,11 +143,15 @@ def import_9b(run_name: str) -> str:
 )
 def rtn_9b(run_name: str, quantize_embedding: bool) -> str:
     os.environ["JAX_PLATFORM_NAME"] = "cpu"
+    if os.path.exists(f"/out/{run_name}/int4-rtn/COMPLETE"):
+        print(f"skip rtn: /out/{run_name}/int4-rtn/COMPLETE exists", flush=True)
+        return f"/out/{run_name}/int4-rtn"
+    bf16 = ensure_bf16_eval(run_name)
     command = [
         "python",
         "/workspace/scripts/rht_int4_convert.py",
         "--load-from",
-        f"/out/{run_name}/bf16",
+        bf16,
         "--lalamo-path",
         "/opt/lalamo",
         "--output-dir",
@@ -149,24 +181,36 @@ def calibrate_9b(
 ) -> str:
     """Layer-grouped Sketch B calibration (H_I only for 9B memory limits)."""
     os.environ["JAX_PLATFORM_NAME"] = "cuda"
+    merged = f"/out/{run_name}/calibration/calibration.npz"
+    if os.path.exists(merged):
+        print(f"skip calibrate & merge: {merged} exists", flush=True)
+        return merged
+
+    bf16 = ensure_bf16_eval(run_name)
     paths = []
     for start in range(0, 32, group_size):
         end = min(start + group_size, 32)
         filters = ",".join(f"/[{index}]/" for index in range(start, end))
         output = f"/out/{run_name}/calibration/group-{start}-{end}.npz"
+        if os.path.exists(output):
+            print(f"skip calibration: {output} exists", flush=True)
+            paths.append(output)
+            continue
         print(f"calibrating layers {start}..{end - 1}", flush=True)
         run(
             [
                 "python",
                 "/workspace/scripts/yaqa_calibration.py",
                 "--model-dir",
-                f"/out/{run_name}/bf16",
+                bf16,
                 "--corpus",
                 "/workspace/data/calibration_en.txt",
                 "--output",
                 output,
                 "--json-out",
                 f"/out/{run_name}/calibration/group-{start}-{end}.json",
+                "--progress-jsonl",
+                f"/out/{run_name}/calibration/group-{start}-{end}.progress.jsonl",
                 "--samples",
                 str(samples),
                 "--max-tokens",
@@ -179,29 +223,39 @@ def calibrate_9b(
                 filters,
                 "--damping",
                 "1e-2",
+                "--checkpoint-every",
+                "2",
+                "--resume",
+                "auto",
             ]
         )
         paths.append(output)
         output_volume.commit()
 
     # Merge per-layer NPZ files (keys are disjoint).
+    if os.path.exists(merged):
+        print(f"skip merge: {merged} exists", flush=True)
+        return merged
+    # If group npz files were skipped because they already existed, gather all expected group paths
+    if not paths:
+        paths = [
+            f"/out/{run_name}/calibration/group-{start}-{min(start + group_size, 32)}.npz"
+            for start in range(0, 32, group_size)
+        ]
     merge = [
         "python",
-        "-c",
-        (
-            "import numpy as np, sys;"
-            "arrays={};"
-            "\nfor p in sys.argv[2:]:\n"
-            "    with np.load(p) as data:\n"
-            "        for key in data.files: arrays[key]=data[key]\n"
-            "np.savez(sys.argv[1], **arrays)"
-        ),
-        f"/out/{run_name}/calibration/calibration.npz",
+        "/workspace/scripts/merge_calibration_groups.py",
+        "--output",
+        merged,
+        "--layers",
+        "32",
+        "--group-size",
+        str(group_size),
         *paths,
     ]
     run(merge)
     output_volume.commit()
-    return f"/out/{run_name}/calibration/calibration.npz"
+    return merged
 
 
 @app.function(
@@ -214,11 +268,15 @@ def calibrate_9b(
 )
 def yaqa_9b(run_name: str, quantize_embedding: bool) -> str:
     os.environ["JAX_PLATFORM_NAME"] = "cpu"
+    if os.path.exists(f"/out/{run_name}/int4-yaqa/COMPLETE"):
+        print(f"skip yaqa: /out/{run_name}/int4-yaqa/COMPLETE exists", flush=True)
+        return f"/out/{run_name}/int4-yaqa"
+    bf16 = ensure_bf16_eval(run_name)
     command = [
         "python",
         "/workspace/scripts/rht_int4_convert.py",
         "--load-from",
-        f"/out/{run_name}/bf16",
+        bf16,
         "--lalamo-path",
         "/opt/lalamo",
         "--output-dir",
