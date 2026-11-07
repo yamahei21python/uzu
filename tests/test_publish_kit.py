@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from publish_kit import (  # noqa: E402
+    parse_csv_listing,
     parse_dataset_listing,
     parse_dataset_listing_json,
     parse_manifest_commit,
@@ -69,3 +70,32 @@ def test_next_page_token_is_parsed() -> None:
 
 def test_missing_token_means_last_page() -> None:
     assert parse_next_token('[\n  {"name": "a.py"}\n]\n') is None
+
+
+def test_csv_listing_parses_names() -> None:
+    # ``--format json`` is not on every kaggle CLI; 0.13 only has --csv.
+    text = (
+        "name,size,creationDate\n"
+        "scripts/preflight.py,1234,2026-11-07 07:59:02\n"
+        "Next Page Token = CfDJ8FwkkMkekkBCtzoFDl4Vj7g\n"
+    )
+    assert parse_csv_listing(text) == ["scripts/preflight.py"]
+
+
+def test_listing_follows_every_page(monkeypatch) -> None:
+    import publish_kit
+
+    pages = {
+        None: ("Next Page Token = t1\nname,size,creationDate\nscripts/a.py,1,x\n"),
+        "t1": "name,size,creationDate\ndata/b.txt,1,x\n",
+    }
+    seen: list[str | None] = []
+
+    def fake(command: list[str]) -> tuple[int, str]:
+        token = command[command.index("--page-token") + 1] if "--page-token" in command else None
+        seen.append(token)
+        return 0, pages[token]
+
+    monkeypatch.setattr(publish_kit, "run_optional", fake)
+    assert publish_kit.list_dataset_files("kaggle", "owner/dataset") == ["scripts/a.py", "data/b.txt"]
+    assert seen == [None, "t1"]

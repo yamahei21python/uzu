@@ -64,22 +64,42 @@ def parse_next_token(text: str) -> str | None:
     return match.group(1) if match else None
 
 
+def parse_csv_listing(text: str) -> list[str]:
+    """Extract file names from ``kaggle datasets files --csv`` output."""
+    names: list[str] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("Next Page Token"):
+            continue
+        name = line.split(",", 1)[0].strip()
+        if name and name != "name":
+            names.append(name)
+    return names
+
+
 def list_dataset_files(kaggle_bin: str, dataset: str, max_pages: int = 20) -> list[str]:
     """List every file, following pagination.
 
     The default page size is 20, so a single call silently hid ``scripts/``
-    and made a healthy dataset look gutted.
+    and made a healthy dataset look gutted. ``--format json`` is not available
+    on every kaggle CLI (0.13 rejects it), so ``--csv`` is the primary form.
     """
     names: list[str] = []
     token: str | None = None
     for _ in range(max_pages):
-        command = [kaggle_bin, "datasets", "files", dataset, "--format", "json", "--page-size", "200"]
+        command = [kaggle_bin, "datasets", "files", dataset, "--page-size", "200"]
         if token:
             command += ["--page-token", token]
-        code, output = run_optional(command)
+        code, output = run_optional(command + ["--csv"])
         if code != 0:
-            break
-        page = parse_dataset_listing_json(output)
+            code, output = run_optional(command)
+            if code != 0:
+                break
+            page = parse_dataset_listing(output)
+        elif output.lstrip().startswith("["):
+            page = parse_dataset_listing_json(output)
+        else:
+            page = parse_csv_listing(output)
         names.extend(page)
         token = parse_next_token(output)
         if not token or not page:
