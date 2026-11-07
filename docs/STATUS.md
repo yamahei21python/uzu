@@ -6,6 +6,28 @@
 
 ---
 
+## 0. 2026-11-08 の知見（4点）
+
+1. **damping 1e-2 は 1e-3 より有意に良い**
+   mixed50（100 chunks）で EN +3.36% → **+2.16%**、JA +3.70% → **+2.73%**。
+   enonly では JA +9.67% → +6.52%。改善幅は seed 幅（EN 0.89 / JA 0.23）を超える。
+   4B/9B の config はまだ 1e-3。`d1e-1` を追加して最適点を確認中。
+
+2. **QAD の GPU OOM 犯人は checkpoint（orbax）**
+   T4×2 で TP 訓練は 0.39 s/step で完走（val_kl 0.342 → 0.318）。
+   訓練後のピーク RSS 24.8GB。`--skip-checkpoint` を付けると export まで到達（`QAD GPU OK`）。
+   → 対策は checkpoint の保存形式（opt_state を落とす / step を減らす / 別ボリューム）。
+
+3. **`--layer-bits-json` は無効だった**
+   lalamo のサイトパスは `.mlp/.down_projection`（ドット付き）で、規則 `mlp/down_projection` が
+   一致せず全層 4bit のまま。uniform4 と down-out6 の PPL が完全一致（39.68 / 50.20）。
+   `975fe2a6` でパス正規化を追加。再計測中。
+
+4. **q512 の改善は damping の寄与が大きい可能性**
+   q512 probe は `d1e-2` で実行しており、既存の q128 基準は `d1e-3`。
+   seq の効果を言うには `s16_q128_d1e-2`（Muse shard3 の1番目）との比較が必要。
+   それまでは「q512 が良い」と主張しない。
+
 ## 1. 数値
 
 ### 0.8B clean スイート（dedup / 100 chunks / 同一コーパス）
