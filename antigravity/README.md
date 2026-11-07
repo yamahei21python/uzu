@@ -109,18 +109,32 @@ nohup python scripts/ag_queue.py watch --max-active 2 --interval 120 \
 - `manual` のチケットはキューが触らない。ただし**実行中は枠を 1 つ占有**する（state が無い間）
 - `watch` は `antigravity/.queue.lock` を握る。常駐中に手動 `pump` すると「another queue process holds the lock」で終わる（二重起動防止）
 
-### 429 と環境の自動削除
+### 429 / 容量超過と環境の自動削除
 
-429 は QPS だけでなく**環境の飽和**（実測 ~50 環境 / ~1GiB）でも起きる。`pump` は 429 を検知すると、古い環境を自動で消してから再キューする。
+429 は QPS だけでなく**環境の飽和**でも起きる。実測では 12 環境 / 1.925GiB で
+`Project environment storage quota exceeded` が返り、新しいタスクが全部即死した（quota は約 1GiB）。
+
+`pump` は次の文字列を「環境の圧迫」として扱い、自動で掃除してから再キューする:
+`Rate limit` / `too_many_requests` / `storage quota` / `quota exceeded` / `environment limit` / `RESOURCE_EXHAUSTED`
+
+掃除の既定は **`--mode auto`**: 終了済みタスクの環境を大きい順に消し、合計が `--target-gib`（既定 0.8）以下になるまで続ける。
 
 ```bash
-python scripts/ag_queue.py cleanup-envs --older-than-days 1 --dry-run   # 確認
-python scripts/ag_queue.py cleanup-envs --older-than-days 1             # 実行
-python scripts/ag_queue.py cleanup-envs --older-than-days 1 --keep <env_id>
+# 容量超過のとき（大きい順に削る）
+python scripts/ag_queue.py cleanup-envs --mode auto --target-gib 0.8 --dry-run
+python scripts/ag_queue.py cleanup-envs --mode auto --target-gib 0.8
+
+# 古いものをまとめて消す
+python scripts/ag_queue.py cleanup-envs --mode age --older-than-days 1
+
+# 追加で守りたい環境
+python scripts/ag_queue.py cleanup-envs --mode auto --keep <env_id>
 ```
 
-- 既定は **1 日より古い**環境を削除
-- `environment_id` が state / sessions / pending に残っている環境は**絶対に消さない**
+- `age` モードは 1 日より古い環境を削除。`auto` モードは容量優先
+- `sessions/` `pending/` が指す環境は**絶対に消さない**
+- 終了済み（done / failed / cancelled / collected）タスクの環境は**消してよい**。`continue` したくなったら取り直す
+- 実行中タスクは state をまだ書いていないので、**作成から 10 分未満は消さない**（`--min-age-minutes`）
 - 作成日時が読めない環境も消さない（安全側）
 - 実行中タスクは state をまだ書いていないので、**TTL 1 日**がその防御になる。短くしすぎない
 - 削除 ID は `logs/<date>/antigravity_deleted_envs.txt` に追記
