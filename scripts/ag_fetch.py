@@ -118,8 +118,11 @@ def fetch_with_retry(
         code, output = wrapper_fetch(wrapper, state, out_dir)
         last_output = output
         extracted = out_dir / "extracted"
-        if code == 0 and extracted.exists():
+        has_files = extracted.exists() and any(extracted.rglob("*"))
+        if code == 0 and has_files:
             return {"status": "ok", "attempts": attempt, "final": None}
+        if code == 0 and extracted.exists() and not has_files:
+            output += "\nempty snapshot (no files extracted)"
         if not is_transient(output) and code != 0:
             print(f"fetch failed with a non-transient error (attempt {attempt}): {output.strip()[:300]}")
             break

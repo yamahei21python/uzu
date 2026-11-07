@@ -3,7 +3,7 @@
   "label": "docs-drift",
   "state": "/tmp/ag_docs_drift.json",
   "log": "logs/2026-11-07/local/antigravity_docs-drift.log",
-  "fetch_dir": "/tmp/ag_docs_drift_fetch",
+  "fetch_dir": "/tmp/ag_docs_drift_fetch2",
   "deliverables": [
     "research/docs_code_drift.md",
     "research/docs_code_drift.json",

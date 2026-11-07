@@ -1,0 +1,16 @@
+{
+  "slug": "repro-audit",
+  "label": "repro-audit",
+  "state": "/tmp/ag_repro_audit.json",
+  "log": "logs/2026-11-07/local/antigravity_repro-audit.log",
+  "fetch_dir": "/tmp/ag_repro_audit_fetch",
+  "deliverables": [
+    "research/repro_audit.md",
+    "research/repro_audit.json",
+    "research/repro_audit_stdout.txt"
+  ],
+  "priority": 44,
+  "max_attempts": 3,
+  "note": "RUNBOOK を上から実行して検証",
+  "created_at": "2026-11-07T14:33:58"
+}
