@@ -92,43 +92,17 @@ def find_dataset_dir(root: Path, name: str) -> Path | None:
     return None
 
 
-def parse_direct_url(text: str) -> dict[str, str]:
-    """Extract the VCS source of an installed distribution.
-
-    PyPI and a git checkout can both report version 0.17.0 while shipping
-    different code, so the version string alone is not provenance.
-    """
-    try:
-        payload = json.loads(text)
-    except (TypeError, ValueError):
+try:
+    from env_fingerprint import fingerprint, lalamo_provenance, parse_direct_url
+except Exception:  # noqa: BLE001 - older kits may not ship env_fingerprint.py
+    def parse_direct_url(text: str) -> dict[str, str]:
         return {}
-    result = {}
-    url = payload.get("url")
-    if url:
-        result["source"] = url
-    commit = (payload.get("vcs_info") or {}).get("commit_id")
-    if commit:
-        result["commit"] = commit
-    return result
 
+    def lalamo_provenance() -> dict[str, str]:
+        return {}
 
-def lalamo_provenance() -> dict[str, str]:
-    seen: dict[str, str] = {}
-    try:
-        from importlib.metadata import distribution, version
-
-        seen["lalamo_version"] = version("lalamo")
-        direct = distribution("lalamo").read_text("direct_url.json")
-        parsed = parse_direct_url(direct or "")
-    except Exception:  # noqa: BLE001 - provenance must never break a run
-        return seen
-    if parsed.get("source"):
-        seen["lalamo_source"] = parsed["source"]
-    if parsed.get("commit"):
-        seen["lalamo_commit"] = parsed["commit"]
-    if not parsed:
-        seen["lalamo_source"] = "pypi-or-unknown"
-    return seen
+    def fingerprint() -> dict[str, str]:
+        return {}
 
 
 class Runner:
@@ -250,6 +224,15 @@ class Runner:
             print(f"preflight failed to produce a report (rc={result.returncode})", flush=True)
             return None
         report = json.loads(report_path.read_text(encoding="utf-8"))
+        probes = report.get("probes") or {}
+        if probes.get("quant_roundtrip") == "fail":
+            error = (report.get("probe_errors") or {}).get("quant_roundtrip", "")
+            raise SystemExit(
+                "preflight: lalamo has no working RHT quantize/dequantize path. "
+                "This is the PyPI 0.17.0 trap: install "
+                "git+https://github.com/trymirai/lalamo@e401e177 instead. "
+                f"{error}".strip()
+            )
         if (self.jax_platform or "").startswith("gpu") and report.get("attention") == "unavailable":
             raise SystemExit(
                 "preflight: dot_product_attention is unavailable on this GPU "
@@ -649,6 +632,7 @@ class Runner:
             "model": self.spec.get("model"),
             "eval": self.spec.get("eval"),
             "env": self.env_provenance(),
+            "environment_fingerprint": fingerprint(),
             "eval_dtype": self.eval_dtype,
             "results": summaries,
             "problems": problems,

@@ -36,6 +36,7 @@ DEFAULT_DOCS = [
     "docs/KAGGLE_SLOTS.md",
     "docs/EVAL.md",
     "docs/MODAL.md",
+    "docs/ENVIRONMENT.md",
     "tests/README.md",
     "antigravity/README.md",
 ]
