@@ -38,6 +38,57 @@ DEFAULT_CONDITION = {
     "raw_output": False,
 }
 DEFAULT_EVAL = {"max_sequences": 100, "max_tokens": 128, "min_tokens": 16}
+TRITON_MIN_CAPABILITY = 8.0
+
+
+def parse_compute_capabilities(output: str) -> list[float]:
+    capabilities = []
+    for line in output.splitlines():
+        text = line.strip().split(",")[0].strip()
+        try:
+            capabilities.append(float(text))
+        except ValueError:
+            continue
+    return capabilities
+
+
+def needs_triton_off(capabilities: list[float]) -> bool:
+    """XLA's Triton GEMM path only supports Ampere (cc 8.0) and newer."""
+    return any(capability < TRITON_MIN_CAPABILITY for capability in capabilities)
+
+
+def detect_compute_capabilities() -> list[float]:
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if result.returncode != 0:
+        return []
+    return parse_compute_capabilities(result.stdout)
+
+
+def find_dataset_dir(root: Path, name: str) -> Path | None:
+    """Locate a mounted dataset regardless of the /kaggle/input layout."""
+    candidates = [
+        root / name,
+        *sorted(root.glob(f"datasets/*/{name}")),
+        *sorted(root.glob(f"datasets/*/*/{name}")),
+    ]
+    for candidate in candidates:
+        if (candidate / "model.safetensors").exists():
+            return candidate
+    # last resort: any directory with both weights and a tokenizer
+    for weights in sorted(root.rglob("model.safetensors")):
+        directory = weights.parent
+        if (directory / "tokenizer.json").exists():
+            return directory
+    return None
 
 
 class Runner:
@@ -60,6 +111,13 @@ class Runner:
             "copy": self._script(paths.get("copy", "scripts/make_lalamo_eval_copy.py")),
         }
         self.lane = spec.get("lane") or spec_path.stem
+        capabilities = detect_compute_capabilities()
+        self.triton_off = needs_triton_off(capabilities)
+        if self.triton_off:
+            print(
+                f"GPU caps {capabilities}: disabling XLA Triton GEMM (needs >= {TRITON_MIN_CAPABILITY})",
+                flush=True,
+            )
         self.lane_dir = work / "out" / self.lane
         self.jax_platform = paths.get("jax_platform") or os.environ.get("JAX_PLATFORM_NAME") or None
 
@@ -75,15 +133,30 @@ class Runner:
         path = Path(value).expanduser()
         return path if path.is_absolute() else self.kit / path
 
+    def environment(self, base: dict[str, str] | None = None) -> dict[str, str]:
+        env = dict(os.environ if base is None else base)
+        if self.jax_platform:
+            env["JAX_PLATFORM_NAME"] = self.jax_platform
+        for key, value in (self.spec.get("paths", {}).get("env") or {}).items():
+            env[str(key)] = str(value)
+        flags = list(self.spec.get("paths", {}).get("xla_flags", []))
+        if self.triton_off:
+            flags.append("--xla_gpu_enable_triton_gemm=false")
+        existing = env.get("XLA_FLAGS", "")
+        for flag in flags:
+            if flag not in existing:
+                existing = (existing + " " + flag).strip()
+        if existing:
+            env["XLA_FLAGS"] = existing
+        return env
+
     def run(self, step: str, command: list[str], log: Path) -> None:
         display = " ".join(str(part) for part in command)
         print(f"$ {display}", flush=True)
         self.commands.append([str(part) for part in command])
         if self.dry_run:
             return
-        env = os.environ.copy()
-        if self.jax_platform:
-            env["JAX_PLATFORM_NAME"] = self.jax_platform
+        env = self.environment()
         started = time.time()
         with log.open("a", encoding="utf-8") as handle:
             handle.write(f"\n=== {step} {time.strftime('%H:%M:%S')} ===\n$ {display}\n")
@@ -112,6 +185,11 @@ class Runner:
             return target
 
         source = self.resolve(model.get("bf16_source"))
+        if source and not (source / "model.safetensors").exists() and model.get("bf16_source_auto"):
+            found = find_dataset_dir(Path("/kaggle/input"), source.name)
+            if found is not None:
+                print(f"bf16 source resolved to {found}", flush=True)
+                source = found
         if source and (source / "model.safetensors").exists():
             print(f"copy bf16 from {source} -> {target}", flush=True)
             if not self.dry_run:

@@ -18,6 +18,9 @@ python scripts/run_lane.py --spec lanes/clean-suite-08b.json --hf-results <user>
 | `model.spec_name` / `model.hf_repo` | BF16 が無い時の import 元 |
 | `model.bf16_dir` | BF16 lalamo の場所（`kit/` 相対 or 絶対） |
 | `model.bf16_source` | BF16 をコピーしてくる場所（Kaggle dataset など） |
+| `model.bf16_source_auto` | パスが見つからないとき `/kaggle/input` 配下を探す。Kaggle のマウントレイアウト変更に耐える |
+| `paths.env` | 子プロセスに渡す環境変数 |
+| `paths.xla_flags` | `XLA_FLAGS` に追加するフラグ |
 | `paths.kit` | スクリプトとコーパスのルート |
 | `paths.work` | 出力ルート。`--work` で上書き可 |
 | `paths.jax_platform` | `cpu` / `gpu`。`JAX_PLATFORM_NAME` に渡す |
@@ -41,6 +44,15 @@ python scripts/run_lane.py --spec lanes/clean-suite-08b.json --hf-results <user>
   - 条件間で `bf16_ppl` が 0.05 以上ずれる（BF16 baseline は共通のはず）
   - `bf16_ppl` が無い
 - 検証に落ちたら exit 1。manifest は残る
+
+## GPU の Triton 対応
+
+T4（compute capability 7.5）では XLA の Triton GEMM が使えず、calibration の最初の forward で落ちる。
+`run_lane` は起動時に `nvidia-smi` を読み、**cc < 8.0 を検出したら自動で** `--xla_gpu_enable_triton_gemm=false` を子プロセスの `XLA_FLAGS` に足す。
+
+- Ampere 以上では何もしない（性能を落とさない）
+- 明示的に足したい場合は `paths.xla_flags` に書く
+- 検出できなかった場合は何も足さない。その場合は spec に書く
 
 ## シャード実行
 

@@ -4,7 +4,8 @@
     "hf_repo": "Qwen/Qwen3.5-0.8B",
     "spec_name": "Qwen3.5-0.8B",
     "bf16_dir": "bf16-lalamo",
-    "bf16_source": "/kaggle/input/uzu-bf16-08b-lalamo"
+    "bf16_source": "/kaggle/input/uzu-bf16-08b-lalamo",
+    "bf16_source_auto": true
   },
   "paths": {
     "kit": "kit",
@@ -35,8 +36,17 @@
     "parallel": "tensor"
   },
   "conditions": [
-    {"name": "mix65", "calibration_corpus": "data/calibration_mixed_ja65_en35_dedup.txt"},
-    {"name": "mix35", "calibration_corpus": "data/calibration_mixed_ja35_en65_dedup.txt"},
-    {"name": "jaonly", "calibration_corpus": "data/calibration_ja_wikipedia_dedup.txt"}
+    {
+      "name": "mix65",
+      "calibration_corpus": "data/calibration_mixed_ja65_en35_dedup.txt"
+    },
+    {
+      "name": "mix35",
+      "calibration_corpus": "data/calibration_mixed_ja35_en65_dedup.txt"
+    },
+    {
+      "name": "jaonly",
+      "calibration_corpus": "data/calibration_ja_wikipedia_dedup.txt"
+    }
   ]
 }
