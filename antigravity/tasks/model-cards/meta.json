@@ -1,0 +1,19 @@
+{
+  "slug": "model-cards",
+  "label": "model-cards",
+  "state": "/tmp/ag_model_cards.json",
+  "log": "logs/2026-11-07/local/antigravity_model-cards.log",
+  "fetch_dir": "/tmp/ag_model_cards_fetch",
+  "deliverables": [
+    "research/model_cards/final_4b.md",
+    "research/model_cards/final_9b.md",
+    "research/model_cards/final_dataset_quant_kit.md",
+    "research/model_cards/final_dataset_results.md",
+    "research/kaggle_cards.md",
+    "research/model_cards_diff.md"
+  ],
+  "priority": 38,
+  "max_attempts": 3,
+  "note": "公開 card の最終稿",
+  "created_at": "2026-11-07T14:33:58"
+}

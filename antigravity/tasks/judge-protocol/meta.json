@@ -1,0 +1,17 @@
+{
+  "slug": "judge-protocol",
+  "label": "judge-protocol",
+  "state": "/tmp/ag_judge_protocol.json",
+  "log": "logs/2026-11-07/local/antigravity_judge-protocol.log",
+  "fetch_dir": "/tmp/ag_judge_protocol_fetch",
+  "deliverables": [
+    "research/judge_protocol.md",
+    "research/judge_calibration.jsonl",
+    "scripts/compare_judges.py",
+    "research/judge_protocol.json"
+  ],
+  "priority": 52,
+  "max_attempts": 3,
+  "note": "judge 手順 + キャリブレーション40件",
+  "created_at": "2026-11-07T14:33:58"
+}

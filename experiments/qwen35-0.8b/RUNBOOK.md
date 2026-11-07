@@ -11,6 +11,17 @@ EXP=experiments/qwen35-0.8b
 
 評価コーパスと Calibration コーパスは必ず別ファイル。
 
+### 前提（最初に 1 回）
+
+```bash
+export LALAMO_PATH=/tmp/lalamo-direct      # lalamo の checkout
+export JAX_PLATFORM_NAME=cpu               # Apple Silicon は cpu
+python scripts/build_kit.py --check .      # kit の完全性（scripts/data/lanes）
+```
+
+`yaqa_calibration.py` は **`--eval-corpus` が 1 つも無いと即終了**する（`corpus_guard.assert_disjoint`）。
+以下の手順では必ず EN と JA の両方を渡している。
+
 ## 1. E1: RHT + INT4 RTN（基準）
 
 ```bash
@@ -53,15 +64,18 @@ JAX_PLATFORM_NAME=cpu python scripts/yaqa_calibration.py \
   --corpus $DATA/calibration_en_wikitext2_dedup.txt \
   --output $EXP/yaqa-hin-int4-g32/calibration.npz \
   --json-out $EXP/yaqa-hin-int4-g32/calibration.json \
-  --samples 32 --max-tokens 512 \
+  --eval-corpus $DATA/eval_en_wikitext2_dedup.txt \
+  --eval-corpus $DATA/eval_ja_wikipedia_dedup.txt \
+  --samples 32 --max-tokens 128 \
   --output-block small --output-block-limit 2048 \
-  --damping 1e-2
+  --damping 1e-3
 
 JAX_PLATFORM_NAME=cpu python scripts/rht_int4_convert.py \
   --spec-name Qwen3.5-0.8B \
   --lalamo-path /tmp/lalamo-direct \
   --output-dir /tmp/qwen35_0.8b_yaqa_hin_lalamo \
-  --preconditioners $EXP/yaqa-hin-int4-g32/calibration.npz
+  --preconditioners $EXP/yaqa-hin-int4-g32/calibration.npz \
+  --calibration-json $EXP/yaqa-hin-int4-g32/calibration.json
 ```
 
 ## 4. E3: RHT + INT4 + YAQA(H_in + H_out)
@@ -74,9 +88,18 @@ JAX_PLATFORM_NAME=cpu python scripts/yaqa_calibration.py \
   --corpus $DATA/calibration_en_wikitext2_dedup.txt \
   --output $EXP/yaqa-hin-hout-int4-g32/calibration.npz \
   --json-out $EXP/yaqa-hin-hout-int4-g32/calibration.json \
+  --eval-corpus $DATA/eval_en_wikitext2_dedup.txt \
+  --eval-corpus $DATA/eval_ja_wikipedia_dedup.txt \
   --samples 32 --max-tokens 128 \
   --output-block small --output-block-limit 2048 \
   --damping 1e-3
+
+python scripts/rht_int4_convert.py \
+  --spec-name Qwen3.5-0.8B \
+  --lalamo-path /tmp/lalamo-direct \
+  --output-dir /tmp/qwen35_0.8b_yaqa_hin_hout_lalamo \
+  --preconditioners $EXP/yaqa-hin-hout-int4-g32/calibration.npz \
+  --calibration-json $EXP/yaqa-hin-hout-int4-g32/calibration.json
 ```
 
 ## 5. 重み再構成
@@ -84,7 +107,7 @@ JAX_PLATFORM_NAME=cpu python scripts/yaqa_calibration.py \
 ```bash
 python scripts/verify_rht_int4_model.py \
   --quantized-dir /tmp/qwen35_0.8b_rht_int4_lalamo \
-  --reference-dir /tmp/qwen35_0.8b_bf16_lalamo \
+  --reference-dir /tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg \
   --json-out $EXP/rtn-int4-g32/reconstruction.json
 ```
 
@@ -93,13 +116,13 @@ python scripts/verify_rht_int4_model.py \
 ```bash
 JAX_PLATFORM_NAME=cpu python scripts/eval_quantized.py \
   --bf16-dir /tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg \
-  --candidate-dir /tmp/qwen35_0.8b_rht_int4_lalamo_lalamo_origcfg \
-  --corpus $DATA/eval_en_wikitext2.txt \
+  --candidate-dir /tmp/qwen35_0.8b_rht_int4_lalamo_eval \
+  --corpus $DATA/eval_en_wikitext2_dedup.txt \
   --max-sequences 100 --max-tokens 128 \
   --json-out $EXP/rtn-int4-g32/eval_en_wikitext2.json
 ```
 
-日本語も同じコマンドで `--corpus $DATA/eval_ja_wikipedia.txt`。
+日本語も同じコマンドで `--corpus $DATA/eval_ja_wikipedia_dedup.txt`。
 
 ## 7. 実験記録
 
@@ -125,7 +148,7 @@ python scripts/normalize_lalamo_config.py /tmp/qwen35_0.8b_rht_int4_lalamo
 ```bash
 python scripts/verify_rht_int4_model.py \
   --quantized-dir /tmp/qwen35_0.8b_rht_int4_lalamo \
-  --reference-dir /tmp/qwen35_0.8b_bf16_lalamo \
+  --reference-dir /tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg \
   --preconditioners $EXP/yaqa-hin-int4-g32/calibration.npz \
   --json-out $EXP/rtn-int4-g32/reconstruction_weighted.json
 
