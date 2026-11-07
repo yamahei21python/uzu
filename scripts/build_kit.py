@@ -45,6 +45,7 @@ KIT_SCRIPTS = [
     "run_lane.py",
     "make_sweep_spec.py",
     "combine_lane_manifests.py",
+    "make_qad_dataset.py",
     # guards / audits
     "corpus_guard.py",
     "dedup_lines.py",

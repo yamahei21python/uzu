@@ -20,6 +20,7 @@ pytest -q tests/
 - lane spec のコマンド生成・resume・検証（`run_lane.py`）
 - シャード分割とスイープ生成（`--shard`, `make_sweep_spec.py`）
 - シャード manifest の統合（`combine_lane_manifests.py`）
+- QAD student の検証（`make_qad_dataset.py`）
 - eval の BPC/chars 出力、merge のメタデータ引き継ぎ
 - kit の完全性（`build_kit.py`、遅延 import の欠落検出）
 - 公開コーパス監査の交差判定（`audit_public_corpus.py --no-public`）

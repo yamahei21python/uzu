@@ -20,7 +20,9 @@
 ## 手順
 
 ### 1. smoke で確認（枠 2）
-`run_lane` の smoke spec を使う。2 sample / 32 token / 2 chunks なので数分で終わる。
+`run_lane` の smoke spec を使う。2 sample / 32 token / 2 chunks。
+実測（M3 / CPU で変換まで回した場合）: calibration 2 分、変換 9.5 分、eval 各 12 秒 = 約 12 分。
+T4x2 なら変換が短くなるので **5〜12 分**。
 
 ```python
 import subprocess, sys
