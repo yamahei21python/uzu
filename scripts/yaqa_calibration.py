@@ -88,7 +88,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     from corpus_guard import assert_disjoint
+    from lalamo_forward import bf16_block_reason, gpu_capabilities
 
+    reason = bf16_block_reason(args.calib_dtype, gpu_capabilities())
+    if reason:
+        raise SystemExit(reason)
     assert_disjoint(args.corpus, args.eval_corpus, allow_overlap=args.allow_overlap)
     progress_path = args.progress_jsonl or args.output.with_suffix(".progress.jsonl")
     progress_path.parent.mkdir(parents=True, exist_ok=True)

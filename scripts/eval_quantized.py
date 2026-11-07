@@ -87,6 +87,11 @@ def bpc(ppl: float, tokens: int, chars: int) -> float | None:
 
 def main() -> None:
     args = parse_args()
+    from lalamo_forward import bf16_block_reason, gpu_capabilities
+
+    reason = bf16_block_reason(args.dtype, gpu_capabilities())
+    if reason:
+        raise SystemExit(reason)
     if args.progress_jsonl:
         progress_path = args.progress_jsonl
     elif args.json_out:

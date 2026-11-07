@@ -80,3 +80,40 @@ def test_unknown_value_is_ignored(monkeypatch, fake_lalamo) -> None:
 def test_describe_reports_the_mode(monkeypatch) -> None:
     monkeypatch.setenv("UZU_ATTENTION_IMPL", "xla")
     assert lalamo_forward.describe() == "attention=xla"
+
+
+def test_turing_blocks_bf16() -> None:
+    reason = lalamo_forward.bf16_block_reason("bfloat16", [7.5, 7.5])
+    assert reason is not None
+    assert "float32" in reason
+
+
+def test_ampere_allows_bf16() -> None:
+    assert lalamo_forward.bf16_block_reason("bfloat16", [8.0, 8.0]) is None
+    assert lalamo_forward.bf16_block_reason("bfloat16", [8.9]) is None
+
+
+def test_float32_is_never_blocked() -> None:
+    assert lalamo_forward.bf16_block_reason("float32", [7.5]) is None
+
+
+def test_no_gpu_means_no_block() -> None:
+    # CPU has no nvidia-smi; bf16 there is a different (working) path
+    assert lalamo_forward.bf16_block_reason("bfloat16", []) is None
+
+
+def test_gpu_capabilities_parses_nvidia_smi(monkeypatch) -> None:
+    class Result:
+        stdout = "7.5\n7.5\n"
+        returncode = 0
+
+    monkeypatch.setattr(lalamo_forward.subprocess, "run", lambda *a, **k: Result())
+    assert lalamo_forward.gpu_capabilities() == [7.5, 7.5]
+
+
+def test_gpu_capabilities_tolerates_missing_nvidia_smi(monkeypatch) -> None:
+    def boom(*args, **kwargs):
+        raise FileNotFoundError("nvidia-smi")
+
+    monkeypatch.setattr(lalamo_forward.subprocess, "run", boom)
+    assert lalamo_forward.gpu_capabilities() == []

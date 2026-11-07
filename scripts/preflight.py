@@ -83,16 +83,19 @@ PROBES = {
         "x = jnp.ones((32, 32), dtype=jnp.bfloat16)\n"
         "(x @ x).block_until_ready()\n"
     ),
-    # bf16 inputs with f32 accumulation: this is what fails on T4
+    # bf16 inputs with f32 accumulation. Shape matters: a 32x32 dot is lowered
+    # differently and passes on T4, which made the gate useless. Real shapes
+    # pick ALG_DOT_BF16_BF16_F32 and fail on pre-Ampere GPUs.
     "dot_f32_acc": (
         "import jax.numpy as jnp\n"
-        "x = jnp.ones((32, 32), dtype=jnp.bfloat16)\n"
-        "jnp.dot(x, x, preferred_element_type=jnp.float32).block_until_ready()\n"
+        "x = jnp.ones((512, 1024), dtype=jnp.bfloat16)\n"
+        "jnp.dot(x, x.T, preferred_element_type=jnp.float32).block_until_ready()\n"
     ),
-    # lalamo's xla attention uses jax.nn.dot_product_attention(implementation='xla')
+    # lalamo's xla attention uses jax.nn.dot_product_attention(implementation='xla').
+    # Use production-ish shape (1, heads, tokens, head_dim); tiny probes pass on T4.
     "sdpa_xla": (
         "import jax, jax.numpy as jnp\n"
-        "q = jnp.ones((2, 4, 8, 16), dtype=jnp.bfloat16)\n"
+        "q = jnp.ones((1, 12, 512, 64), dtype=jnp.bfloat16)\n"
         "jax.nn.dot_product_attention(q, q, q, implementation='xla').block_until_ready()\n"
     ),
     # tokenizer: load and round-trip both scripts
@@ -230,9 +233,10 @@ def main() -> None:
             text=True,
             capture_output=True,
             check=False,
+            timeout=20,
         )
-        nvidia_stdout = nvidia.stdout or ""
-    except OSError:
+        nvidia_stdout = (nvidia.stdout or "") if nvidia.returncode == 0 else ""
+    except (OSError, subprocess.TimeoutExpired):
         nvidia_stdout = ""
     capabilities = parse_capabilities(nvidia_stdout)
     tokenizer_path = args.tokenizer
