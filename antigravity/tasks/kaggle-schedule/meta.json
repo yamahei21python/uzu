@@ -1,0 +1,19 @@
+{
+  "slug": "kaggle-schedule",
+  "label": "kaggle-schedule",
+  "state": "/tmp/ag_kaggle_schedule.json",
+  "log": "logs/2026-11-07/local/antigravity_kaggle-schedule.log",
+  "fetch_dir": "/tmp/ag_kaggle_schedule_fetch",
+  "deliverables": [
+    "research/kaggle_schedule.md",
+    "research/kaggle_schedule.json",
+    "research/kaggle_kernel_plan.md"
+  ],
+  "status": "queued",
+  "queue_status": "queued",
+  "priority": 40,
+  "attempts": 0,
+  "max_attempts": 3,
+  "note": "クォータと枠の配分計画",
+  "created_at": "2026-11-07T13:25:06"
+}

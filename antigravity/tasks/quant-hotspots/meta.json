@@ -1,0 +1,19 @@
+{
+  "slug": "quant-hotspots",
+  "label": "quant-hotspots",
+  "state": "/tmp/ag_quant_hotspots.json",
+  "log": "logs/2026-11-07/local/antigravity_quant-hotspots.log",
+  "fetch_dir": "/tmp/ag_quant_hotspots_fetch",
+  "deliverables": [
+    "research/lalamo_quant_hotspots.md",
+    "research/lalamo_quant_hotspots.json",
+    "scripts/bench_quant_ops.py"
+  ],
+  "status": "queued",
+  "queue_status": "queued",
+  "priority": 45,
+  "attempts": 0,
+  "max_attempts": 3,
+  "note": "量子化パスの CPU 実測",
+  "created_at": "2026-11-07T13:25:06"
+}
