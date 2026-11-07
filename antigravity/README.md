@@ -105,7 +105,10 @@ nohup python scripts/ag_queue.py watch --max-active 2 --interval 120 \
 
 - `pump` は「完了検知 → fetch → collect」と「空き枠への dispatch」を 1 回でやる
 - 完了判定は state ファイルの `interaction_id`。ラッパーは成功時にしか state を書かないため、実行中は pid の生存で判定する
-- 失敗（pid 死亡 + state なし）は `Rate limit` を含むログなら再キュー、それ以外は `failed`
+- 失敗判定は慎重にやる。ラッパーは**終了後にしか state を書かない**ので、pid 死亡 + state なしは失敗の証明にならない
+  - ログに `"status": "completed"` があれば**完了扱い**で fetch に進む
+  - なければ `--pid-grace-seconds`（既定 300 秒）待ってから `Rate limit` / 容量超過を判定
+- 失敗（pid 死亡 + state なし + 完了ログなし）は環境圧迫のログなら再キュー、それ以外は `failed`
 - `manual` のチケットはキューが触らない。ただし**実行中は枠を 1 つ占有**する（state が無い間）
 - `watch` は `antigravity/.queue.lock` を握る。常駐中に手動 `pump` すると「another queue process holds the lock」で終わる（二重起動防止）
 

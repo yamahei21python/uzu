@@ -1,0 +1,40 @@
+{
+  "title": "uzu Evaluation Prompts Dataset",
+  "description": "Evaluation prompt suite for post-quantization safety, persona retention, instruction following, and linguistic competence.",
+  "created_at": "2026-11-07T04:50:13.073408+00:00",
+  "license": "self-authored-CC0",
+  "total_prompts": 400,
+  "languages": {
+    "ja": {
+      "total": 200,
+      "categories": {
+        "over_refusal": 60,
+        "borderline": 40,
+        "persona": 40,
+        "instruction": 40,
+        "ja_specific": 20
+      },
+      "file": "eval_prompts_ja.jsonl"
+    },
+    "en": {
+      "total": 200,
+      "categories": {
+        "over_refusal": 60,
+        "borderline": 40,
+        "persona": 40,
+        "instruction": 60
+      },
+      "file": "eval_prompts_en.jsonl"
+    }
+  },
+  "duplicate_check": {
+    "exact_matches": 0,
+    "prefix_40_matches": 0,
+    "status": "PASSED"
+  },
+  "checksums": {
+    "eval_prompts.sha256_entries_count": 400,
+    "eval_prompts_ja_file_sha256": "bbbeb6ab6fc10e358a223f54dd30e178003563e4fa4a3eeb3419ead0814c3d96",
+    "eval_prompts_en_file_sha256": "72f2670a3e7e18c67b0267712435db552824882a5098b7f014f2ffeb66854468"
+  }
+}

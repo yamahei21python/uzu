@@ -540,7 +540,28 @@ def cmd_pump(args: argparse.Namespace) -> None:
             if alive(meta.get("pid")):
                 active += 1
                 continue
-            log_tail = tail(ROOT / meta["log"])
+            log_path = ROOT / meta["log"]
+            sys.path.insert(0, str(SCRIPT_DIR))
+            from ag_fetch import log_completed
+
+            if log_completed(log_path):
+                print(f"{meta['slug']} finished in the log; fetching", flush=True)
+                finish(meta, wrapper, args.fetch_retries, args.fetch_base_delay)
+                continue
+
+            pid_gone_at = meta.get("pid_gone_at")
+            if pid_gone_at:
+                gone_for = time.time() - float(pid_gone_at)
+                if gone_for < args.pid_grace_seconds:
+                    active += 1
+                    continue
+            else:
+                meta["pid_gone_at"] = time.time()
+                save(meta)
+                active += 1
+                continue
+
+            log_tail = tail(log_path)
             meta["pid"] = None
             if is_pressure(log_tail) and int(meta.get("attempts", 0)) < int(meta.get("max_attempts", 3)):
                 meta["queue_status"] = "queued"
@@ -632,6 +653,7 @@ def main() -> None:
     pump.add_argument("--env-ttl-days", type=float, default=1.0, help="delete idle environments older than this on 429")
     pump.add_argument("--target-gib", type=float, default=0.8, help="storage target for quota-driven cleanup")
     pump.add_argument("--min-env-age-minutes", type=float, default=10.0)
+    pump.add_argument("--pid-grace-seconds", type=float, default=300.0, help="wait this long before treating a dead pid as failure")
     pump.add_argument("--fetch-retries", type=int, default=6)
     pump.add_argument("--fetch-base-delay", type=float, default=15.0)
 
@@ -641,6 +663,7 @@ def main() -> None:
     watch.add_argument("--env-ttl-days", type=float, default=1.0)
     watch.add_argument("--target-gib", type=float, default=0.8)
     watch.add_argument("--min-env-age-minutes", type=float, default=10.0)
+    watch.add_argument("--pid-grace-seconds", type=float, default=300.0)
     watch.add_argument("--fetch-retries", type=int, default=6)
     watch.add_argument("--fetch-base-delay", type=float, default=15.0)
 
