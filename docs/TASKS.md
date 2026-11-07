@@ -2,7 +2,7 @@
 
 全 33 件
 
-## 実行中（15）
+## 実行中（14）
 | source | name | lane | status |
 |---|---|---|---|
 | owner | uzu-lane-runner | seed-variance-08b | running |
@@ -10,7 +10,6 @@
 | owner | uzu-lane-sweep-1 | robustness shard1of5 | running |
 | owner | uzu-lane-sweep-2 | robustness shard2of5 | running |
 | owner | uzu-smoke-all | all-lane smoke | running |
-| owner | uzu-smoke-datasets | attach + resume smoke | running |
 | muse | uzu-robust-s3 | robustness shard3of5 | reported |
 | muse | uzu-robust-s4 | robustness shard4of5 | reported |
 | muse | uzu-robust-s5 | robustness shard5of5 | reported |
@@ -39,10 +38,11 @@
 | planned | uzu-lane-cpu-tuning | cpu-tuning (calib bf16 / RTN) | planned |
 | planned | modal | 4B / 9B eval + QAD | planned |
 
-## 完了（12）
+## 完了（13）
 | source | name | lane | status |
 |---|---|---|---|
 | owner | uzu-gpu-preflight | T4 capability | done |
+| owner | uzu-smoke-datasets | attach + resume smoke | done |
 | antigravity | license-audit | HF/Kaggle 配布物のライセンス・model card | done |
 | antigravity | eval-prompt-set | P3: EN/JA 400件 + rubric | done |
 | antigravity | bit-alloc-9b | 4/6/8bit の層別配分と根拠 | done |
