@@ -278,6 +278,9 @@ def main() -> None:
         # dtype changes absolute PPL (0.8B runs float32 on CPU/T4, 4B/9B run
         # bfloat16 on A100), so it must travel with the number.
         "eval_dtype": args.dtype,
+        # CPU float32 and GPU float32 agree to 0.02%, but recording the device
+        # makes every number self-describing.
+        "device": jax.devices()[0].device_kind if jax.devices() else "unknown",
         "chunks": len(chunks),
         "tokens": total_positions,
         "chars": char_total,
