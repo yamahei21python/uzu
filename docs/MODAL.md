@@ -46,6 +46,29 @@ modal run scripts/modal_pipeline.py --command qad --size 9b \
 modal run scripts/modal_pipeline.py --command fetch --size 9b --remote int4-yaqa
 ```
 
+## バッチ実行（timeout 必須）
+
+`modal run` にはクライアント側の timeout が無い。起動時に落ちる（mount 漏れ / import エラー）と**戻らずに待ち続ける**。実際に 6 コマンドの smoke が 9 時間を消費してログ 1 行しか残らなかった。
+
+`modal_batch.py` が 1 コマンドごとに上限を被せる。
+
+```bash
+python scripts/modal_batch.py --sizes 4b,9b --commands import,rtn,eval \
+  --run-name 'smoke-{size}' --eval-candidate int4-rtn --max-sequences 20 \
+  --timeout 1800 --log logs/modal_smoke.log
+```
+
+出力:
+
+```
+| size | command | rc | seconds | last |
+|---|---:|---:|---:|---|
+```
+
+- 最初の失敗で停止（`--keep-going` で継続）
+- 失敗・timeout が 1 つでもあれば exit 1
+- `--run-name 'smoke-{size}'` を忘れると 4B と 9B が同じ volume ディレクトリを共有する
+
 ## 注意
 
 - calibration は `--output-block none` / damping 1e-2。0.8B の clean 設定（small / 1e-3）とは**違う**。比較するときは明示する
