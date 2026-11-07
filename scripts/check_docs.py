@@ -37,6 +37,7 @@ DEFAULT_DOCS = [
     "docs/EVAL.md",
     "docs/MODAL.md",
     "docs/ENVIRONMENT.md",
+    "docs/STATUS.md",
     "tests/README.md",
     "antigravity/README.md",
 ]
