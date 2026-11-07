@@ -8,48 +8,54 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from preflight import parse_capabilities, verdict  # noqa: E402
 
+ALL_PASS = {
+    "dot": "pass",
+    "dot_f32_acc": "pass",
+    "sdpa_xla": "pass",
+    "quant_roundtrip": "pass",
+    "qad_grad": "pass",
+    "tokenizer": "pass",
+}
+
 
 def test_parse_capabilities() -> None:
     output = "7.5, Tesla T4\n8.0, A100-SXM4-40GB\nbad\n"
     assert parse_capabilities(output) == [7.5, 8.0]
 
 
-def test_t4_verdict_uses_float32_and_xla() -> None:
-    result = verdict([7.5], None)
+def test_t4_profile() -> None:
+    probes = dict(ALL_PASS, dot_f32_acc="fail", sdpa_xla="fail")
+    result = verdict([7.5], probes)
     assert result["ampere_or_newer"] is False
     assert result["bf16_matmul"] is False
-    assert result["eval_dtype"] == "float32"
-    assert result["attention"] == "xla"
-
-
-def test_ampere_verdict_keeps_defaults() -> None:
-    result = verdict([8.0], None)
-    assert result["ampere_or_newer"] is True
-    assert result["bf16_matmul"] is True
-    assert result["eval_dtype"] == "bfloat16"
-    assert result["attention"] == "default"
-
-
-def test_measurement_overrides_capability() -> None:
-    # hardware says Ampere but the measured dot failed: trust the measurement
-    result = verdict([8.0], False)
-    assert result["bf16_matmul"] is False
-    assert result["bf16_source"] == "measured"
-
-
-def test_sdpa_failure_marks_attention_unavailable() -> None:
-    result = verdict([7.5], False, {"dot": True, "dot_f32_acc": False, "sdpa_xla": False})
     assert result["attention"] == "unavailable"
+    assert result["eval_dtype"] == "float32"
+    assert result["lane_ok"] is False
     assert "CPU or Modal" in result["note"]
 
 
-def test_all_probes_pass_keeps_default_attention() -> None:
-    result = verdict([8.0], True, {"dot": True, "dot_f32_acc": True, "sdpa_xla": True})
+def test_ampere_profile() -> None:
+    result = verdict([8.0], ALL_PASS)
+    assert result["ampere_or_newer"] is True
+    assert result["bf16_matmul"] is True
     assert result["attention"] == "default"
     assert result["eval_dtype"] == "bfloat16"
+    assert result["lane_ok"] is True
 
 
-def test_no_gpu_is_not_ampere() -> None:
-    result = verdict([], None)
+def test_quant_probe_failure_blocks_the_lane() -> None:
+    probes = dict(ALL_PASS, quant_roundtrip="fail")
+    result = verdict([8.0], probes)
+    assert result["lane_ok"] is False
+    assert "quant_roundtrip" in result["probe_failures"]
+
+
+def test_skipped_probe_does_not_block() -> None:
+    probes = dict(ALL_PASS, quant_roundtrip="skip", tokenizer="skip")
+    assert verdict([8.0], probes)["lane_ok"] is True
+
+
+def test_no_gpu_with_skips() -> None:
+    result = verdict([], {})
     assert result["ampere_or_newer"] is False
     assert result["bf16_matmul"] is False

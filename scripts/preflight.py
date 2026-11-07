@@ -36,31 +36,35 @@ def parse_capabilities(output: str) -> list[float]:
     return values
 
 
-def verdict(capabilities: list[float], bf16_ok: bool | None, probes: dict | None = None) -> dict:
+def verdict(capabilities: list[float], probes: dict | None = None) -> dict:
     """Pure decision table so it can be tested without a GPU."""
-    ampere = bool(capabilities) and all(value >= TRITON_MIN for value in capabilities)
-    if bf16_ok is None:
-        bf16 = ampere  # no measurement: fall back to the hardware generation
-        source = "capability"
-    else:
-        bf16 = bf16_ok
-        source = "measured"
     probes = probes or {}
-    sdpa_ok = probes.get("sdpa_xla")
-    if sdpa_ok is False:
+    ampere = bool(capabilities) and all(value >= TRITON_MIN for value in capabilities)
+
+    def status(name: str) -> str:
+        return str(probes.get(name, "skip"))
+
+    core = ("dot", "dot_f32_acc", "sdpa_xla", "quant_roundtrip", "qad_grad", "tokenizer")
+    failures = [name for name in core if status(name) == "fail"]
+    bf16 = all(status(name) == "pass" for name in ("dot", "dot_f32_acc", "sdpa_xla"))
+
+    if status("sdpa_xla") == "fail":
         attention = "unavailable"
         note = "dot_product_attention is unsupported on this GPU: use CPU or Modal"
-    elif sdpa_ok is True:
+    elif status("sdpa_xla") == "pass":
         attention = "default"
         note = "" if bf16 else "BF16 accumulation unsupported: use float32"
     else:
         attention = "default" if ampere else "xla"
         note = "" if bf16 else "BF16 unsupported: use float32 or CPU/Modal"
+
     return {
         "ampere_or_newer": ampere,
         "bf16_matmul": bf16,
-        "bf16_source": source,
+        "bf16_source": "measured" if probes else "capability",
         "probes": probes,
+        "probe_failures": failures,
+        "lane_ok": not failures,
         "eval_dtype": "bfloat16" if bf16 else "float32",
         "attention": attention,
         "note": note,
@@ -86,26 +90,91 @@ PROBES = {
         "q = jnp.ones((2, 4, 8, 16), dtype=jnp.bfloat16)\n"
         "jax.nn.dot_product_attention(q, q, q, implementation='xla').block_until_ready()\n"
     ),
+    # tokenizer: load and round-trip both scripts
+    "tokenizer": (
+        "import sys\n"
+        "from tokenizers import Tokenizer\n"
+        "tok = Tokenizer.from_file(sys.argv[1])\n"
+        "for text in ('the quick brown fox', '日本語のテキストです'):\n"
+        "    ids = tok.encode(text).ids\n"
+        "    assert ids, text\n"
+        "    tok.decode(ids)\n"
+    ),
+    # quantize / dequantize a tiny matrix through lalamo's INT4 + RHT path
+    "quant_roundtrip": (
+        "from lalamo.compressed.hybrid import HybridSpec\n"
+        "from lalamo.compressed.int import IntSpec\n"
+        "from lalamo.compressed.incoherence import HadamardSpec, IncoherenceProcessingMode\n"
+        "from lalamo.utils.sharding import ShardingConfig\n"
+        "from lalamo.weight_matrix import Layout\n"
+        "import jax, jax.numpy as jnp, numpy as np\n"
+        "spec = HybridSpec(\n"
+        "    quantization_spec=IntSpec(bits=4, group_size=32, is_symmetric=False, layout=Layout.OUTPUT_INPUT),\n"
+        "    adapter_spec=None,\n"
+        "    incoherence_spec=HadamardSpec(block_size=32, processing_mode=IncoherenceProcessingMode.INPUT_OUTPUT),\n"
+        ")\n"
+        "cfg = ShardingConfig.replicated()\n"
+        "w = jax.device_put(np.random.RandomState(0).randn(64, 32).astype(np.float32), cfg.resolve_sharding((None, None)))\n"
+        "compressed = spec.compress(w, key=jax.random.key(0), sharding_config=cfg)\n"
+        "restored = compressed.decompress()\n"
+        "assert bool(jnp.isfinite(restored).all())\n"
+        "assert restored.shape == w.shape\n"
+    ),
+    # QAD gradient path: finite grads through quantize/dequantize
+    "qad_grad": (
+        "from lalamo.compressed.hybrid import HybridSpec\n"
+        "from lalamo.compressed.int import IntSpec\n"
+        "from lalamo.utils.sharding import ShardingConfig\n"
+        "from lalamo.weight_matrix import Layout\n"
+        "import jax, jax.numpy as jnp, numpy as np\n"
+        "spec = HybridSpec(\n"
+        "    quantization_spec=IntSpec(bits=4, group_size=32, is_symmetric=False, layout=Layout.OUTPUT_INPUT),\n"
+        "    adapter_spec=None, incoherence_spec=None,\n"
+        ")\n"
+        "sharding = ShardingConfig.replicated()\n"
+        "def loss(w):\n"
+        "    return jnp.sum(spec.compress(w, key=jax.random.key(0), sharding_config=sharding).decompress() ** 2)\n"
+        "w = jax.device_put(np.random.RandomState(0).randn(64, 32).astype(np.float32), sharding.resolve_sharding((None, None)))\n"
+        "grad = jax.grad(loss)(w)\n"
+        "assert bool(jnp.isfinite(grad).all())\n"
+    ),
 }
 
+# probes that need lalamo; missing lalamo is a skip, not a failure
+LALAMO_PROBES = {"quant_roundtrip", "qad_grad"}
 
-def run_probe(code: str) -> tuple[bool, str | None]:
+
+def run_probe(name: str, code: str, extra: list[str] | None = None) -> tuple[str, str | None]:
+    """Returns (pass|fail|skip, error)."""
     try:
         result = subprocess.run(
-            [sys.executable, "-c", code], text=True, capture_output=True, timeout=180, check=False
+            [sys.executable, "-c", code, *(extra or [])],
+            text=True,
+            capture_output=True,
+            timeout=180,
+            check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as error:
-        return False, str(error)
+        return "fail", str(error)
     if result.returncode == 0:
-        return True, None
-    return False, ((result.stderr or result.stdout or "").strip()[-300:] or "unknown failure")
+        return "pass", None
+    message = (result.stderr or result.stdout or "").strip()[-400:] or "unknown failure"
+    if name in LALAMO_PROBES and "lalamo" in message and (
+        "ModuleNotFoundError" in message or "No module named" in message
+    ):
+        return "skip", "lalamo not importable in this interpreter"
+    return "fail", message
 
 
-def measure_probes() -> tuple[dict, dict]:
+def measure_probes(tokenizer_path: Path | None = None) -> tuple[dict, dict]:
     results, errors = {}, {}
     for name, code in PROBES.items():
-        ok, error = run_probe(code)
-        results[name] = ok
+        extra = [str(tokenizer_path)] if name == "tokenizer" and tokenizer_path else None
+        if name == "tokenizer" and tokenizer_path is None:
+            results[name] = "skip"
+            continue
+        status, error = run_probe(name, code, extra)
+        results[name] = status
         if error:
             errors[name] = error
     return results, errors
@@ -133,7 +202,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--json", type=Path, default=None)
     parser.add_argument("--strict", action="store_true", help="exit 1 if BF16 matmul is unavailable")
-    parser.add_argument("--skip-bf16", action="store_true", help="do not import jax")
+    parser.add_argument("--skip-bf16", action="store_true", help="do not import jax / lalamo")
+    parser.add_argument("--tokenizer", type=Path, default=None, help="tokenizer.json for the round-trip probe")
     args = parser.parse_args()
 
     try:
@@ -147,22 +217,25 @@ def main() -> None:
     except OSError:
         nvidia_stdout = ""
     capabilities = parse_capabilities(nvidia_stdout)
+    tokenizer_path = args.tokenizer
+    if tokenizer_path is None:
+        for candidate in Path("/kaggle/input").rglob("tokenizer.json"):
+            tokenizer_path = candidate
+            break
     if args.skip_bf16:
         probes, probe_errors = {}, {}
     else:
-        probes, probe_errors = measure_probes()
-    bf16_ok = None if args.skip_bf16 else (bool(probes) and all(probes.values()))
+        probes, probe_errors = measure_probes(tokenizer_path)
 
     report = {
         "jax_platform": os.environ.get("JAX_PLATFORM_NAME"),
         "compute_capabilities": capabilities,
         "gpu_names": [line.split(",")[-1].strip() for line in nvidia_stdout.splitlines() if line.strip()],
-        "bf16_measurement": bf16_ok,
-        "probe_errors": {k: v for k, v in (probe_errors if not args.skip_bf16 else {}).items()},
+        "probe_errors": probe_errors if not args.skip_bf16 else {},
         "disk_free_gib": disk_free_gib(Path("/kaggle/working")) if Path("/kaggle/working").exists() else disk_free_gib(Path(".")),
         "kit_commit": kit_commit(Path("kit")),
     }
-    report.update(verdict(capabilities, bf16_ok, probes))
+    report.update(verdict(capabilities, probes))
     report["jax_version"] = None
     try:
         from importlib.metadata import version
