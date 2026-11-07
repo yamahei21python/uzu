@@ -54,6 +54,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--muon-lr", type=float, default=1e-3)
     parser.add_argument(
+        "--freeze-scales",
+        action="store_true",
+        help="train master_weights only; leave scales and zero-points fixed",
+    )
+    parser.add_argument(
+        "--warmup-steps",
+        type=int,
+        default=0,
+        help="linearly ramp the learning rate over this many steps",
+    )
+    parser.add_argument(
         "--optimizer",
         choices=("muon", "adamw"),
         default="muon",
@@ -184,9 +195,10 @@ def main() -> None:
 
     def collect_params(model):
         params = {}
+        trainable = ("master_weights",) if args.freeze_scales else ("master_weights", "scales", "master_zero_points")
         for path, leaf in jax.tree_util.tree_flatten_with_path(model)[0]:
             key = jax.tree_util.keystr(path)
-            if any(name in key for name in ("master_weights", "scales", "master_zero_points")) and isinstance(leaf, jax.Array):
+            if any(name in key for name in trainable) and isinstance(leaf, jax.Array):
                 params[key] = leaf
         return params
 
@@ -256,6 +268,11 @@ def main() -> None:
 
     params = clamp_scales(params)
     opt_state = optimizer.init(params)
+    print(
+        f"trainable: {'master_weights only' if args.freeze_scales else 'master_weights + scales + zero_points'}"
+        f"  warmup_steps={args.warmup_steps}",
+        flush=True,
+    )
 
     def loss_fn(current_params, ids):
         model = inject_params(student, current_params)
@@ -269,8 +286,10 @@ def main() -> None:
         return kl * (temperature**2)
 
     @jax.jit
-    def train_step(current_params, opt_state, ids):
+    def train_step(current_params, opt_state, ids, lr_factor):
         loss, grads = jax.value_and_grad(loss_fn)(current_params, ids)
+        if args.warmup_steps > 0:
+            grads = jax.tree_util.tree_map(lambda grad: grad * lr_factor, grads)
         grad_norm = optax.global_norm(grads)
         updates, new_state = optimizer.update(grads, opt_state, current_params)
         new_params = optax.apply_updates(current_params, updates)
@@ -311,6 +330,8 @@ def main() -> None:
         "adam_b1": args.adam_b1,
         "adam_b2": args.adam_b2,
         "scale_min": args.scale_min,
+        "freeze_scales": bool(args.freeze_scales),
+        "warmup_steps": args.warmup_steps,
     }
 
     def save_checkpoint(step: int, current_params, current_state, current_rng) -> None:
@@ -404,7 +425,10 @@ def main() -> None:
     for step in range(start_step, args.steps):
         ids = chunks[int(rng.integers(0, len(chunks)))]
         step_started = time.time()
-        params, opt_state, loss, grad_norm = train_step(params, opt_state, ids)
+        lr_factor = 1.0
+        if args.warmup_steps > 0:
+            lr_factor = min(1.0, (step + 1) / args.warmup_steps)
+        params, opt_state, loss, grad_norm = train_step(params, opt_state, ids, lr_factor)
         jax.block_until_ready(params)
         now = time.time()
         loss_value = float(loss)

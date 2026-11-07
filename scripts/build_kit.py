@@ -43,6 +43,7 @@ KIT_SCRIPTS = [
     "qad_finetune.py",
     "compute_bpc.py",
     "run_lane.py",
+    "make_sweep_spec.py",
     # guards / audits
     "corpus_guard.py",
     "dedup_lines.py",
@@ -66,7 +67,15 @@ KIT_DATA = [
     "eval_ja_wikipedia_dedup.txt",
 ]
 
-KIT_LANES = ["README.md", "smoke-08b.json", "clean-suite-08b.json", "balanced-h-08b.json"]
+KIT_LANES = [
+    "README.md",
+    "smoke-08b.json",
+    "clean-suite-08b.json",
+    "balanced-h-08b.json",
+    "robustness-08b-shard1of3.json",
+    "robustness-08b-shard2of3.json",
+    "robustness-08b-shard3of3.json",
+]
 
 KIT_TESTS = [
     "test_experiment_guards.py",

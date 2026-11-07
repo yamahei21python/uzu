@@ -19,6 +19,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--damping", type=float, default=1e-3)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--json-out", type=Path, default=None)
+    parser.add_argument("--en-json", type=Path, default=None, help="raw EN calibration.json, for provenance")
+    parser.add_argument("--ja-json", type=Path, default=None, help="raw JA calibration.json, for provenance")
     return parser.parse_args()
 
 
@@ -77,9 +79,18 @@ def main() -> None:
             )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    tmp = args.output.with_name(args.output.name + ".tmp")
+    tmp = args.output.with_name(args.output.name + ".tmp.npz")
     np.savez(tmp, **arrays)
     os.replace(tmp, args.output)
+
+    sources = {}
+    for key, path in (("en", args.en_json), ("ja", args.ja_json)):
+        if path and path.exists():
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            sources[key] = {
+                name: payload.get(name)
+                for name in ("corpus", "samples", "max_tokens", "output_block", "damping", "raw_output", "overlap_checked")
+            }
 
     summary = {
         "en": str(args.en),
@@ -89,8 +100,19 @@ def main() -> None:
         "arrays": len(arrays),
         "overlap_checked": True,
         "calibration_corpora": [str(args.en), str(args.ja)],
+        "sources": sources,
         "records": records,
     }
+    # carry the shared calibration settings so downstream audits can compare them
+    for name in ("samples", "max_tokens", "output_block"):
+        values = {source.get(name) for source in sources.values() if source.get(name) is not None}
+        if len(values) == 1:
+            summary[name] = values.pop()
+        elif len(values) > 1:
+            print(f"warning: {name} differs between en and ja: {values}")
+    corpora = [source.get("corpus") for source in sources.values() if source.get("corpus")]
+    if corpora:
+        summary["corpus"] = corpora
     if args.json_out:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
         args.json_out.write_text(json.dumps(summary, indent=2) + "\n")
