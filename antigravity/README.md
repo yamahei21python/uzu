@@ -65,6 +65,24 @@ python3 ~/.config/opencode/antigravity/antigravity.py --state /tmp/ag_vram_budge
 - プロンプトには「捏造禁止 / 推定と実測を区別」を必ず入れる
 - コード修正は owner。アングラには調査・生成・sandbox 検証までを渡す
 
+## fetch の 503 対策
+
+`fetch` は `503 Environment snapshot is temporarily unavailable` をよく返す。**一時的なので、待てば取れる**。
+
+```bash
+python scripts/ag_fetch.py --state /tmp/ag_<slug>.json --out /tmp/ag_<slug>_fetch \
+  --log logs/$(date +%F)/local/antigravity_<slug>.log --retries 8 --base-delay 15
+```
+
+- 15s → 30s → 60s → 120s → 180s と指数バックオフ（±10% ジッター）
+- 503 / 502 / 504 / timeout / connection reset だけ再試行する。403 などは即停止
+- 全滅したら**ログから最終メッセージを復元**して `final.md` に保存する
+  - エージェントは sandbox に書けなくても、最後の応答本文を返してくることがある（QAD で実際に起きた）
+- `ag_queue.py` の `pump` もこの経路を通る（`--fetch-retries`, `--fetch-base-delay`）
+- 手動復元: `python scripts/ag_tasks.py recover <slug>`
+
+復元した `final.md` は**数値の検証が必要**。本文中の数値は sandbox で実行できた保証がない。
+
 ## チケットキュー（常時 2 本 + 自由枠 1 本）
 
 `ag_queue.py` がチケットを回す。容量 3、常時 2 本を自動で流し、1 本は手動用に空ける。

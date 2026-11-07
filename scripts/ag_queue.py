@@ -388,19 +388,21 @@ def spawn(meta: dict[str, Any], wrapper: Path) -> None:
     print(f"started {meta['slug']} pid={process.pid} (attempt {meta['attempts']})")
 
 
-def finish(meta: dict[str, Any], wrapper: Path) -> None:
+def finish(meta: dict[str, Any], wrapper: Path, fetch_retries: int = 6, fetch_delay: float = 15.0) -> None:
     fetch_dir = Path(meta.get("fetch_dir", f"/tmp/ag_{meta['slug'].replace('-', '_')}_fetch")).expanduser()
-    command = [
-        sys.executable,
-        str(wrapper),
-        "--state",
-        str(state_path(meta)),
-        "fetch",
-        "--out",
-        str(fetch_dir),
-    ]
-    print(f"fetch {meta['slug']}")
-    subprocess.run(command, cwd=ROOT, check=False)
+    print(f"fetch {meta['slug']}", flush=True)
+    sys.path.insert(0, str(SCRIPT_DIR))
+    from ag_fetch import fetch_with_retry
+
+    result = fetch_with_retry(
+        wrapper,
+        state_path(meta),
+        fetch_dir,
+        log_path=ROOT / meta["log"],
+        retries=fetch_retries,
+        base_delay=fetch_delay,
+    )
+    print(f"fetch status: {result['status']} (attempts {result['attempts']})", flush=True)
     collect = subprocess.run(
         [sys.executable, str(SCRIPT_DIR / "ag_tasks.py"), "--root", str(ROOT), "collect", meta["slug"]],
         cwd=ROOT,
@@ -410,7 +412,11 @@ def finish(meta: dict[str, Any], wrapper: Path) -> None:
     )
     print(collect.stdout.strip() or collect.stderr.strip())
     meta["queue_status"] = "done"
-    meta["status"] = "collected" if collect.returncode == 0 else "fetched"
+    if result["status"] == "recovered":
+        meta["status"] = "recovered"
+        meta["note"] = (meta.get("note", "") + " [fetched from log: snapshot 503]").strip()
+    else:
+        meta["status"] = "collected" if collect.returncode == 0 else "fetched"
     meta["finished_at"] = now()
     save(meta)
 
@@ -424,7 +430,7 @@ def cmd_pump(args: argparse.Namespace) -> None:
             continue
         if status == "running":
             if state_done(meta):
-                finish(meta, wrapper)
+                finish(meta, wrapper, args.fetch_retries, args.fetch_base_delay)
                 continue
             if alive(meta.get("pid")):
                 active += 1
@@ -509,11 +515,15 @@ def main() -> None:
     pump = sub.add_parser("pump")
     pump.add_argument("--max-active", type=int, default=2)
     pump.add_argument("--env-ttl-days", type=float, default=1.0, help="delete idle environments older than this on 429")
+    pump.add_argument("--fetch-retries", type=int, default=6)
+    pump.add_argument("--fetch-base-delay", type=float, default=15.0)
 
     watch = sub.add_parser("watch")
     watch.add_argument("--max-active", type=int, default=2)
     watch.add_argument("--interval", type=int, default=300)
     watch.add_argument("--env-ttl-days", type=float, default=1.0)
+    watch.add_argument("--fetch-retries", type=int, default=6)
+    watch.add_argument("--fetch-base-delay", type=float, default=15.0)
 
     cleanup = sub.add_parser("cleanup-envs", help="delete idle Antigravity environments")
     cleanup.add_argument("--older-than-days", type=float, default=1.0)

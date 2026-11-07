@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -105,6 +106,23 @@ def cmd_list(as_json: bool) -> None:
         )
 
 
+def cmd_recover(slug: str, out: Path | None) -> None:
+    """Write the agent's final message from the run log when the snapshot is gone."""
+    directory = TASKS / slug
+    if not (directory / "meta.json").exists():
+        raise SystemExit(f"unknown task: {slug}")
+    meta = load_meta(directory)
+    log = ROOT / meta.get("log", "")
+    target_dir = out or Path(meta.get("fetch_dir", f"/tmp/ag_{slug.replace('-', '_')}_fetch")).expanduser()
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from ag_fetch import recover_from_log
+
+    recovered = recover_from_log(log, target_dir)
+    if not recovered:
+        raise SystemExit(f"no completed final message in {log}")
+    print(f"recovered -> {recovered}")
+
+
 def cmd_show(slug: str) -> None:
     directory = TASKS / slug
     if not (directory / "meta.json").exists():
@@ -160,6 +178,10 @@ def main() -> None:
     show = sub.add_parser("show")
     show.add_argument("slug")
 
+    recover = sub.add_parser("recover", help="recover the final message from the run log")
+    recover.add_argument("slug")
+    recover.add_argument("--out", default=None)
+
     collect = sub.add_parser("collect")
     collect.add_argument("slug", nargs="?")
     collect.add_argument("--all", action="store_true")
@@ -172,6 +194,8 @@ def main() -> None:
         cmd_list(args.json)
     elif args.command == "show":
         cmd_show(args.slug)
+    elif args.command == "recover":
+        cmd_recover(args.slug, Path(args.out).expanduser() if args.out else None)
     elif args.command == "collect":
         if args.all:
             for directory in task_dirs():
