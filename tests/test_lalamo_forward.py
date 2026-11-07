@@ -117,3 +117,21 @@ def test_gpu_capabilities_tolerates_missing_nvidia_smi(monkeypatch) -> None:
 
     monkeypatch.setattr(lalamo_forward.subprocess, "run", boom)
     assert lalamo_forward.gpu_capabilities() == []
+
+
+def test_pre_ampere_auto_selects_xla(monkeypatch) -> None:
+    monkeypatch.delenv("UZU_ATTENTION_IMPL", raising=False)
+    monkeypatch.setattr(lalamo_forward, "gpu_capabilities", lambda: [7.5, 7.5])
+    assert lalamo_forward.requested() == "xla"
+
+
+def test_ampere_keeps_default(monkeypatch) -> None:
+    monkeypatch.delenv("UZU_ATTENTION_IMPL", raising=False)
+    monkeypatch.setattr(lalamo_forward, "gpu_capabilities", lambda: [8.0, 8.0])
+    assert lalamo_forward.requested() is None
+
+
+def test_explicit_pallas_wins_over_auto(monkeypatch) -> None:
+    monkeypatch.setenv("UZU_ATTENTION_IMPL", "pallas")
+    monkeypatch.setattr(lalamo_forward, "gpu_capabilities", lambda: [7.5])
+    assert lalamo_forward.requested() == "pallas"

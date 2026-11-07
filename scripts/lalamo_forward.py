@@ -61,8 +61,19 @@ def bf16_block_reason(dtype: str, capabilities: list[float]) -> str | None:
 
 
 def requested() -> str | None:
+    """Explicit env wins; otherwise pick xla automatically on pre-Ampere.
+
+    Pallas-Triton needs cc >= 8.0. Scripts that do not go through run_lane
+    (Modal jobs, make_qad_dataset -> yaqa_calibration) used to fall back to
+    Pallas and die at the first forward, so the device decides for them.
+    """
     value = os.environ.get(ENV_VAR, "").strip().lower()
-    return value if value in ("xla", "pallas") else None
+    if value in ("xla", "pallas"):
+        return value
+    capabilities = gpu_capabilities()
+    if any(capability < BF16_MIN_CAPABILITY for capability in capabilities):
+        return "xla"
+    return None
 
 
 def apply_attention_env(config):
