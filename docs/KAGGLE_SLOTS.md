@@ -67,6 +67,31 @@ kit の commit と spec 名を Issue #31 に書く。Muse は自分の 2 枠で�
 
 **この 2 本は完走させる**（途中で切るとクォータが無駄）。次の投入から 1 枠空けを守る。
 
+## T4 の制約（重要）
+
+T4 は compute capability 7.5（Turing）で、**BF16 のテンソルコアが無い**。
+BF16 matmul を要求すると:
+
+```
+UNIMPLEMENTED: Unsupported algorithm on the current device(s): ALG_DOT_BF16_BF16_F32
+```
+
+対策は jax のバージョンを変えることではなく、**float32 で走らせる**こと。
+
+- `run_lane` は cc < 8.0 を検出すると eval / calibration を自動で float32 に落とす
+- `eval_quantized.py --dtype float32` で手動指定も可能
+- 使った dtype は `manifest.json` / `result.json` の `eval_dtype` に入る
+
+| 対象 | T4 で可能か |
+|---|---|
+| 0.8B calibration + eval（float32） | 可（FP32 3.2GB + INT4 0.55GB） |
+| 0.8B eval のみ | 可 |
+| 4B eval | **不可**（FP32 16GB + INT4 2.4GB で溢れる）→ Modal |
+| 9B | 不可 → Modal |
+
+**数値の注意**: float32 で測った BF16 baseline は、bf16 で測った値と一致しない。
+run 内の BF16 vs INT4 比較は有効、過去の bf16 run との絶対値比較は不可。
+
 ## 確認コマンド
 
 ```bash
