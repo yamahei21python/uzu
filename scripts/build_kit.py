@@ -64,7 +64,7 @@ KIT_DATA = [
     "eval_ja_wikipedia_dedup.txt",
 ]
 
-KIT_LANES = ["README.md", "clean-suite-08b.json", "balanced-h-08b.json"]
+KIT_LANES = ["README.md", "smoke-08b.json", "clean-suite-08b.json", "balanced-h-08b.json"]
 
 KIT_TESTS = [
     "test_experiment_guards.py",
