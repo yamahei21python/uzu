@@ -58,7 +58,22 @@ subprocess.run([sys.executable, "/kaggle/working/kit/scripts/run_lane.py",
 smoke が通ってから、`clean-suite-08b` などを**同じセッションのまま** spec だけ差し替えて流す。
 
 ### 3. Muse へ
-kit の commit と spec 名を Issue #31 に書く。Muse は自分の 2 枠で流す。
+kit の **capability** と spec 名を Issue #31 に書く。commit hash は書かない（rebuild ごとに変わる）。
+
+Muse の結果は **HF `yamahei21/uzu-results`（private）** に上げる。`kentasatomuse/uzu-results` は owner から 403 で読めないため使わない。
+
+```python
+# Muse: 実行後
+subprocess.run([sys.executable, "/kaggle/working/kit/scripts/publish_results.py",
+    "--out", "/kaggle/working/uzu/out", "--as", "muse"])
+```
+
+```bash
+# owner: 回収
+python scripts/pull_results.py --repo yamahei21/uzu-results --out results/shared --strict
+```
+
+`publish_results.py` は `manifest.json` に `problems` があれば **upload を拒否**する（壊れた lane をデータ扱いしない）。`environment_fingerprint` が無い場合は警告のみ。
 
 ## 現在の状態（2026-11-07）
 ポリシー適用前の 2 本が走っている:

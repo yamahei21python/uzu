@@ -61,6 +61,7 @@ KIT_SCRIPTS = [
     "preflight.py",
     "env_fingerprint.py",
     "kaggle_slots.py",
+    "publish_results.py",
     # sharding / audit
     "tiny_sharding_probe.py",
     "audit_public_corpus.py",
