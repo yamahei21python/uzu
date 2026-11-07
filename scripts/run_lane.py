@@ -92,6 +92,45 @@ def find_dataset_dir(root: Path, name: str) -> Path | None:
     return None
 
 
+def parse_direct_url(text: str) -> dict[str, str]:
+    """Extract the VCS source of an installed distribution.
+
+    PyPI and a git checkout can both report version 0.17.0 while shipping
+    different code, so the version string alone is not provenance.
+    """
+    try:
+        payload = json.loads(text)
+    except (TypeError, ValueError):
+        return {}
+    result = {}
+    url = payload.get("url")
+    if url:
+        result["source"] = url
+    commit = (payload.get("vcs_info") or {}).get("commit_id")
+    if commit:
+        result["commit"] = commit
+    return result
+
+
+def lalamo_provenance() -> dict[str, str]:
+    seen: dict[str, str] = {}
+    try:
+        from importlib.metadata import distribution, version
+
+        seen["lalamo_version"] = version("lalamo")
+        direct = distribution("lalamo").read_text("direct_url.json")
+        parsed = parse_direct_url(direct or "")
+    except Exception:  # noqa: BLE001 - provenance must never break a run
+        return seen
+    if parsed.get("source"):
+        seen["lalamo_source"] = parsed["source"]
+    if parsed.get("commit"):
+        seen["lalamo_commit"] = parsed["commit"]
+    if not parsed:
+        seen["lalamo_source"] = "pypi-or-unknown"
+    return seen
+
+
 class Runner:
     def __init__(self, spec: dict[str, Any], spec_path: Path, *, dry_run: bool = False) -> None:
         self.spec = spec
@@ -156,6 +195,7 @@ class Runner:
             seen["jax_version"] = version("jax")
         except Exception:  # noqa: BLE001 - provenance must never break a run
             pass
+        seen.update(lalamo_provenance())
         return seen
 
     def environment(self, base: dict[str, str] | None = None) -> dict[str, str]:
