@@ -47,7 +47,13 @@ def parse_args() -> argparse.Namespace:
         default="replicated",
         help="JAX device sharding: tensor/fsdp use all visible GPUs as one memory pool",
     )
-    parser.add_argument("--bits", type=int, default=4, choices=(4, 8))
+    parser.add_argument("--bits", type=int, default=4, choices=(4, 6, 8))
+    parser.add_argument(
+        "--layer-bits-json",
+        type=Path,
+        default=None,
+        help='Per-layer bit overrides: {"default": 4, "rules": [{"match": "mlp/down_projection", "bits": 6}]}',
+    )
     parser.add_argument(
         "--embedding-bits",
         type=int,
@@ -127,6 +133,30 @@ def find_spec(qwen_models, name: str):
         if spec.name == name:
             return spec
     raise ValueError(f"model spec {name!r} not found")
+
+
+def resolve_bits(path: str, rules: list[dict], default: int) -> int:
+    """First rule whose ``match`` substring appears in the layer path wins."""
+    for rule in rules:
+        match = str(rule.get("match", ""))
+        if match and match in path:
+            return int(rule["bits"])
+    return default
+
+
+def load_layer_bits(spec_path: Path | None, default: int) -> tuple[dict, list[dict]]:
+    if spec_path is None:
+        return {"default": default, "rules": []}, []
+    payload = json.loads(spec_path.read_text(encoding="utf-8"))
+    rules = payload.get("rules", [])
+    for rule in rules:
+        bits = int(rule["bits"])
+        if bits not in (4, 6, 8):
+            raise SystemExit(f"unsupported bits in layer-bits-json: {bits}")
+        if not rule.get("match"):
+            raise SystemExit("layer-bits-json rule needs a non-empty 'match'")
+    summary = {"default": int(payload.get("default", default)), "rules": rules}
+    return summary, rules
 
 
 def main() -> None:
@@ -238,21 +268,29 @@ def main() -> None:
     if bad and not args.skip_incompatible:
         raise SystemExit("incompatible Linear shapes; use --skip-incompatible to leave them full precision")
 
-    hybrid_spec = HybridSpec(
-        quantization_spec=IntSpec(
-            bits=args.bits,
-            group_size=args.group_size,
-            is_symmetric=False,
-            layout=Layout.OUTPUT_INPUT,
-        ),
-        adapter_spec=None,
-        incoherence_spec=None
-        if args.no_rht
-        else HadamardSpec(
-            block_size=args.block_size,
-            processing_mode=IncoherenceProcessingMode.INPUT_OUTPUT,
-        ),
-    )
+    layer_bits_summary, layer_bits_rules = load_layer_bits(args.layer_bits_json, args.bits)
+    if layer_bits_rules:
+        print(f"layer bits overrides: {json.dumps(layer_bits_summary, ensure_ascii=False)}")
+
+    def build_hybrid_spec(bits: int) -> HybridSpec:
+        return HybridSpec(
+            quantization_spec=IntSpec(
+                bits=bits,
+                group_size=args.group_size,
+                is_symmetric=False,
+                layout=Layout.OUTPUT_INPUT,
+            ),
+            adapter_spec=None,
+            incoherence_spec=None
+            if args.no_rht
+            else HadamardSpec(
+                block_size=args.block_size,
+                processing_mode=IncoherenceProcessingMode.INPUT_OUTPUT,
+            ),
+        )
+
+    hybrid_spec = build_hybrid_spec(args.bits)
+    layer_bits_used: dict[str, int] = {}
     quantize_key = jax.random.key(0)
     counts = {"quantized": 0, "skipped": 0, "yaqa": 0}
 
@@ -291,8 +329,11 @@ def main() -> None:
         if preconditioner is not None:
             counts["yaqa"] += 1
         progress({"path": key, "shape": shape, "status": "started"})
+        bits = resolve_bits(key, layer_bits_rules, layer_bits_summary["default"])
+        layer_bits_used[key] = bits
+        spec = build_hybrid_spec(bits) if bits != args.bits else hybrid_spec
         try:
-            new_weights = hybrid_spec.compress(
+            new_weights = spec.compress(
                 linear.weights.decompress(),
                 key=quantize_key,
                 preconditioner=preconditioner,
@@ -341,6 +382,11 @@ def main() -> None:
             )
     quantized_model = map_nodes_of_type_with_path(Linear, quantize_linear, model)
     print(f"quantized: {counts['quantized']}, skipped: {counts['skipped']}, yaqa: {counts['yaqa']}")
+    if layer_bits_used:
+        distribution = {}
+        for bits in layer_bits_used.values():
+            distribution[bits] = distribution.get(bits, 0) + 1
+        print(f"bits distribution: {dict(sorted(distribution.items()))}")
 
     def embedding_spec(layout: Layout, mode: IncoherenceProcessingMode | None) -> HybridSpec:
         embedding_bits = args.embedding_bits if args.embedding_bits is not None else args.bits
@@ -435,6 +481,8 @@ def main() -> None:
         "preconditioners": args.preconditioners,
         "calibration_json": str(args.calibration_json) if args.calibration_json else None,
         "calibration": calibration_summary,
+        "layer_bits": layer_bits_summary if layer_bits_rules else None,
+        "layer_bits_used": layer_bits_used if layer_bits_rules else None,
         "overlap_checked": (
             bool(calibration_summary.get("overlap_checked"))
             if calibration_summary is not None

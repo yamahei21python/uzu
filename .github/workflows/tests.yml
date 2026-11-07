@@ -25,3 +25,5 @@ jobs:
           cp /tmp/kit/data/*.txt experiments/qwen35-0.8b/data/
       - name: Run model-free tests
         run: python -m pytest -q tests/
+      - name: Check docs against scripts
+        run: python scripts/check_docs.py --strict
