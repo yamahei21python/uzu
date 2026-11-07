@@ -137,7 +137,7 @@ def main() -> None:
     from lalamo.model import Model
     from lalamo.module import Keychain
     from lalamo.modules import DecoderForwardPassConfig, ForwardPassMode
-    from lalamo_forward import apply_attention_env, describe, force_float32_activations
+    from lalamo_forward import apply_attention_env, describe, enter_mesh, force_float32_activations
     from lalamo.utils.sharding import ShardingConfig
     from tokenizers import Tokenizer
 
@@ -160,6 +160,7 @@ def main() -> None:
         raise SystemExit("bf16/candidate tokenizer.json mismatch")
 
     sharding = ShardingConfig.replicated()
+    _mesh = enter_mesh(sharding)
     keychain = Keychain.init(seed=0, sharding_config=sharding)
     forward_pass_config = DecoderForwardPassConfig.for_inference(mode=ForwardPassMode.MULTI_TOKEN)
     forward_pass_config = force_float32_activations(apply_attention_env(forward_pass_config))

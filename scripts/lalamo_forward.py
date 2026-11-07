@@ -60,6 +60,25 @@ def bf16_block_reason(dtype: str, capabilities: list[float]) -> str | None:
 
 
 
+def enter_mesh(sharding):
+    """Activate the sharding mesh for the rest of the process.
+
+    With ``--parallel tensor`` the mesh has 2 devices, and any ``jax.jit``
+    launched outside a mesh context fails with "Length of device assignment 1
+    is not equal to the size of the mesh 2; enter your jit into a mesh context
+    via jax.set_mesh". A single-device mesh never raises, which is why CPU
+    lanes never showed this.
+    """
+    mesh = getattr(sharding, "mesh", None)
+    if mesh is None or getattr(mesh, "empty", False):
+        return None
+    import jax
+
+    manager = jax.set_mesh(mesh)
+    manager.__enter__()
+    return manager
+
+
 def requested() -> str | None:
     """Explicit env wins; otherwise pick xla automatically on pre-Ampere.
 

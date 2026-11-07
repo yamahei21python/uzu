@@ -166,7 +166,7 @@ def main() -> None:
 
     from lalamo.compressed.hybrid import HybridMatrix
     from lalamo.model import Model
-    from lalamo_forward import apply_attention_env, describe, force_float32_activations
+    from lalamo_forward import apply_attention_env, describe, enter_mesh, force_float32_activations
     from lalamo.module import Keychain
     from lalamo.modules import DecoderForwardPassConfig, ForwardPassMode
     from lalamo.utils.sharding import ShardingConfig
@@ -184,6 +184,7 @@ def main() -> None:
         sharding = ShardingConfig.data_parallel()
     else:
         sharding = ShardingConfig.replicated()
+    _mesh = enter_mesh(sharding)
     keychain = Keychain.init(seed=args.seed, sharding_config=sharding)
     inference_config = force_float32_activations(
         apply_attention_env(DecoderForwardPassConfig.for_inference(mode=ForwardPassMode.MULTI_TOKEN))

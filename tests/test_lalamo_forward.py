@@ -168,3 +168,43 @@ def test_force_f32_activations_without_gpu_is_a_noop(monkeypatch) -> None:
     monkeypatch.setattr(lalamo_forward, "gpu_capabilities", lambda: [])
     config = FakeFullConfig(FakeEmbeddingConfig("placeholder"))
     assert lalamo_forward.force_float32_activations(config) is config
+
+
+def test_enter_mesh_activates_the_mesh(monkeypatch) -> None:
+    import types
+
+    calls: list[object] = []
+
+    class Manager:
+        def __enter__(self) -> "Manager":
+            calls.append("enter")
+            return self
+
+    class Mesh:
+        empty = False
+
+    class Sharding:
+        mesh = Mesh()
+
+    fake_jax = types.SimpleNamespace(set_mesh=lambda mesh: (calls.append(mesh), Manager())[1])
+    monkeypatch.setitem(sys.modules, "jax", fake_jax)
+    lalamo_forward.enter_mesh(Sharding())
+    assert isinstance(calls[0], Mesh)
+    assert "enter" in calls
+
+
+def test_enter_mesh_without_mesh_is_a_noop() -> None:
+    class Sharding:
+        mesh = None
+
+    assert lalamo_forward.enter_mesh(Sharding()) is None
+
+
+def test_enter_mesh_skips_an_empty_mesh() -> None:
+    class Mesh:
+        empty = True
+
+    class Sharding:
+        mesh = Mesh()
+
+    assert lalamo_forward.enter_mesh(Sharding()) is None
