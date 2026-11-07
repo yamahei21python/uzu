@@ -108,6 +108,21 @@ def test_seed_and_convert_overrides_reach_the_commands() -> None:
     assert bits.stdout.count("--layer-bits-json") == 1
 
 
+def test_cli_overrides_replace_spec_settings() -> None:
+    result = run_lane(
+        LANES / "seed-variance-08b.json",
+        "--jax-platform", "cpu",
+        "--eval-dtype", "float32",
+        "--parallel", "replicated",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    commands = [line for line in result.stdout.splitlines() if line.startswith("$ ")]
+    calibration = [line for line in commands if "yaqa_calibration.py" in line]
+    evals = [line for line in commands if "eval_quantized.py" in line]
+    assert all("--parallel replicated" in line for line in calibration)
+    assert all("--dtype float32" in line for line in evals)
+
+
 def test_missing_spec_fields_fail_loudly(tmp_path: Path) -> None:
     spec = tmp_path / "bad.json"
     spec.write_text(json.dumps({"lane": "bad", "paths": {"kit": "kit", "work": str(tmp_path)}}), encoding="utf-8")

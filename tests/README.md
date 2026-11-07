@@ -28,6 +28,7 @@ pytest -q tests/
 - Kaggle 使用量の集計（`kaggle_usage.py`）
 - T4 向け attention 切り替え（`lalamo_forward.py`）
 - docs と argparse の乖離（`check_docs.py`）
+- spec の CLI 上書き（`--jax-platform`, `--eval-dtype`, `--parallel`）
 - 層別ビット規則の解決（`rht_int4_convert.py --layer-bits-json`）
 - eval の BPC/chars 出力、merge のメタデータ引き継ぎ
 - kit の完全性（`build_kit.py`、遅延 import の欠落検出）

@@ -1,0 +1,41 @@
+# CPU レーン（GPU クォータを使わない）
+
+0.8B は CPU でも現実的。T4 の BF16 制約（`docs/KAGGLE_SLOTS.md`）を回避でき、
+**GPU クォータを消費しない**。Kaggle の CPU カーネルは 4 vCPU / 30GB RAM / 12h。
+
+## 同じ spec を CPU で回す
+
+spec は GPU 用のままでよい。CLI で上書きする。
+
+```bash
+python kit/scripts/run_lane.py \
+  --spec kit/lanes/seed-variance-08b.json \
+  --jax-platform cpu --eval-dtype float32 --parallel replicated \
+  --work /kaggle/working
+```
+
+- `--jax-platform cpu`: `JAX_PLATFORM_NAME=cpu`
+- `--eval-dtype float32`: T4 と同じ dtype に揃える（bf16 と混ぜない）
+- `--parallel replicated`: CPU 1 デバイスでは tensor parallel にしない
+- `--work`: 出力先。再実行すると `result.json` がある条件は skip される
+
+## 何を回すか
+
+| カーネル | spec | 条件数 | 目安 |
+|---|---|---:|---:|
+| A | `seed-variance-08b` + `group-size-ablation-08b` | 6 | 6〜9h |
+| B | `damping-ablation-08b` + `bit-alloc-ablation-08b` | 4 | 4〜6h |
+
+12h 制限に収まるよう 2 本に分けている。片方が落ちても、もう片方は独立。
+
+## 前提
+
+- kit: `hf download yamahei21/uzu-quant-kit --repo-type dataset --local-dir kit`
+- `python kit/scripts/build_kit.py --check kit` が `KIT OK`
+- 出力は `out/<lane>/<condition>/result.json`（`ppl_*.json` と calibration を含む）
+
+## 注意
+
+- CPU の bf16 は遅い。`--eval-dtype float32` を必ず付ける（数値も T4 と揃う）
+- 12h を超えそうなら `--shard` で分ける。`result.json` がある条件は再実行で skip
+- 速度はローカル M3 の実測より遅い。**最初の 1 条件の所要を記録**して、残りの見積もりを更新する
