@@ -43,6 +43,64 @@
 | balanced-h | Kaggle CPU | running |
 | Muse shard3/4/5, clean, cpu-tuning | Muse CPU | running |
 
+
+## 設定の詳細
+
+### 環境
+
+| 環境 | スペック |
+|---|---|
+| Kaggle CPU | 4 vCPU / 30GB RAM / 12h（週次クォータ無し、5 セッション） |
+| Kaggle GPU | 2 × Tesla T4（各 15.6GB）/ 12h / 30h 週 / 2 セッション |
+| Modal | A100-80GB |
+
+### 量子化（0.8B 共通）
+
+| 項目 | 値 |
+|---|---|
+| bits | 4 |
+| group size | 32（0.8B は 64/128 不可。`in_proj` out_dim 8224 のため） |
+| block size | 32（RHT） |
+| symmetric | false |
+| layout | output_input |
+
+### 校正（calibration）
+
+| 実験 | samples | max_tokens | damping | output_block | eval chunks |
+|---|---:|---:|---:|---|---:|
+| clean enonly / mixed50 / mix65 | 32 | 128 | 1e-3 | small (2048) | **100** |
+| seed 分散（mixed50, 3 seed） | 32 | 128 | 1e-3 | small | **100** |
+| q512 probe（GPU） | 16 | 512 | 1e-2 | small | **100** |
+| yaqa-hin-hout mixed / mix35 / mix65 / jaonly | 32 | 128 | 1e-3 | small | 50 |
+| yaqa-hin-hout（初期） | 16 | 512 | 1e-2 | small | 50 |
+| yaqa-hin（初期） | 8 | 64 | 1e-3 | none | 50 |
+| robustness shard1-5 | 16-64 | 128/256/512 | 1e-4〜1e-2 | small | 100 |
+| balanced-h（50/65/35） | 32 | 128 | 1e-3 | small | 100 |
+| 4B | 8 | 256 | 1e-3 | none | 100（RTN は 20） |
+| 9B | 8 | 512 | 1e-3 | none | 100（RTN は 20） |
+
+### 評価
+
+| 項目 | 値 |
+|---|---|
+| max_tokens | 128 |
+| min_tokens | 16 |
+| chunks | 100（clean / seed / q512 / robustness / balanced）、50（yaqa-hin 系・RTN の旧） |
+| dtype | 0.8B = float32、4B/9B = bfloat16（A100） |
+| 判定 | 同一言語内の BPC 相対 Δ。デバイス間の eval 差は 0.02% 以内 |
+
+### QAD
+
+| 項目 | 値 |
+|---|---|
+| steps | 10 |
+| seq | 128（0.8B）/ 256（4B/9B の config） |
+| lr / scale_lr | 2e-5 / 1e-6（freeze-scales 時） |
+| warmup / val-every / val-chunks | 5 / 5 / 2 |
+| early_stop_patience | 2 |
+| optimizer | adamw |
+| parallel | replicated（CPU）/ tensor（GPU は 2 枚必要） |
+
 ## 再現するときの目安
 
 | 条件 | 置き場所 | 理由 |
