@@ -59,6 +59,8 @@ KIT_SCRIPTS = [
     "check_experiment.py",
     "check_docs.py",
     "preflight.py",
+    "env_fingerprint.py",
+    "kaggle_slots.py",
     # sharding / audit
     "tiny_sharding_probe.py",
     "audit_public_corpus.py",
@@ -143,12 +145,37 @@ def build(output: Path) -> list[str]:
     MANIFEST_NAME = "kit_manifest.json"
     manifest = {
         "built_from_commit": source_commit(),
+        # Downstream kernels should assert these, not an exact commit hash:
+        # the kit is rebuilt often, but a capability answers the real question.
+        "capabilities": detect_capabilities(output),
         "files": {
             name: sha256(output / name) for name in copied
         },
     }
     (output / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return copied
+
+
+def detect_capabilities(root: Path) -> list[str]:
+    """Features a consumer may depend on, independent of the commit hash."""
+    wanted = {
+        "rht_int4_convert.layer_filter": ("scripts/rht_int4_convert.py", "--layer-filter"),
+        "eval_quantized.dtype": ("scripts/eval_quantized.py", "--dtype"),
+        "preflight": ("scripts/preflight.py", "def verdict"),
+        "preflight.sdpa_xla": ("scripts/preflight.py", "sdpa_xla"),
+        "env_fingerprint": ("scripts/env_fingerprint.py", "lalamo_code_hashes"),
+        "qad.freeze_scales": ("scripts/qad_finetune.py", "--freeze-scales"),
+    }
+    found = []
+    for name, (relative, needle) in wanted.items():
+        path = root / relative
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if needle in text:
+            found.append(name)
+    return found
 
 
 def local_modules(scripts: list[Path]) -> dict[str, set[str]]:

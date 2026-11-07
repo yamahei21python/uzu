@@ -59,3 +59,25 @@ def test_no_gpu_with_skips() -> None:
     result = verdict([], {})
     assert result["ampere_or_newer"] is False
     assert result["bf16_matmul"] is False
+
+
+def test_qad_probe_failure_does_not_block_ordinary_lanes() -> None:
+    probes = dict(ALL_PASS, qad_grad="fail")
+    result = verdict([8.0], probes)
+    assert result["lane_ok"] is True
+    assert result["qad_ok"] is False
+    assert "qad_grad" not in result["probe_failures"]
+
+
+def test_missing_lalamo_submodule_is_a_failure() -> None:
+    from preflight import classify_probe_failure
+
+    message = "ModuleNotFoundError: No module named 'lalamo.compressed.incoherence'"
+    assert classify_probe_failure("quant_roundtrip", message)[0] == "fail"
+
+
+def test_missing_lalamo_package_is_a_skip() -> None:
+    from preflight import classify_probe_failure
+
+    message = "ModuleNotFoundError: No module named 'lalamo'"
+    assert classify_probe_failure("quant_roundtrip", message)[0] == "skip"

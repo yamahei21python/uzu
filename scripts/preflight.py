@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -44,8 +45,11 @@ def verdict(capabilities: list[float], probes: dict | None = None) -> dict:
     def status(name: str) -> str:
         return str(probes.get(name, "skip"))
 
-    core = ("dot", "dot_f32_acc", "sdpa_xla", "quant_roundtrip", "qad_grad", "tokenizer")
+    # qad_grad is checked separately: it needs a mesh context that non-QAD
+    # lanes never create, so a failure there must not block ordinary lanes.
+    core = ("dot", "dot_f32_acc", "sdpa_xla", "quant_roundtrip", "tokenizer")
     failures = [name for name in core if status(name) == "fail"]
+    qad_failure = status("qad_grad") == "fail"
     bf16 = all(status(name) == "pass" for name in ("dot", "dot_f32_acc", "sdpa_xla"))
 
     if status("sdpa_xla") == "fail":
@@ -65,6 +69,7 @@ def verdict(capabilities: list[float], probes: dict | None = None) -> dict:
         "probes": probes,
         "probe_failures": failures,
         "lane_ok": not failures,
+        "qad_ok": not qad_failure,
         "eval_dtype": "bfloat16" if bf16 else "float32",
         "attention": attention,
         "note": note,
@@ -135,13 +140,27 @@ PROBES = {
         "def loss(w):\n"
         "    return jnp.sum(spec.compress(w, key=jax.random.key(0), sharding_config=sharding).decompress() ** 2)\n"
         "w = jax.device_put(np.random.RandomState(0).randn(64, 32).astype(np.float32), sharding.resolve_sharding((None, None)))\n"
-        "grad = jax.grad(loss)(w)\n"
+        "mesh = sharding.resolve_sharding((None, None)).mesh\n"
+        "with jax.set_mesh(mesh):\n"
+        "    grad = jax.grad(loss)(w)\n"
         "assert bool(jnp.isfinite(grad).all())\n"
     ),
 }
 
 # probes that need lalamo; missing lalamo is a skip, not a failure
 LALAMO_PROBES = {"quant_roundtrip", "qad_grad"}
+
+
+def classify_probe_failure(name: str, message: str) -> tuple[str, str | None]:
+    """Missing top-level lalamo is a skip; a missing submodule is a failure.
+
+    The PyPI lalamo 0.17.0 tree reports ModuleNotFoundError for
+    ``lalamo.compressed.incoherence``. Treating that as "skip" would let the
+    wrong environment pass the gate.
+    """
+    if name in LALAMO_PROBES and re.search(r"No module named 'lalamo'(\s|$|\")", message):
+        return "skip", "lalamo not importable in this interpreter"
+    return "fail", message
 
 
 def run_probe(name: str, code: str, extra: list[str] | None = None) -> tuple[str, str | None]:
@@ -159,11 +178,10 @@ def run_probe(name: str, code: str, extra: list[str] | None = None) -> tuple[str
     if result.returncode == 0:
         return "pass", None
     message = (result.stderr or result.stdout or "").strip()[-400:] or "unknown failure"
-    if name in LALAMO_PROBES and "lalamo" in message and (
-        "ModuleNotFoundError" in message or "No module named" in message
-    ):
-        return "skip", "lalamo not importable in this interpreter"
-    return "fail", message
+    # Only a missing top-level package is a skip. A missing submodule means the
+    # installed lalamo is the wrong tree (PyPI 0.17.0 has no compressed/
+    # incoherence.py), which must fail the gate instead of being skipped.
+    return classify_probe_failure(name, message)
 
 
 def measure_probes(tokenizer_path: Path | None = None) -> tuple[dict, dict]:
@@ -236,6 +254,12 @@ def main() -> None:
         "kit_commit": kit_commit(Path("kit")),
     }
     report.update(verdict(capabilities, probes))
+    try:
+        from env_fingerprint import fingerprint
+
+        report["environment"] = fingerprint()
+    except Exception:  # noqa: BLE001 - older kits may not ship env_fingerprint.py
+        report["environment"] = {}
     report["jax_version"] = None
     try:
         from importlib.metadata import version
