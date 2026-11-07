@@ -60,20 +60,29 @@ smoke が通ってから、`clean-suite-08b` などを**同じセッションの
 ### 3. Muse へ
 kit の **capability** と spec 名を Issue #31 に書く。commit hash は書かない（rebuild ごとに変わる）。
 
-Muse の結果は **HF `yamahei21/uzu-results`（private）** に上げる。`kentasatomuse/uzu-results` は owner から 403 で読めないため使わない。
+結果の返し方は Issue #31 で確定済み: **Muse は自分の `uzu-results` に上げ、owner が `hf download` で回収する。**
 
 ```python
-# Muse: 実行後
-subprocess.run([sys.executable, "/kaggle/working/kit/scripts/publish_results.py",
-    "--out", "/kaggle/working/uzu/out", "--as", "muse"])
+# Muse: run_lane に渡すだけ（lane_dir が <namespace>/<lane> で上がる）
+subprocess.run([sys.executable, "/kaggle/working/kit/scripts/run_lane.py",
+    "--spec", "/kaggle/working/kit/lanes/clean-suite-08b.json",
+    "--hf-results", "kentasatomuse/uzu-results"], check=True)
 ```
+
+`calibration.npz` は上げない（1.4GB）。`result.json` / `ppl_*.json` / `manifest.json` で足りる。
 
 ```bash
-# owner: 回収
-python scripts/pull_results.py --repo yamahei21/uzu-results --out results/shared --strict
+# owner: 回収（自分の repo も同じコマンドで混ぜられる）
+python scripts/pull_results.py --repo kentasatomuse/uzu-results --out results/muse --strict
+python scripts/pull_results.py --repo yamahei21/uzu-results   --out results/owner --strict
 ```
 
-`publish_results.py` は `manifest.json` に `problems` があれば **upload を拒否**する（壊れた lane をデータ扱いしない）。`environment_fingerprint` が無い場合は警告のみ。
+**既に走った分の事後アップロード**は `run_lane` を再実行せず `publish_results.py` を使う。
+`manifest.json` に `problems` があれば upload を拒否する（壊れた lane をデータ扱いしない）。
+
+```bash
+python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-results
+```
 
 ## 現在の状態（2026-11-07）
 ポリシー適用前の 2 本が走っている:
