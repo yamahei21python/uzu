@@ -47,6 +47,29 @@ BF16 は 3 seed とも EN 35.364 / JA 43.422（完全一致）。
 
 → **seed ノイズ内。混合比 50 と 65 の差は有意でない。** 変換設定の比較は同一 seed の範囲で行う。
 
+
+### q512 on T4×2（TP=2 / float32 / 2026-11-07）【実測】
+
+`s16_q512_d1e-2`（samples 16 / 512 tokens / damping 1e-2）、100 chunks。
+
+| 段階 | 秒 |
+|---|---:|
+| calibration | 418 |
+| convert | 289 |
+| eval en | 440 |
+| eval ja | 443 |
+| **合計** | **1637（27分）** |
+
+| 言語 | BF16 PPL | INT4 PPL | BPC Δ |
+|---|---:|---:|---:|
+| EN | 35.364 | 37.934 | **+1.97%** |
+| JA | 43.430 | 47.764 | **+2.52%** |
+
+- CPU の 1 条件 ~107 分に対し **約 3.9 倍速**
+- mixed50 の seed 幅（EN 2.89-3.78 / JA 3.84-4.07）より良いが、**samples 16・damping 1e-2・seq 512 が同時に違う**
+- seq だけの効果は `s16_q128_d1e-2`（Muse shard3）と比較して初めて言える
+- T4 で必要な処理はすべて自動（xla / f32 activations / mesh）
+
 ### group size の次元制約（2026-11-07 実測）
 
 `rht_int4_convert.py` は **in/out 両方**が `max(block_size, group_size)` で割り切れることを要求する。
