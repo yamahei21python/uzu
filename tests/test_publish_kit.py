@@ -10,6 +10,7 @@ from publish_kit import (  # noqa: E402
     parse_dataset_listing,
     parse_dataset_listing_json,
     parse_manifest_commit,
+    parse_next_token,
     verify_listing,
 )
 
@@ -49,3 +50,22 @@ def test_manifest_commit_parsing() -> None:
 def test_json_listing_parses_after_token_line() -> None:
     text = 'Next Page Token = abc\n[\n  {"name": "scripts/a.py", "size": 1}\n]\n'
     assert parse_dataset_listing_json(text) == ["scripts/a.py"]
+
+
+def test_zip_uploads_count_as_present() -> None:
+    names = ["kit_manifest.json", "scripts.zip", "data.zip", "configs.zip", "tests.zip"]
+    assert verify_listing(names) == []
+
+
+def test_zip_plus_manifest_is_ok() -> None:
+    names = ["kit_manifest.json", "scripts.zip", "data.zip", "configs.zip"]
+    assert not any("scripts" in problem for problem in verify_listing(names))
+
+
+def test_next_page_token_is_parsed() -> None:
+    text = "Next Page Token = CfDJ8FwkkMkekkBCtzoFDl4Vj7g\n[\n  {\"name\": \"a.py\"}\n]\n"
+    assert parse_next_token(text) == "CfDJ8FwkkMkekkBCtzoFDl4Vj7g"
+
+
+def test_missing_token_means_last_page() -> None:
+    assert parse_next_token('[\n  {"name": "a.py"}\n]\n') is None
