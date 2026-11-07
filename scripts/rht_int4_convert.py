@@ -135,6 +135,13 @@ def find_spec(qwen_models, name: str):
     raise ValueError(f"model spec {name!r} not found")
 
 
+def should_quantize(path: str, filters: list[str]) -> bool:
+    """Empty filters means everything; otherwise any substring match."""
+    if not filters:
+        return True
+    return any(item in path for item in filters)
+
+
 def resolve_bits(path: str, rules: list[dict], default: int) -> int:
     """First rule whose ``match`` substring appears in the layer path wins."""
     for rule in rules:
@@ -292,7 +299,10 @@ def main() -> None:
     hybrid_spec = build_hybrid_spec(args.bits)
     layer_bits_used: dict[str, int] = {}
     quantize_key = jax.random.key(0)
-    counts = {"quantized": 0, "skipped": 0, "yaqa": 0}
+    counts = {"quantized": 0, "skipped": 0, "yaqa": 0, "filtered": 0}
+    layer_filters = [item for item in (args.layer_filter or "").split(",") if item]
+    if layer_filters:
+        print(f"layer filter: {layer_filters} (other layers stay full precision)")
 
     calibration = None
     if args.preconditioners:
@@ -317,6 +327,9 @@ def main() -> None:
     def quantize_linear(path, linear: Linear) -> Linear:
         started = time.time()
         key = "/".join(path)
+        if not should_quantize(key, layer_filters):
+            counts["filtered"] += 1
+            return linear
         shape = tuple(int(x) for x in linear.weights.shape)
         if len(shape) != 2 or any(dimension % required_divisor for dimension in shape):
             counts["skipped"] += 1
@@ -381,7 +394,10 @@ def main() -> None:
                 f"(symmetric=False)"
             )
     quantized_model = map_nodes_of_type_with_path(Linear, quantize_linear, model)
-    print(f"quantized: {counts['quantized']}, skipped: {counts['skipped']}, yaqa: {counts['yaqa']}")
+    print(
+        f"quantized: {counts['quantized']}, skipped: {counts['skipped']}, "
+        f"yaqa: {counts['yaqa']}, filtered: {counts['filtered']}"
+    )
     if layer_bits_used:
         distribution = {}
         for bits in layer_bits_used.values():

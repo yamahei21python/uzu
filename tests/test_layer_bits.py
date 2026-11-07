@@ -62,3 +62,12 @@ def test_load_layer_bits_summary(tmp_path: Path) -> None:
     summary, rules = load_layer_bits(path, 4)
     assert summary["default"] == 4
     assert len(rules) == 3
+
+
+def test_should_quantize_with_filters() -> None:
+    from rht_int4_convert import should_quantize
+
+    assert should_quantize("decoder/.layers/[0]/.mlp/.up_projection", []) is True
+    assert should_quantize("decoder/.layers/[0]/.mlp/.up_projection", ["/[0]/"]) is True
+    assert should_quantize("decoder/.layers/[7]/.mlp/.up_projection", ["/[0]/"]) is False
+    assert should_quantize("decoder/.layers/[7]/.mlp/.up_projection", ["/[0]/", "/[7]/"]) is True

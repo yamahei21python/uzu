@@ -44,6 +44,7 @@ KIT_SCRIPTS = [
     "compute_bpc.py",
     "run_lane.py",
     "make_sweep_spec.py",
+    "make_smoke_specs.py",
     "combine_lane_manifests.py",
     "make_qad_dataset.py",
     "ag_fetch.py",
