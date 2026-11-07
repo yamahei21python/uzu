@@ -50,7 +50,7 @@ JAX_PLATFORM_NAME=cpu python scripts/rht_int4_convert.py \
 ```bash
 JAX_PLATFORM_NAME=cpu python scripts/yaqa_calibration.py \
   --model-dir /tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg \
-  --corpus $DATA/calibration_en_wikitext2.txt \
+  --corpus $DATA/calibration_en_wikitext2_dedup.txt \
   --output $EXP/yaqa-hin-int4-g32/calibration.npz \
   --json-out $EXP/yaqa-hin-int4-g32/calibration.json \
   --samples 32 --max-tokens 512 \
@@ -71,7 +71,7 @@ H_O は `out_dim^2`。`in_proj` (8224) を含めると 1 層で 270 MB なので
 ```bash
 JAX_PLATFORM_NAME=cpu python scripts/yaqa_calibration.py \
   --model-dir /tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg \
-  --corpus $DATA/calibration_en_wikitext2.txt \
+  --corpus $DATA/calibration_en_wikitext2_dedup.txt \
   --output $EXP/yaqa-hin-hout-int4-g32/calibration.npz \
   --json-out $EXP/yaqa-hin-hout-int4-g32/calibration.json \
   --samples 32 --max-tokens 128 \

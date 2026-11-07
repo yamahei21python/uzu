@@ -51,7 +51,7 @@ image = (
     .add_local_file("scripts/compare_logits.py", "/workspace/scripts/compare_logits.py")
     .add_local_file(
         "experiments/qwen35-0.8b/data/calibration_en_wikitext2_dedup.txt",
-        "/workspace/data/calibration_en.txt",
+        "/workspace/data/calibration_en_dedup.txt",
     )
     .add_local_file(
         "experiments/qwen35-0.8b/data/eval_en_wikitext2.txt",
@@ -209,7 +209,7 @@ def calibrate_9b(
                 "--model-dir",
                 bf16,
                 "--corpus",
-                "/workspace/data/calibration_en.txt",
+                "/workspace/data/calibration_en_dedup.txt",
                 "--eval-corpus",
                 "/workspace/data/eval_en.txt",
                 "--eval-corpus",

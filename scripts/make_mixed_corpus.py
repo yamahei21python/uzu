@@ -6,10 +6,12 @@ existing yaqa_calibration.py / qad_finetune.py `--corpus` path works unchanged.
 
 Example:
   python scripts/make_mixed_corpus.py \
-    --en experiments/qwen35-0.8b/data/calibration_en_wikitext2.txt \
-    --ja experiments/qwen35-0.8b/data/calibration_ja_wikipedia.txt \
+    --en experiments/qwen35-0.8b/data/calibration_en_wikitext2_dedup.txt \
+    --ja experiments/qwen35-0.8b/data/calibration_ja_wikipedia_dedup.txt \
     --ja-ratio 0.65 --target-bytes 480000 --seed 42 \
-    --out experiments/qwen35-0.8b/data/calibration_mixed_ja65_en35.txt
+    --out experiments/qwen35-0.8b/data/calibration_mixed_ja65_en35_dedup.txt \
+    --eval-corpus experiments/qwen35-0.8b/data/eval_en_wikitext2.txt \
+    --eval-corpus experiments/qwen35-0.8b/data/eval_ja_wikipedia.txt
 """
 
 from __future__ import annotations

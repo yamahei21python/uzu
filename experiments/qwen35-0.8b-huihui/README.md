@@ -13,11 +13,11 @@ Huihui 0.8B は **abliterated のみ**。Claude 4.6 Opus 蒸留は入ってい�
 ## 条件
 | 条件 | 校正コーパス | 既存 base 結果 (EN/JA) |
 |---|---|---|
-| EN-only | `calibration_en_wikitext2.txt` | 43.81 / 43.05 |
-| mixed50 | `calibration_mixed_en_ja.txt` | 43.17 / 41.70 |
-| mix65 | `calibration_mixed_ja65_en35.txt` | 41.13 / 47.58 |
-| mix35 | `calibration_mixed_ja35_en65.txt` | 実行中 |
-| JA-only | `calibration_ja_wikipedia.txt` | 実行中 |
+| EN-only | `calibration_en_wikitext2_dedup.txt` | 43.81 / 43.05 |
+| mixed50 | `calibration_mixed_en_ja_dedup.txt` | 43.17 / 41.70 |
+| mix65 | `calibration_mixed_ja65_en35_dedup.txt` | 41.13 / 47.58 |
+| mix35 | `calibration_mixed_ja35_en65_dedup.txt` | 実行中 |
+| JA-only | `calibration_ja_wikipedia_dedup.txt` | 実行中 |
 
 YAQA 設定は base と同一:
 `samples=32`, `max_tokens=128`, `output_block=small`, `output_block_limit=2048`, `damping=1e-3`, RHT block 32, INT4 g32 asym.
