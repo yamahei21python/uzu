@@ -80,6 +80,7 @@ KIT_LANES = [
     "clean-suite-08b.json",
     "balanced-h-08b.json",
     "damping-ablation-08b.json",
+    "eval-4b-rtn.json",
     "robustness-08b-shard1of3.json",
     "robustness-08b-shard2of3.json",
     "robustness-08b-shard3of3.json",
