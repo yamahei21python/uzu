@@ -195,7 +195,7 @@ def is_pressure(text: str) -> bool:
     return any(marker in lowered for marker in PRESSURE_MARKERS)
 
 
-def active_env_ids(protect_completed: bool = False) -> set[str]:
+def active_env_ids(protect_completed: bool = False, protect_sessions: bool = True) -> set[str]:
     """Environments that must survive a cleanup.
 
     With ``protect_completed=False`` (the default) a finished task no longer pins
@@ -205,7 +205,7 @@ def active_env_ids(protect_completed: bool = False) -> set[str]:
     needs them.
     """
     ids: set[str] = set()
-    for sub in ("sessions", "pending"):
+    for sub in (("sessions", "pending") if protect_sessions else ()):
         directory = AG_HOME / sub
         if not directory.exists():
             continue
@@ -345,6 +345,8 @@ def cleanup_envs(
     target_gib: float = 0.8,
     min_age_minutes: float = 10.0,
     protect_completed: bool = False,
+    protect_sessions: bool = True,
+    force: bool = False,
 ) -> dict[str, Any]:
     """Delete idle Antigravity environments.
 
@@ -352,7 +354,10 @@ def cleanup_envs(
     ``mode="auto"`` deletes the largest finished environments until the total
     fits ``target_gib``; this is what a storage-quota or 429 error needs.
     """
-    keep = active_env_ids(protect_completed=protect_completed) | (keep_extra or set())
+    keep = set() if force else active_env_ids(
+        protect_completed=protect_completed, protect_sessions=protect_sessions
+    )
+    keep |= (keep_extra or set())
     if env_list_file is not None:
         environments = json.loads(env_list_file.read_text(encoding="utf-8"))
         if isinstance(environments, dict):
@@ -652,6 +657,8 @@ def cmd_cleanup_envs(args: argparse.Namespace) -> None:
         target_gib=args.target_gib,
         min_age_minutes=args.min_age_minutes,
         protect_completed=args.protect_completed,
+        protect_sessions=not args.ignore_sessions,
+        force=args.force,
     )
     if summary.get("error"):
         raise SystemExit(1)
@@ -721,6 +728,8 @@ def main() -> None:
     cleanup.add_argument("--target-gib", type=float, default=0.8)
     cleanup.add_argument("--min-age-minutes", type=float, default=10.0)
     cleanup.add_argument("--protect-completed", action="store_true", help="also keep environments of finished tasks")
+    cleanup.add_argument("--ignore-sessions", action="store_true", help="do not protect environments referenced by sessions/ (needed when storage is full)")
+    cleanup.add_argument("--force", action="store_true", help="ignore all protections except --keep (last resort)")
 
     for name in ("retry", "cancel"):
         command = sub.add_parser(name)
