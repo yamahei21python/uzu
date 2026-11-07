@@ -37,6 +37,18 @@ def test_measurement_overrides_capability() -> None:
     assert result["bf16_source"] == "measured"
 
 
+def test_sdpa_failure_marks_attention_unavailable() -> None:
+    result = verdict([7.5], False, {"dot": True, "dot_f32_acc": False, "sdpa_xla": False})
+    assert result["attention"] == "unavailable"
+    assert "CPU or Modal" in result["note"]
+
+
+def test_all_probes_pass_keeps_default_attention() -> None:
+    result = verdict([8.0], True, {"dot": True, "dot_f32_acc": True, "sdpa_xla": True})
+    assert result["attention"] == "default"
+    assert result["eval_dtype"] == "bfloat16"
+
+
 def test_no_gpu_is_not_ampere() -> None:
     result = verdict([], None)
     assert result["ampere_or_newer"] is False
