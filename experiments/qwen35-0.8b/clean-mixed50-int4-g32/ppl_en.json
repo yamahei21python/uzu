@@ -1,0 +1,23 @@
+{
+  "bf16_dir": "/tmp/qwen35_0.8b_bf16_lalamo_lalamo_origcfg",
+  "candidate_dir": "/tmp/qwen35_0.8b_clean_mixed50_lalamo_eval",
+  "corpus": "experiments/qwen35-0.8b/data/eval_en_wikitext2_dedup.txt",
+  "config": {
+    "corpus": "experiments/qwen35-0.8b/data/eval_en_wikitext2_dedup.txt",
+    "corpus_sha256": "342e8f6a77fb9db7",
+    "max_sequences": 100,
+    "max_tokens": 128,
+    "min_tokens": 16
+  },
+  "config_hash": "b2a66ca6dc7d1650",
+  "chunks": 100,
+  "tokens": 12700,
+  "bf16_ppl": 35.37584015335258,
+  "candidate_ppl": 39.874531016615,
+  "delta_nll_per_token": 0.11970869409756402,
+  "top1_agreement": 0.8234645669291338,
+  "top5_overlap": 0.829086614173223,
+  "kl_bf16_candidate": 0.09787165994719257,
+  "cosine_logits": 0.9862120500699741,
+  "mean_abs_top1_margin_delta": 0.37363188976377953
+}
