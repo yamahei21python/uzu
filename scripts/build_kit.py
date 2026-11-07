@@ -46,8 +46,9 @@ KIT_SCRIPTS = [
     "dedup_lines.py",
     "dedup_calibration.py",
     "check_experiment.py",
-    # sharding
+    # sharding / audit
     "tiny_sharding_probe.py",
+    "audit_public_corpus.py",
     # operator tooling
     "build_kit.py",
     "bootstrap_kaggle.py",
