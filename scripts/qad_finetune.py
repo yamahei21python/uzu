@@ -40,6 +40,20 @@ from pathlib import Path
 os.environ.setdefault("JAX_PLATFORM_NAME", "cpu")
 
 
+def early_stop_decision(bad_val_evals: int, patience: int, step: int, steps: int) -> str:
+    """Decide what to do after a non-improving validation.
+
+    ``step`` is 1-based. At the final step there is nothing left to stop, so a
+    non-improvement must not abort the run: aborting also skipped the checkpoint
+    save and export, which turned a completed 10-step run into a failed kernel.
+    """
+    if patience <= 0 or bad_val_evals < patience:
+        return "continue"
+    if step >= steps:
+        return "ignore"
+    return "stop"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--teacher-dir", type=Path, required=True)
@@ -409,13 +423,18 @@ def main() -> None:
             file.write(json.dumps(record) + "\n")
 
     def scale_stats(current_params):
+        """Return (min, max) over scale arrays, or (None, None) when there are none.
+
+        With ``--freeze-scales`` the scales are not in the trainable dict at all.
+        Returning 0.0 there looked like a collapsed scale, so absence is explicit.
+        """
         values = [
             np.asarray(value, dtype=np.float32).ravel()
             for key, value in current_params.items()
             if key.endswith("scales")
         ]
         if not values:
-            return 0.0, 0.0
+            return None, None
         merged = np.concatenate(values)
         return float(merged.min()), float(merged.max())
 
@@ -424,6 +443,9 @@ def main() -> None:
     initial_val = validation_loss(params)
     best_val = initial_val
     bad_val_evals = 0
+    stop_reason = None
+    completed_steps = start_step
+    last_saved_step = start_step
     if initial_val is not None:
         progress({"step": 0, "val_loss": initial_val, "elapsed_s": 0.0})
         print(f"step 0/{args.steps}  val_kl={initial_val:.6f}", flush=True)
@@ -440,13 +462,16 @@ def main() -> None:
         loss_value = float(loss)
         grad_value = float(grad_norm)
         scale_lo, scale_hi = scale_stats(params)
-        bad = not (
-            np.isfinite(loss_value)
-            and np.isfinite(grad_value)
-            and np.isfinite(scale_lo)
-            and np.isfinite(scale_hi)
+        has_scales = scale_lo is not None and scale_hi is not None
+        bad = not (np.isfinite(loss_value) and np.isfinite(grad_value))
+        if has_scales:
+            bad = bad or not (np.isfinite(scale_lo) and np.isfinite(scale_hi))
+        collapsed = (
+            has_scales
+            and initial_scale_max is not None
+            and initial_scale_max > scale_min * 10
+            and scale_hi <= scale_min * 10
         )
-        collapsed = initial_scale_max > scale_min * 10 and scale_hi <= scale_min * 10
         if bad or collapsed:
             reason = "non-finite loss/grad/scale" if bad else "scale collapse"
             progress(
@@ -471,7 +496,10 @@ def main() -> None:
                     bad_val_evals = 0
                 else:
                     bad_val_evals += 1
-                    if args.early_stop_patience > 0 and bad_val_evals >= args.early_stop_patience:
+                    decision = early_stop_decision(
+                        bad_val_evals, args.early_stop_patience, step + 1, args.steps
+                    )
+                    if decision == "stop":
                         progress(
                             {
                                 "step": step + 1,
@@ -481,9 +509,16 @@ def main() -> None:
                                 "elapsed_s": now - started_at,
                             }
                         )
-                        raise RuntimeError(
-                            f"QAD early stop at step {step + 1}: val loss did not improve "
-                            f"(best={best_val:.6f}, current={val_loss:.6f})"
+                        stop_reason = (
+                            f"val loss did not improve (best={best_val:.6f}, current={val_loss:.6f})"
+                        )
+                        completed_steps = step + 1
+                        break
+                    if decision == "ignore":
+                        print(
+                            "final step: val loss did not improve "
+                            f"(best={best_val:.6f}, current={val_loss:.6f})",
+                            flush=True,
                         )
         record = {
             "run_id": run_id,
@@ -499,17 +534,24 @@ def main() -> None:
         with open(progress_path, "a", encoding="utf-8") as file:
             file.write(json.dumps(record) + "\n")
         val_text = "" if val_loss is None else f"  val_kl={val_loss:.6f}"
+        scale_text = "scale=n/a" if not has_scales else f"scale=[{scale_lo:.3g},{scale_hi:.3g}]"
         print(
             f"step {step + 1}/{args.steps}  kl={loss_value:.6f}{val_text}  "
-            f"grad={grad_value:.3g}  scale=[{scale_lo:.3g},{scale_hi:.3g}]  "
+            f"grad={grad_value:.3g}  {scale_text}  "
             f"step_s={now - step_started:.2f}  elapsed_s={now - started_at:.1f}",
             flush=True,
         )
+        completed_steps = step + 1
         if args.save_every and (step + 1) % args.save_every == 0:
             save_checkpoint(step + 1, params, opt_state, rng)
+            last_saved_step = step + 1
 
-    if args.steps > 0 and (not args.save_every or args.steps % args.save_every != 0):
-        save_checkpoint(args.steps, params, opt_state, rng)
+    if stop_reason:
+        completed_text = f"final step {completed_steps}" if completed_steps >= args.steps else f"step {completed_steps}"
+        print(f"early stop at {completed_text}: {stop_reason}", flush=True)
+
+    if args.steps > 0 and completed_steps > 0 and completed_steps > last_saved_step:
+        save_checkpoint(completed_steps, params, opt_state, rng)
 
     trained = inject_params(student, params)
     trained = map_nodes_of_type_with_path(
