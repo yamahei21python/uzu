@@ -74,6 +74,7 @@ def test_environment_injects_spec_env_and_triton_flag(tmp_path: Path) -> None:
     assert env["FOO"] == "bar"
     assert env["JAX_PLATFORM_NAME"] == "gpu"
     assert "--xla_gpu_enable_triton_gemm=false" in env["XLA_FLAGS"]
+    assert env["UZU_ATTENTION_IMPL"] == "xla"
 
 
 def test_environment_keeps_existing_xla_flags_and_skips_triton_on_ampere(tmp_path: Path) -> None:
@@ -83,3 +84,4 @@ def test_environment_keeps_existing_xla_flags_and_skips_triton_on_ampere(tmp_pat
     assert "--existing=1" in env["XLA_FLAGS"]
     assert "--xla_cpu_use_thunk_runtime=false" in env["XLA_FLAGS"]
     assert "--xla_gpu_enable_triton_gemm=false" not in env["XLA_FLAGS"]
+    assert "UZU_ATTENTION_IMPL" not in env

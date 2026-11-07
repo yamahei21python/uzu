@@ -47,6 +47,7 @@ KIT_SCRIPTS = [
     "combine_lane_manifests.py",
     "make_qad_dataset.py",
     "ag_fetch.py",
+    "lalamo_forward.py",
     "eval_generation.py",
     "pull_results.py",
     # guards / audits

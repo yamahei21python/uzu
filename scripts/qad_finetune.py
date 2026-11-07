@@ -108,6 +108,7 @@ def main() -> None:
 
     from lalamo.compressed.hybrid import HybridMatrix
     from lalamo.model import Model
+    from lalamo_forward import apply_attention_env, describe
     from lalamo.module import Keychain
     from lalamo.modules import DecoderForwardPassConfig, ForwardPassMode
     from lalamo.utils.sharding import ShardingConfig
@@ -126,10 +127,15 @@ def main() -> None:
     else:
         sharding = ShardingConfig.replicated()
     keychain = Keychain.init(seed=args.seed, sharding_config=sharding)
-    inference_config = DecoderForwardPassConfig.for_inference(mode=ForwardPassMode.MULTI_TOKEN)
-    training_config = DecoderForwardPassConfig.for_training(
-        gradient_estimator=GradientEstimator.DETERMINISTIC_ROUNDING
+    inference_config = apply_attention_env(
+        DecoderForwardPassConfig.for_inference(mode=ForwardPassMode.MULTI_TOKEN)
     )
+    training_config = apply_attention_env(
+        DecoderForwardPassConfig.for_training(
+            gradient_estimator=GradientEstimator.DETERMINISTIC_ROUNDING
+        )
+    )
+    print(f"attention: {describe()}", flush=True)
 
     def tokenizer_hash(directory: Path) -> str:
         return hashlib.sha256((directory / "tokenizer.json").read_bytes()).hexdigest()
