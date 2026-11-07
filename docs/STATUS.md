@@ -92,6 +92,21 @@ BF16 は 3 seed とも EN 35.364 / JA 43.422（完全一致）。
 - seq だけの効果は `s16_q128_d1e-2`（Muse shard3）と比較して初めて言える
 - T4 で必要な処理はすべて自動（xla / f32 activations / mesh）
 
+
+### 6bit は lalamo で export できない（2026-11-08 実測）
+
+`lalamo/compressed/quant_params.py:70-80` は量子化パラメータの幅を **4/8/16/32** のみ許す。
+6bit で圧縮自体は通るが、export で落ちる。
+
+```
+ValueError: unsupported quantization parameter width: 6
+```
+
+- 影響: bit-alloc の「down/out を 6bit」は不可能。**8bit に置換**して再計測
+- 影響: `research/9b_bit_allocation.md` の「4bit 59層 + 6bit 69層 = 5.0GB」も実装不能。
+  8bit に置き換えるとサイズが増えるため、配分の再計算が必要
+- 4bit / 8bit / bf16 の3択で設計し直す
+
 ### group size の次元制約（2026-11-07 実測）
 
 `rht_int4_convert.py` は **in/out 両方**が `max(block_size, group_size)` で割り切れることを要求する。
