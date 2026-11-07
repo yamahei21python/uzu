@@ -114,6 +114,13 @@ class Runner:
         self.lane = spec.get("lane") or spec_path.stem
         capabilities = detect_compute_capabilities()
         self.triton_off = needs_triton_off(capabilities)
+        # T4 (cc 7.5) has no BF16 matmul: ALG_DOT_BF16_BF16_F32 is unsupported.
+        # Fall back to float32 so the lane can run at all.
+        configured_dtype = (spec.get("eval") or {}).get("dtype")
+        self.eval_dtype = configured_dtype or ("float32" if self.triton_off else "bfloat16")
+        if self.triton_off and configured_dtype == "bfloat16":
+            print("GPU cannot do BF16 matmul; overriding eval dtype to float32", flush=True)
+            self.eval_dtype = "float32"
         if self.triton_off:
             print(
                 f"GPU caps {capabilities}: disabling XLA Triton GEMM (needs >= {TRITON_MIN_CAPABILITY})",
@@ -306,6 +313,8 @@ class Runner:
                     str(self.spec.get("eval", {}).get("max_sequences", DEFAULT_EVAL["max_sequences"])),
                     "--max-tokens",
                     str(self.spec.get("eval", {}).get("max_tokens", DEFAULT_EVAL["max_tokens"])),
+                    "--dtype",
+                    str(self.eval_dtype),
                     "--min-tokens",
                     str(self.spec.get("eval", {}).get("min_tokens", DEFAULT_EVAL["min_tokens"])),
                     "--json-out",
@@ -333,6 +342,9 @@ class Runner:
         if not self.dry_run:
             out.mkdir(parents=True, exist_ok=True)
         settings = self.condition_settings(condition)
+        if self.triton_off and str(settings.get("calib_dtype")) == "bfloat16":
+            print(f"{name}: BF16 calibration is unsupported on this GPU; using float32", flush=True)
+            settings["calib_dtype"] = "float32"
         is_rtn = bool(condition.get("rtn"))
         corpus = self.resolve(condition.get("calibration_corpus")) if not is_rtn else None
         if not is_rtn and corpus is None:
@@ -443,6 +455,7 @@ class Runner:
         summary = self.evaluate(name, int4_eval, bf16)
         summary["status"] = "complete"
         summary["env"] = self.env_provenance()
+        summary["eval_dtype"] = self.eval_dtype
         summary["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
         summary["spec"] = str(self.spec_path)
         if not self.dry_run:
@@ -525,6 +538,7 @@ class Runner:
             summary = self.evaluate(name, int4_eval, bf16)
             summary["status"] = "complete"
             summary["env"] = self.env_provenance()
+            summary["eval_dtype"] = self.eval_dtype
             summary["ja_ratio"] = ratio
             summary["finished"] = time.strftime("%Y-%m-%dT%H:%M:%S")
             summary["spec"] = str(self.spec_path)
@@ -569,6 +583,7 @@ class Runner:
             "model": self.spec.get("model"),
             "eval": self.spec.get("eval"),
             "env": self.env_provenance(),
+            "eval_dtype": self.eval_dtype,
             "results": summaries,
             "problems": problems,
             "updated": time.strftime("%Y-%m-%dT%H:%M:%S"),

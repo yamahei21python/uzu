@@ -19,12 +19,13 @@
     "corpora": {
       "en": "data/eval_en_wikitext2_dedup.txt",
       "ja": "data/eval_ja_wikipedia_dedup.txt"
-    }
+    },
+    "dtype": "float32"
   },
   "condition_defaults": {
     "samples": 32,
     "max_tokens": 128,
-    "calib_dtype": "bfloat16"
+    "calib_dtype": "float32"
   },
   "convert": {
     "bits": 4,

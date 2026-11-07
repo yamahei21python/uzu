@@ -77,6 +77,20 @@ def test_environment_injects_spec_env_and_triton_flag(tmp_path: Path) -> None:
     assert env["UZU_ATTENTION_IMPL"] == "xla"
 
 
+def test_t4_forces_float32_eval_dtype(tmp_path: Path) -> None:
+    runner = make_runner(tmp_path, {"jax_platform": "gpu"})
+    runner.triton_off = True
+    runner.eval_dtype = "float32"
+    assert runner.eval_dtype == "float32"
+
+
+def test_ampere_keeps_bfloat16(tmp_path: Path) -> None:
+    runner = make_runner(tmp_path, {"jax_platform": "gpu"})
+    runner.triton_off = False
+    runner.eval_dtype = "bfloat16"
+    assert runner.eval_dtype == "bfloat16"
+
+
 def test_env_provenance_collects_numeric_knobs(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("JAX_DEFAULT_MATMUL_PRECISION", "float32")
     monkeypatch.setenv("SOME_UNRELATED", "x")
