@@ -96,6 +96,9 @@ def main() -> None:
     calibration_corpora: set[Path] = set(
         Path(path) for path in calib_cfg.get("corpora", {}).values()
     )
+    qad_corpus = config.get("qad", {}).get("corpus")
+    if qad_corpus:
+        calibration_corpora.add(Path(qad_corpus))
     for path in sorted(root.rglob("calibration.json")):
         data = json.loads(path.read_text())
         row = {"path": str(path), "corpus": Path(data.get("corpus", "")).name}
@@ -122,6 +125,18 @@ def main() -> None:
             for line in path.read_text(encoding="utf-8").splitlines()
             if len(line.strip()) >= 20
         }
+
+    for eval_corpus in sorted(eval_corpora):
+        if not eval_corpus.exists():
+            continue
+        lines = [
+            line.strip()
+            for line in eval_corpus.read_text(encoding="utf-8").splitlines()
+            if len(line.strip()) >= 20
+        ]
+        duplicates = len(lines) - len(set(lines))
+        if duplicates:
+            warnings.append(f"{eval_corpus}: {duplicates} duplicate long lines")
 
     overlap_checks = 0
     for calibration_corpus in sorted(calibration_corpora):

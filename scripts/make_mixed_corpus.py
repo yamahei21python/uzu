@@ -15,6 +15,7 @@ Example:
 from __future__ import annotations
 
 import argparse
+import os
 import random
 from pathlib import Path
 
@@ -76,6 +77,8 @@ def main() -> None:
     parser.add_argument("--target-bytes", type=int, default=480_000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--eval-corpus", type=Path, action="append", default=[])
+    parser.add_argument("--allow-overlap", action="store_true")
     args = parser.parse_args()
 
     if not 0.0 <= args.ja_ratio <= 1.0:
@@ -98,7 +101,12 @@ def main() -> None:
 
     mixed = interleave(ja_sel, en_sel)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text("\n".join(mixed) + "\n", encoding="utf-8")
+    tmp = args.out.with_name(args.out.name + ".tmp")
+    tmp.write_text("\n".join(mixed) + "\n", encoding="utf-8")
+    from corpus_guard import assert_disjoint
+
+    assert_disjoint(tmp, args.eval_corpus, allow_overlap=args.allow_overlap)
+    os.replace(tmp, args.out)
 
     ja_bytes = sum(len(doc.encode("utf-8")) for doc in ja_sel)
     en_bytes = sum(len(doc.encode("utf-8")) for doc in en_sel)

@@ -45,6 +45,7 @@
     "save_every": 2,
     "val_chunks": 2,
     "val_every": 2,
-    "parallel": "replicated"
+    "parallel": "replicated",
+    "corpus": "experiments/qwen35-0.8b/data/calibration_en_wikitext2_dedup.txt"
   }
 }

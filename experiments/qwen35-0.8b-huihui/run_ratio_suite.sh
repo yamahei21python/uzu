@@ -26,6 +26,8 @@ run_condition() {
   JAX_PLATFORM_NAME=cpu "$PY" scripts/yaqa_calibration.py \
     --model-dir "$BF16" \
     --corpus "$corpus" \
+    --eval-corpus "$DATA/eval_en_wikitext2.txt" \
+    --eval-corpus "$DATA/eval_ja_wikipedia.txt" \
     --output "$out/calibration.npz" \
     --json-out "$out/calibration.json" \
     --samples 32 --max-tokens 128 \
@@ -63,9 +65,9 @@ run_condition() {
   log "=== $name DONE ==="
 }
 
-run_condition enonly "$DATA/calibration_en_wikitext2.txt"
-run_condition mixed50 "$DATA/calibration_mixed_en_ja.txt"
-run_condition mix65 "$DATA/calibration_mixed_ja65_en35.txt"
-run_condition mix35 "$DATA/calibration_mixed_ja35_en65.txt"
-run_condition jaonly "$DATA/calibration_ja_wikipedia.txt"
+run_condition enonly "$DATA/calibration_en_wikitext2_dedup.txt"
+run_condition mixed50 "$DATA/calibration_mixed_en_ja_dedup.txt"
+run_condition mix65 "$DATA/calibration_mixed_ja65_en35_dedup.txt"
+run_condition mix35 "$DATA/calibration_mixed_ja35_en65_dedup.txt"
+run_condition jaonly "$DATA/calibration_ja_wikipedia_dedup.txt"
 log "HUIHUI SUITE DONE"
