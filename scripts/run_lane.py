@@ -105,6 +105,7 @@ class Runner:
         self.kit = kit
         self.work = work
         self.scripts = {
+            "preflight": self._script(paths.get("preflight", "scripts/preflight.py")),
             "calibrate": self._script(paths.get("calibrate", "scripts/yaqa_calibration.py")),
             "convert": self._script(paths.get("convert", "scripts/rht_int4_convert.py")),
             "merge": self._script(paths.get("merge", "scripts/merge_language_hessians.py")),
@@ -112,6 +113,7 @@ class Runner:
             "copy": self._script(paths.get("copy", "scripts/make_lalamo_eval_copy.py")),
         }
         self.lane = spec.get("lane") or spec_path.stem
+        self.preflight: dict | None = None
         capabilities = detect_compute_capabilities()
         self.triton_off = needs_triton_off(capabilities)
         # T4 (cc 7.5) has no BF16 matmul: ALG_DOT_BF16_BF16_F32 is unsupported.
@@ -193,6 +195,27 @@ class Runner:
         print(f"  {step} ok ({time.time() - started:.0f}s)", flush=True)
 
     # ---------- steps ----------
+
+    def run_preflight(self) -> dict | None:
+        """Refuse to burn ten minutes on a GPU that cannot run the attention path."""
+        script = self.scripts.get("preflight")
+        if script is None or not Path(script).exists() or self.dry_run:
+            return None
+        report_path = self.lane_dir / "preflight.json"
+        command = [sys.executable, str(script), "--json", str(report_path)]
+        env = self.environment()
+        result = subprocess.run(command, text=True, capture_output=True, env=env, check=False)
+        print(result.stdout.strip()[:800], flush=True)
+        if result.returncode != 0 or not report_path.exists():
+            print(f"preflight failed to produce a report (rc={result.returncode})", flush=True)
+            return None
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        if (self.jax_platform or "").startswith("gpu") and report.get("attention") == "unavailable":
+            raise SystemExit(
+                "preflight: dot_product_attention is unavailable on this GPU "
+                f"({report.get('gpu_names')}). Use --jax-platform cpu or Modal."
+            )
+        return report
 
     def ensure_bf16(self) -> Path:
         """Return a lalamo-loadable BF16 directory.
@@ -580,6 +603,7 @@ class Runner:
 
     def write_manifest(self, summaries: list[dict[str, Any]], problems: list[str]) -> Path:
         manifest = {
+            "preflight": self.preflight,
             "lane": self.lane,
             "spec": str(self.spec_path),
             "model": self.spec.get("model"),
@@ -669,6 +693,7 @@ def main() -> None:
     if not args.dry_run:
         runner.lane_dir.mkdir(parents=True, exist_ok=True)
 
+    runner.preflight = runner.run_preflight()
     bf16 = runner.ensure_bf16()
     summaries = []
     for condition in conditions:
