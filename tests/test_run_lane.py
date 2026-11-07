@@ -135,8 +135,10 @@ def test_seed_and_convert_overrides_reach_the_commands() -> None:
     assert "--seed 0" in seeds.stdout and "--seed 1" in seeds.stdout and "--seed 2" in seeds.stdout
 
     groups = run_lane(LANES / "group-size-ablation-08b.json")
-    for size in ("32", "64", "128"):
+    # 0.8B has an 8224-wide in_proj, so only group sizes dividing it are legal
+    for size in ("16", "32"):
         assert f"--group-size {size}" in groups.stdout
+    assert "--group-size 64" not in groups.stdout
 
     bits = run_lane(LANES / "bit-alloc-ablation-08b.json")
     assert "--layer-bits-json" in bits.stdout

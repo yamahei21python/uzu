@@ -30,6 +30,20 @@
 
 RTN は動作確認。本番は YAQA calibration 後。
 
+### group size の次元制約（2026-11-07 実測）
+
+`rht_int4_convert.py` は **in/out 両方**が `max(block_size, group_size)` で割り切れることを要求する。
+
+| model | Linear 数 | 不適合になる dim | g16 | g32 | g64 | g128 |
+|---|---:|---|---:|---:|---:|---:|
+| 0.8B | 97 | `in_proj` out=**8224** ×18 | OK | OK | NG | NG |
+| 4B | 129 | `in_proj` out=**12352** ×24 | OK | OK | OK | NG |
+| 9B | 130 | `in_proj` out=**12352** ×24 | OK | OK | OK | NG |
+
+- 0.8B で group 64/128 は原理的に不可（`lanes/group-size-ablation-08b.json` は g16/g32 に縮小）
+- 4B/9B は **g64 まで可、g128 は不可**。group size の判断は 4B で行う
+- 出典: 各モデルの `model.safetensors` ヘッダ（2D Linear のみ、`.conv.` を除外）
+
 ---
 
 ## 2. インフラ

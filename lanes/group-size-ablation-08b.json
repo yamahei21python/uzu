@@ -1,5 +1,6 @@
 {
   "lane": "group-size-ablation-08b",
+  "note": "0.8B in_proj は out_dim 8224 のため group 64/128 は rht_int4_convert の divisibility 検査で落ちる。g16/g32 のみ (2026-11-07).",
   "model": {
     "hf_repo": "Qwen/Qwen3.5-0.8B",
     "spec_name": "Qwen3.5-0.8B",
@@ -9,8 +10,7 @@
   },
   "paths": {
     "kit": "kit",
-    "work": "/kaggle/working",
-    "jax_platform": "gpu"
+    "work": "/kaggle/working"
   },
   "eval": {
     "max_sequences": 100,
@@ -37,24 +37,17 @@
   },
   "conditions": [
     {
+      "name": "enonly-g16",
+      "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt",
+      "convert": {
+        "group_size": 16
+      }
+    },
+    {
       "name": "enonly-g32",
       "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt",
       "convert": {
         "group_size": 32
-      }
-    },
-    {
-      "name": "enonly-g64",
-      "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt",
-      "convert": {
-        "group_size": 64
-      }
-    },
-    {
-      "name": "enonly-g128",
-      "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt",
-      "convert": {
-        "group_size": 128
       }
     }
   ]
