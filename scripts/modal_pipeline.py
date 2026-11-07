@@ -496,7 +496,10 @@ def main(
     student: str = "student",
     steps: int = 10,
     optimizer: str = "adamw",
-    lr: float = 2e-5,
+    # 2e-5 is a finetuning lr. The 4-bit quantizer rounds an update that small
+    # away, so val_kl never moves and early stop fires on a run that learned
+    # nothing (uzu-qad-cpu, 2026-11-07).
+    lr: float = 1e-3,
     scale_lr: float = 1e-6,
     freeze_scales: bool = False,
     warmup_steps: int = 0,

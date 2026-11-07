@@ -39,7 +39,7 @@ modal run scripts/modal_pipeline.py --command eval --size 9b --candidate int4-ya
 
 # 6. QAD（clean student が必要）
 modal run scripts/modal_pipeline.py --command qad --size 9b \
-  --student student --steps 10 --optimizer adamw --lr 2e-5 --scale-lr 1e-6 \
+  --student student --steps 10 --optimizer adamw --lr 1e-3 --scale-lr 1e-6 \
   --freeze-scales --warmup-steps 5 --save-every 10
 
 # 7. 回収
@@ -75,6 +75,7 @@ python scripts/modal_batch.py --sizes 4b,9b --commands import,rtn,eval \
 
 - calibration は `--output-block none` / damping 1e-2。0.8B の clean 設定（small / 1e-3）とは**違う**。比較するときは明示する
 - QAD の student は `make_qad_dataset.py` で作る。`provenance.json` が無いと QAD が拒否する
+- **QAD の lr は 1e-3 前後**。2e-5 は finetuning の値で、4-bit の量子化刻み（0.8B の中央値 4.7e-4）より 1 桁小さい。量子化器が更新を丸めて落とし、val_kl が 1 ビットも動かない（`uzu-qad-cpu` がこれで early stop した）。`qad_finetune.py` は起動時に `median int4 step` と lr を比べて警告する
 - `eval` は `A100-80GB`。BF16 18GB + INT4 5GB + 実行時バッファで 40GB だと足りない場合がある
 - 冪等なので、タイムアウトしたら同じコマンドを再実行する。途中から再開する
 - Modal の GPU 時間は課金対象。**smoke をローカルで済ませてから**投げる

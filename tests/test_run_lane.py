@@ -9,6 +9,41 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 LANES = ROOT / "lanes"
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from run_lane import run_conditions  # noqa: E402
+
+
+class FakeRunner:
+    def __init__(self) -> None:
+        self.ran: list[str] = []
+
+    def run_condition(self, condition: dict, bf16: Path | None) -> dict:
+        name = condition["name"]
+        self.ran.append(name)
+        if name == "bad":
+            raise SystemExit("calibration failed with code -9")
+        return {"name": name, "status": "complete"}
+
+
+def test_failed_condition_does_not_stop_the_lane() -> None:
+    # a single OOM used to abort the lane and lose every later condition
+    runner = FakeRunner()
+    summaries, failures = run_conditions(runner, [{"name": "a"}, {"name": "bad"}, {"name": "c"}], None)
+    assert runner.ran == ["a", "bad", "c"]
+    assert [summary["status"] for summary in summaries] == ["complete", "failed", "complete"]
+    assert failures and failures[0].startswith("bad:")
+
+
+def test_results_are_flushed_after_every_condition() -> None:
+    uploads: list[int] = []
+    run_conditions(FakeRunner(), [{"name": "a"}, {"name": "b"}], None, after_each=lambda: uploads.append(1))
+    assert uploads == [1, 1]
+
+
+def test_fail_fast_still_available() -> None:
+    with pytest.raises(SystemExit):
+        run_conditions(FakeRunner(), [{"name": "bad"}, {"name": "c"}], None, fail_fast=True)
 
 
 def run_lane(spec: Path, *extra: str) -> subprocess.CompletedProcess[str]:

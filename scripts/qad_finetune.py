@@ -54,6 +54,40 @@ def early_stop_decision(bad_val_evals: int, patience: int, step: int, steps: int
     return "stop"
 
 
+def median_quantization_step(scale_arrays) -> float | None:
+    """Median int4 quantisation step implied by the stored scales.
+
+    The 4-bit forward rounds ``weight / (scale / 7)``, so an optimizer update
+    much smaller than ``scale / 7`` cannot change a single code. The forward
+    also casts master weights to the matmul dtype (bf16) first, which is why a
+    float32 master weight alone does not rescue a finetuning-sized lr.
+    """
+    import numpy as np
+
+    values = [np.asarray(array, dtype=np.float32).ravel() for array in scale_arrays]
+    values = [value for value in values if value.size]
+    if not values:
+        return None
+    return float(np.median(np.concatenate(values))) / 7.0
+
+
+def update_is_absorbed(lr: float, step: float | None, ratio: float = 0.05) -> bool:
+    """True when a single update is far below one quantisation step."""
+    return step is not None and step > 0.0 and lr < ratio * step
+
+
+def validation_is_unchanged(best_val: float | None, val_loss: float) -> bool:
+    """True when validation did not move at all.
+
+    An identical val_kl is evidence that the master weights did not change, not
+    that the model stopped improving. Counting it as a non-improvement early
+    stopped a 10-step run whose optimizer was a silent no-op: at bf16 the
+    AdamW update (2e-5) is an order of magnitude below one ulp, so every step
+    rounded to the same weights and val_kl stayed at 0.262012.
+    """
+    return best_val is not None and val_loss == best_val
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--teacher-dir", type=Path, required=True)
@@ -89,6 +123,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--scale-min", type=float, default=1e-6, help="lower clamp for scale params; 0 disables")
     parser.add_argument("--grad-clip", type=float, default=1.0, help="global norm clip; 0 disables")
     parser.add_argument("--scale-lr", type=float, default=1e-6, help="AdamW lr for scales/zero-points")
+    parser.add_argument(
+        "--master-dtype",
+        choices=("float32", "bfloat16"),
+        default="float32",
+        help=(
+            "dtype the trainable master weights accumulate in. float32 by default: "
+            "at bf16 a 2e-5 update is below one ulp (0.008 -> 6.1e-5) and "
+            "apply_updates rounds it away, leaving the 4-bit forward bit-identical"
+        ),
+    )
     parser.add_argument("--early-stop-patience", type=int, default=2, help="stop after N non-improving val evals")
     parser.add_argument("--student-provenance", type=Path, default=None, help="default: <student-dir>/provenance.json")
     parser.add_argument("--allow-unverified-student", action="store_true")
@@ -229,7 +273,31 @@ def main() -> None:
         )
 
     params = collect_params(student)
+    # Remember the dtype the model was loaded with so the export keeps it: the
+    # compressed format only stores 4-bit codes plus scales, and packing from
+    # bf16 master weights is what the inference matrix expects.
+    master_dtypes = {key: value.dtype for key, value in params.items()}
+    if args.master_dtype == "float32":
+        params = {key: value.astype(jnp.float32) for key, value in params.items()}
+    print(f"master weights: {args.master_dtype}")
     print(f"trainable arrays: {len(params)}")
+    scale_leaves = [
+        leaf
+        for path, leaf in jax.tree_util.tree_flatten_with_path(student)[0]
+        if jax.tree_util.keystr(path).endswith(".scales") and isinstance(leaf, jax.Array)
+    ]
+    quant_step = median_quantization_step(scale_leaves)
+    planned_lr = args.lr if args.optimizer == "adamw" else args.muon_lr
+    if quant_step is not None:
+        print(f"median int4 step: {quant_step:.2e}  planned lr: {planned_lr:g}", flush=True)
+    if update_is_absorbed(planned_lr, quant_step):
+        print(
+            f"WARNING: lr {planned_lr:g} is {planned_lr / quant_step:.1%} of the median int4 "
+            f"step ({quant_step:.2e}). An update this small is rounded away by the 4-bit "
+            "forward, so val_kl cannot move and early stop fires on a run that never "
+            "learned anything. QAD master-weight lr is typically 1e-3.",
+            flush=True,
+        )
     total_elements = sum(int(np.prod(value.shape)) for value in params.values())
     print(f"trainable elements: {total_elements / 1e6:.1f}M")
 
@@ -314,7 +382,22 @@ def main() -> None:
         updates, new_state = optimizer.update(grads, opt_state, current_params)
         new_params = optax.apply_updates(current_params, updates)
         new_params = clamp_scales(new_params)
-        return new_params, new_state, loss, grad_norm
+        # A weight that does not change bit for bit cannot move the 4-bit
+        # forward: the quantizer rounds such an update away. Count what moved so
+        # a no-op optimizer cannot pass for a successful run.
+        old_leaves = jax.tree_util.tree_leaves(current_params)
+        new_leaves = jax.tree_util.tree_leaves(new_params)
+        if old_leaves:
+            changed = sum(jnp.sum(new != old) for new, old in zip(new_leaves, old_leaves))
+            max_delta = jnp.max(
+                jnp.stack(
+                    [jnp.max(jnp.abs(new - old)) for new, old in zip(new_leaves, old_leaves)]
+                )
+            )
+        else:
+            changed = jnp.array(0, jnp.int32)
+            max_delta = jnp.array(0.0, jnp.float32)
+        return new_params, new_state, loss, grad_norm, changed, max_delta
 
     def validation_loss(current_params):
         if not val_ids:
@@ -352,6 +435,7 @@ def main() -> None:
         "scale_min": args.scale_min,
         "freeze_scales": bool(args.freeze_scales),
         "warmup_steps": args.warmup_steps,
+        "master_dtype": args.master_dtype,
     }
 
     def save_checkpoint(step: int, current_params, current_state, current_rng) -> None:
@@ -446,6 +530,7 @@ def main() -> None:
     stop_reason = None
     completed_steps = start_step
     last_saved_step = start_step
+    warned_frozen = False
     if initial_val is not None:
         progress({"step": 0, "val_loss": initial_val, "elapsed_s": 0.0})
         print(f"step 0/{args.steps}  val_kl={initial_val:.6f}", flush=True)
@@ -456,11 +541,22 @@ def main() -> None:
         lr_factor = 1.0
         if args.warmup_steps > 0:
             lr_factor = min(1.0, (step + 1) / args.warmup_steps)
-        params, opt_state, loss, grad_norm = train_step(params, opt_state, ids, lr_factor)
+        params, opt_state, loss, grad_norm, changed, max_delta = train_step(params, opt_state, ids, lr_factor)
         jax.block_until_ready(params)
         now = time.time()
         loss_value = float(loss)
         grad_value = float(grad_norm)
+        changed_count = int(changed)
+        max_delta_value = float(max_delta)
+        if changed_count == 0 and not warned_frozen:
+            warned_frozen = True
+            print(
+                "WARNING: no master weight changed this step. The update is below the "
+                f"storage resolution (master dtype={args.master_dtype}), so the 4-bit "
+                "forward and val_kl cannot move. Raise --lr: QAD master-weight lr is "
+                "typically 1e-3, not the 2e-5 used for plain finetuning.",
+                flush=True,
+            )
         scale_lo, scale_hi = scale_stats(params)
         has_scales = scale_lo is not None and scale_hi is not None
         bad = not (np.isfinite(loss_value) and np.isfinite(grad_value))
@@ -494,6 +590,16 @@ def main() -> None:
                 if best_val is None or val_loss < best_val:
                     best_val = val_loss
                     bad_val_evals = 0
+                elif validation_is_unchanged(best_val, val_loss):
+                    # Bit-identical val means the weights did not move, not that
+                    # the model is overfitting. Counting this as a bad eval is
+                    # what turned a no-op optimizer into a failed kernel.
+                    print(
+                        f"val unchanged at step {step + 1} (val_kl={val_loss:.6f}, "
+                        f"changed={changed_count}, max_delta={max_delta_value:.2e}); "
+                        "not counted as a bad eval",
+                        flush=True,
+                    )
                 else:
                     bad_val_evals += 1
                     decision = early_stop_decision(
@@ -526,6 +632,8 @@ def main() -> None:
             "loss": loss_value,
             "val_loss": val_loss,
             "grad_norm": grad_value,
+            "changed": changed_count,
+            "max_delta": max_delta_value,
             "scale_min": scale_lo,
             "scale_max": scale_hi,
             "step_s": now - step_started,
@@ -537,7 +645,7 @@ def main() -> None:
         scale_text = "scale=n/a" if not has_scales else f"scale=[{scale_lo:.3g},{scale_hi:.3g}]"
         print(
             f"step {step + 1}/{args.steps}  kl={loss_value:.6f}{val_text}  "
-            f"grad={grad_value:.3g}  {scale_text}  "
+            f"grad={grad_value:.3g}  changed={changed_count}  {scale_text}  "
             f"step_s={now - step_started:.2f}  elapsed_s={now - started_at:.1f}",
             flush=True,
         )
@@ -553,6 +661,8 @@ def main() -> None:
     if args.steps > 0 and completed_steps > 0 and completed_steps > last_saved_step:
         save_checkpoint(completed_steps, params, opt_state, rng)
 
+    if args.master_dtype != "bfloat16":
+        params = {key: value.astype(master_dtypes.get(key, value.dtype)) for key, value in params.items()}
     trained = inject_params(student, params)
     trained = map_nodes_of_type_with_path(
         HybridMatrix,

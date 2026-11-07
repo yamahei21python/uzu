@@ -655,6 +655,26 @@ class Runner:
             check=False,
         )
 
+    def pull(self, repo: str) -> None:
+        """Restore finished conditions of this lane from the results repo.
+
+        Kaggle wipes /kaggle/working between sessions, so without this a lane
+        that died on condition 4 restarted from condition 1 and paid for the
+        same calibration twice.
+        """
+        if self.dry_run:
+            print(f"[dry-run] would pull {self.lane} from {repo}")
+            return
+        target = self.work / "out"
+        target.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            [
+                "hf", "download", repo, "--repo-type", "dataset",
+                "--include", f"{self.lane}/*", "--local-dir", str(target),
+            ],
+            check=False,
+        )
+
 
 def read_json(path: Path) -> dict[str, Any] | None:
     if not path.exists():
@@ -665,11 +685,39 @@ def read_json(path: Path) -> dict[str, Any] | None:
         return None
 
 
+def run_conditions(runner, conditions, bf16, after_each=None, fail_fast: bool = False):
+    """Run every condition even if one dies; return (summaries, failures).
+
+    A single OOM condition used to abort the lane, so the four conditions after
+    it never ran and nothing was uploaded. Failures are recorded instead.
+    """
+    summaries = []
+    failures = []
+    for condition in conditions:
+        name = condition.get("name", "?")
+        try:
+            summaries.append(runner.run_condition(condition, bf16))
+        except (SystemExit, Exception) as error:
+            failures.append(f"{name}: {error}")
+            print(f"CONDITION FAILED {name}: {error}", flush=True)
+            summaries.append({"name": name, "status": "failed", "error": str(error)})
+            if fail_fast:
+                raise
+        if after_each is not None:
+            after_each()
+    return summaries, failures
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--spec", type=Path, required=True)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--hf-results", default=None, help="upload <lane_dir> to this HF dataset repo")
+    parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="stop at the first failing condition instead of recording it and continuing",
+    )
     parser.add_argument("--skip-merge", action="store_true")
     parser.add_argument("--work", default=None, help="override spec.paths.work")
     parser.add_argument("--jax-platform", choices=("cpu", "gpu"), default=None, help="override spec.paths.jax_platform")
@@ -719,23 +767,34 @@ def main() -> None:
 
     runner.preflight = runner.run_preflight()
     bf16 = runner.ensure_bf16()
-    summaries = []
-    for condition in conditions:
-        summaries.append(runner.run_condition(condition, bf16))
+    if args.hf_results and not args.dry_run:
+        runner.pull(args.hf_results)
+
+    def after_each() -> None:
+        # Upload as soon as a condition finishes: a dead session otherwise took
+        # every completed condition with it.
+        if args.hf_results:
+            runner.upload(args.hf_results)
+
+    summaries, failures = run_conditions(
+        runner, conditions, bf16, after_each=after_each, fail_fast=args.fail_fast
+    )
     if not args.skip_merge:
         summaries.extend(runner.run_merge(bf16))
 
-    problems = [] if args.dry_run else runner.validate(summaries)
+    completed = [summary for summary in summaries if summary.get("status") == "complete"]
+    problems = [] if args.dry_run else runner.validate(completed)
+    problems.extend(failures)
     manifest = runner.write_manifest(summaries, problems)
     print(f"\nmanifest: {manifest}")
+    if args.hf_results:
+        runner.upload(args.hf_results)
     if problems:
         print("VALIDATION PROBLEMS:")
         for problem in problems:
             print(f"  - {problem}")
         raise SystemExit(1)
 
-    if args.hf_results:
-        runner.upload(args.hf_results)
     print("LANE COMPLETE", flush=True)
 
 

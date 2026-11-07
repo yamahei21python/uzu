@@ -80,10 +80,19 @@ owner cpu 4/5   gpu 0/2
 | `uzu-smoke-all` | all-lane smoke | running（`problems` 未確認） |
 | Muse 5 本 | robust s3 / s4 / s5、cpu-clean、cpu-balanced | running |
 
-### 失敗（原因未調査）
+### 失敗
 
-- `uzu-lane-sweep-1` — robustness shard1of5
-- `uzu-qad-cpu` — QAD 10 step (freeze scales)
+- `uzu-lane-sweep-1` — robustness shard1of5（原因未調査）
+
+### `uzu-qad-cpu` の原因（確定）
+
+`val_kl` が step 0 と step 5 で `0.262012` の 6 桁完全一致 → early stop。
+
+- validation は更新後 `params` で測っていた（5% 変えると logits は変わる）。バグではない
+- 原因は **master_weights が bf16 で、AdamW の更新が 1 ulp 未満**。重み 0.008 の bf16 ulp は 6.1e-5、lr 2e-5 の更新は毎 step 丸め落ちる。累積もしない（毎回 bf16 の値から丸める）。よって 4-bit forward は bit 単位で不変
+- 実測: 全 master weight を ±1 ulp 動かしても logits 差分は **0.000e+00**。5% 動かすと 0.8 変わる
+- 修正: `--master-dtype float32`（既定）、`changed` / `max_delta` を毎 step 記録、`changed==0` で警告、val 完全一致は bad eval に数えない、final step で early stop を例外にしない
+- **QAD の master lr は 1e-3 前後**。2e-5 は finetuning の値で、4-bit の量子化刻みに対して 2 桁小さい
 
 ---
 
@@ -119,7 +128,7 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 | 変換設定（damping / group / bits） | damping + bit-alloc | 実行中 |
 | コーパス混合 vs Hessian 混合 | balanced-h（Muse） | 実行中 |
 | 4B/9B の emb/readout INT4 維持 | 未検証 | 未着手 |
-| QAD が効くか | QAD CPU val KL | 失敗 → 再投入待ち |
+| QAD が効くか | QAD CPU val KL | 0.8B で lr 1e-3 の再投入待ち（2e-5 は no-op と判明） |
 | 混合比の曲線（mix35 / jaonly） | Muse clean-suite | 実行中 |
 
 ### 判定の物差し
@@ -137,7 +146,7 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 3. seed 分散 → 3% 差の有意性判定（**最初の分岐**）
 4. damping / group / bits → 変換設定の確定
 5. Muse の mix35 / jaonly / balanced-h を回収して混合比の曲線を閉じる
-6. QAD CPU を再投入し val KL の推移を見る
+6. QAD を `--master-dtype float32 --lr 1e-3` で再投入し val KL の推移を見る
 7. Modal 4B を YAQA calibration へ
 8. `uzu-ja-corpora` 削除（走行ジョブ終了待ち）
 
