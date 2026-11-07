@@ -47,6 +47,8 @@ KIT_SCRIPTS = [
     "combine_lane_manifests.py",
     "make_qad_dataset.py",
     "ag_fetch.py",
+    "eval_generation.py",
+    "pull_results.py",
     # guards / audits
     "corpus_guard.py",
     "dedup_lines.py",
