@@ -89,6 +89,11 @@ KIT_LANES = [
     "robustness-08b-shard1of3.json",
     "robustness-08b-shard2of3.json",
     "robustness-08b-shard3of3.json",
+    "robustness-08b-shard1of5.json",
+    "robustness-08b-shard2of5.json",
+    "robustness-08b-shard3of5.json",
+    "robustness-08b-shard4of5.json",
+    "robustness-08b-shard5of5.json",
 ]
 
 KIT_TESTS = [

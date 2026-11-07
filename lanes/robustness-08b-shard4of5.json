@@ -1,0 +1,75 @@
+{
+  "lane": "robustness-08b-shard4of5",
+  "model": {
+    "hf_repo": "Qwen/Qwen3.5-0.8B",
+    "spec_name": "Qwen3.5-0.8B",
+    "bf16_dir": "bf16-lalamo",
+    "bf16_source": "/kaggle/input/uzu-bf16-08b-lalamo",
+    "bf16_source_auto": true
+  },
+  "paths": {
+    "kit": "kit",
+    "work": "/kaggle/working",
+    "jax_platform": "gpu"
+  },
+  "eval": {
+    "max_sequences": 100,
+    "max_tokens": 128,
+    "min_tokens": 16,
+    "corpora": {
+      "en": "data/eval_en_wikitext2_dedup.txt",
+      "ja": "data/eval_ja_wikipedia_dedup.txt"
+    }
+  },
+  "condition_defaults": {
+    "samples": 32,
+    "max_tokens": 128,
+    "output_block": "small",
+    "output_block_limit": 2048,
+    "damping": 0.001,
+    "raw_output": false
+  },
+  "convert": {
+    "bits": 4,
+    "group_size": 32,
+    "block_size": 32,
+    "parallel": "tensor"
+  },
+  "conditions": [
+    {
+      "name": "s16_q256_d1e-4",
+      "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt",
+      "samples": 16,
+      "max_tokens": 256,
+      "damping": 0.0001
+    },
+    {
+      "name": "s16_q512_d1e-2",
+      "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt",
+      "samples": 16,
+      "max_tokens": 512,
+      "damping": 0.01
+    },
+    {
+      "name": "s32_q256_d1e-3",
+      "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt",
+      "samples": 32,
+      "max_tokens": 256,
+      "damping": 0.001
+    },
+    {
+      "name": "s64_q128_d1e-4",
+      "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt",
+      "samples": 64,
+      "max_tokens": 128,
+      "damping": 0.0001
+    },
+    {
+      "name": "s64_q256_d1e-2",
+      "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt",
+      "samples": 64,
+      "max_tokens": 256,
+      "damping": 0.01
+    }
+  ]
+}
