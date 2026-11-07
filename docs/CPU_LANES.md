@@ -1,5 +1,8 @@
 # CPU レーン（GPU クォータを使わない）
 
+> GPU は有限（30h/週・2 セッション）。**CPU で回せるものは CPU で回す。**
+> T4 が必要なのは q512 や 4B など CPU で OOM する処理だけ。設定は `docs/KAGGLE_GPU.md`。
+
 0.8B は CPU でも現実的。T4 の BF16 制約（`docs/KAGGLE_SLOTS.md`）を回避でき、
 **GPU クォータを消費しない**。Kaggle の CPU カーネルは 4 vCPU / 30GB RAM / 12h。
 
