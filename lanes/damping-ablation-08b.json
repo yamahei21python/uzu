@@ -54,6 +54,16 @@
       "name": "mixed50-d1e-1",
       "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt",
       "damping": 0.1
+    },
+    {
+      "name": "enonly-d1e0",
+      "calibration_corpus": "data/calibration_en_wikitext2_dedup.txt",
+      "damping": 1.0
+    },
+    {
+      "name": "mixed50-d1e0",
+      "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt",
+      "damping": 1.0
     }
   ]
 }
