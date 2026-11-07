@@ -39,7 +39,8 @@ run_condition() {
     --load-from "$BF16" \
     --lalamo-path .deps/lalamo-e401 \
     --output-dir "$tmp" \
-    --preconditioners "$out/calibration.npz" >> "$LOG" 2>&1 || { log "ERROR convert $name"; return 1; }
+    --preconditioners "$out/calibration.npz" \
+    --calibration-json "$out/calibration.json" >> "$LOG" 2>&1 || { log "ERROR convert $name"; return 1; }
 
   rm -f "$out/calibration.npz"
   rm -rf "$tmpeval"

@@ -87,6 +87,8 @@ def main() -> None:
         "ja_ratio": args.ja_ratio,
         "damping": args.damping,
         "arrays": len(arrays),
+        "overlap_checked": True,
+        "calibration_corpora": [str(args.en), str(args.ja)],
         "records": records,
     }
     if args.json_out:

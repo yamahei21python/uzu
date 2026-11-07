@@ -46,6 +46,8 @@
     "val_chunks": 2,
     "val_every": 2,
     "parallel": "replicated",
-    "corpus": "experiments/qwen35-0.8b/data/calibration_en_wikitext2_dedup.txt"
+    "corpus": "experiments/qwen35-0.8b/data/calibration_en_wikitext2_dedup.txt",
+    "scale_lr": 1e-06,
+    "early_stop_patience": 2
   }
 }

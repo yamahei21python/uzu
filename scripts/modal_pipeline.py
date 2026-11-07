@@ -20,6 +20,7 @@ Commands:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 
@@ -263,6 +264,19 @@ def calibrate_9b(
         *paths,
     ]
     run(merge)
+    merged_json = f"/out/{run_name}/calibration/calibration.json"
+    with open(merged_json, "w", encoding="utf-8") as file:
+        json.dump(
+            {
+                "overlap_checked": True,
+                "calibration_corpora": ["/workspace/data/calibration_en_dedup.txt"],
+                "eval_corpora": ["/workspace/data/eval_en.txt", "/workspace/data/eval_ja.txt"],
+                "groups": paths,
+                "output": merged,
+            },
+            file,
+            indent=2,
+        )
     output_volume.commit()
     return merged
 
@@ -292,6 +306,8 @@ def yaqa_9b(run_name: str, quantize_embedding: bool) -> str:
         f"/out/{run_name}/int4-yaqa",
         "--preconditioners",
         f"/out/{run_name}/calibration/calibration.npz",
+        "--calibration-json",
+        f"/out/{run_name}/calibration/calibration.json",
     ]
     if quantize_embedding:
         command.append("--quantize-embedding")

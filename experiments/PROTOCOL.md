@@ -59,6 +59,10 @@
 - 固定 validation chunks の `val_loss` を必ず記録
 - `--save-every` で checkpoint、`--resume auto` で再開
 - ランダム chunk の training loss だけで良し悪しを判断しない
+- **student dir に `provenance.json` 必須**。`overlap_checked=true` でない student は拒否
+- `--allow-unverified-student` は解析目的のみ
+- weight と scale で lr を分ける（`--lr` / `--scale-lr`、既定 1e-6）
+- `--early-stop-patience` で val loss 非改善を停止
 
 ### 6. 4B/9B 固有
 - 0.8B のハイパーパラメータは**事前分布**。そのまま使わない
