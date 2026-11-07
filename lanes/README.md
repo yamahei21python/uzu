@@ -40,6 +40,32 @@ python scripts/run_lane.py --spec lanes/clean-suite-08b.json --hf-results <user>
   - `bf16_ppl` が無い
 - 検証に落ちたら exit 1。manifest は残る
 
+## シャード実行
+
+1 セッション 12h を跨ぐ条件列は、spec を分けるか `--shard` で切る。
+
+```bash
+python scripts/run_lane.py --spec lanes/clean-suite-08b.json --shard 0/3
+# lane 名は clean-suite-08b-shard1of3 になる
+```
+
+- `--shard i/n` は条件を `position % n == i` で抜く
+- `spec.merge` と併用不可（merge は分割できない）
+- 各シャードは別 lane ディレクトリなので、終わったシャードは resume で skip される
+
+## スイープ spec の生成
+
+27 条件（samples × seq × damping）を 3 シャードに分ける。
+
+```bash
+python scripts/make_sweep_spec.py --base lanes/clean-suite-08b.json --out-dir lanes \
+  --name robustness-08b --corpus data/calibration_mixed_en_ja_dedup.txt \
+  --samples 16 32 64 --seq 128 256 512 --damping 1e-4 1e-3 1e-2 --shards 3
+```
+
+生成物: `lanes/robustness-08b-shard{1,2,3}of3.json`（各 9 条件）。
+条件名は `s32_q128_d1e-4` 形式。
+
 ## 既存
 
 | spec | 内容 |

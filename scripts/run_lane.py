@@ -376,6 +376,10 @@ class Runner:
                     str(merged),
                     "--json-out",
                     str(out / "calibration.json"),
+                    "--en-json",
+                    str(self.lane_dir / merge["en"] / "calibration.json"),
+                    "--ja-json",
+                    str(self.lane_dir / merge["ja"] / "calibration.json"),
                 ],
                 out / "lane.log",
             )
@@ -485,12 +489,33 @@ def main() -> None:
     parser.add_argument("--hf-results", default=None, help="upload <lane_dir> to this HF dataset repo")
     parser.add_argument("--skip-merge", action="store_true")
     parser.add_argument("--work", default=None, help="override spec.paths.work")
+    parser.add_argument(
+        "--shard",
+        default=None,
+        help="run only part of the condition list, e.g. 0/3. Merges are not allowed with sharding.",
+    )
     args = parser.parse_args()
 
     spec = json.loads(args.spec.read_text(encoding="utf-8"))
     conditions = spec.get("conditions", [])
     if not conditions and not spec.get("merge"):
         raise SystemExit("spec has no conditions")
+
+    if args.shard:
+        if spec.get("merge"):
+            raise SystemExit("--shard cannot be combined with spec.merge")
+        try:
+            index_text, count_text = args.shard.split("/")
+            index, count = int(index_text), int(count_text)
+        except ValueError:
+            raise SystemExit("--shard must look like 0/3")
+        if count <= 0 or not 0 <= index < count:
+            raise SystemExit("--shard index out of range")
+        conditions = [condition for position, condition in enumerate(conditions) if position % count == index]
+        if not conditions:
+            raise SystemExit(f"shard {args.shard} has no conditions")
+        spec["conditions"] = conditions
+        spec["lane"] = f"{spec['lane']}-shard{index + 1}of{count}"
 
     runner = Runner(spec, args.spec, dry_run=args.dry_run)
     if args.work:

@@ -60,6 +60,25 @@ def chunks_from_text(tokenizer, text: str, max_tokens: int, min_tokens: int, lim
     return chunks[:limit]
 
 
+def scored_chars(tokenizer, chunks: list[list[int]]) -> int:
+    """Characters of the scored stream.
+
+    Every chunk contributes len(chunk) - 1 predictions, so the context-only first
+    token of each chunk is removed. Decoding the concatenation once keeps
+    multi-byte characters intact.
+    """
+    flat = [token for chunk in chunks for token in chunk]
+    full = tokenizer.decode(flat)
+    skipped = sum(len(tokenizer.decode([chunk[0]])) for chunk in chunks if chunk)
+    return len(full) - skipped
+
+
+def bpc(ppl: float, tokens: int, chars: int) -> float | None:
+    if tokens <= 0 or chars <= 0 or ppl <= 0:
+        return None
+    return math.log2(ppl) * tokens / chars
+
+
 def main() -> None:
     args = parse_args()
     if args.progress_jsonl:
@@ -230,6 +249,7 @@ def main() -> None:
         if (index + 1) % 10 == 0 or index + 1 == len(chunks):
             print(f"  {index + 1}/{len(chunks)} chunks")
 
+    char_total = scored_chars(tokenizer, chunks)
     mean_nll_bf16 = total_nll_bf16 / total_positions
     mean_nll_candidate = total_nll_candidate / total_positions
     results = {
@@ -240,8 +260,12 @@ def main() -> None:
         "config_hash": config_hash,
         "chunks": len(chunks),
         "tokens": total_positions,
+        "chars": char_total,
+        "tokens_per_char": (total_positions / char_total) if char_total else None,
         "bf16_ppl": math.exp(mean_nll_bf16),
         "candidate_ppl": math.exp(mean_nll_candidate),
+        "bpc_bf16": bpc(math.exp(mean_nll_bf16), total_positions, char_total),
+        "bpc_candidate": bpc(math.exp(mean_nll_candidate), total_positions, char_total),
         "delta_nll_per_token": mean_nll_candidate - mean_nll_bf16,
         "top1_agreement": top1_matches / total_positions,
         "top5_overlap": top5_overlap_sum / total_positions,
