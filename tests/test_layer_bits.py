@@ -71,3 +71,8 @@ def test_should_quantize_with_filters() -> None:
     assert should_quantize("decoder/.layers/[0]/.mlp/.up_projection", ["/[0]/"]) is True
     assert should_quantize("decoder/.layers/[7]/.mlp/.up_projection", ["/[0]/"]) is False
     assert should_quantize("decoder/.layers/[7]/.mlp/.up_projection", ["/[0]/", "/[7]/"]) is True
+
+
+def test_layer_filter_option_is_declared() -> None:
+    text = (ROOT / "scripts" / "rht_int4_convert.py").read_text(encoding="utf-8")
+    assert '"--layer-filter"' in text or "'--layer-filter'" in text

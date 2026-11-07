@@ -61,6 +61,11 @@ def parse_args() -> argparse.Namespace:
         choices=(4, 8),
         help="Override --bits for the tied/untied embedding and readout only",
     )
+    parser.add_argument(
+        "--layer-filter",
+        default="",
+        help="Only quantize layers whose path contains one of these comma-separated substrings; others stay full precision",
+    )
     parser.add_argument("--group-size", type=int, default=32)
     parser.add_argument("--block-size", type=int, default=32, choices=(32, 64, 128))
     parser.add_argument(
