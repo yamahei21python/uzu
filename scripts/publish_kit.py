@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -57,6 +58,35 @@ def parse_dataset_listing_json(text: str) -> list[str]:
     return [str(item["name"]) for item in payload if isinstance(item, dict) and item.get("name")]
 
 
+def parse_next_token(text: str) -> str | None:
+    """Kaggle prints ``Next Page Token = <token>`` before the JSON array."""
+    match = re.search(r"Next Page Token = (\S+)", text)
+    return match.group(1) if match else None
+
+
+def list_dataset_files(kaggle_bin: str, dataset: str, max_pages: int = 20) -> list[str]:
+    """List every file, following pagination.
+
+    The default page size is 20, so a single call silently hid ``scripts/``
+    and made a healthy dataset look gutted.
+    """
+    names: list[str] = []
+    token: str | None = None
+    for _ in range(max_pages):
+        command = [kaggle_bin, "datasets", "files", dataset, "--format", "json", "--page-size", "200"]
+        if token:
+            command += ["--page-token", token]
+        code, output = run_optional(command)
+        if code != 0:
+            break
+        page = parse_dataset_listing_json(output)
+        names.extend(page)
+        token = parse_next_token(output)
+        if not token or not page:
+            break
+    return names
+
+
 def parse_dataset_listing(text: str) -> list[str]:
     """Extract file names from ``kaggle datasets files`` output."""
     names: list[str] = []
@@ -71,11 +101,19 @@ def parse_dataset_listing(text: str) -> list[str]:
 
 
 def verify_listing(names: list[str]) -> list[str]:
-    """Return the missing pieces that would break a kernel."""
+    """Return the missing pieces that would break a kernel.
+
+    ``--dir-mode zip`` uploads ``scripts.zip``; Kaggle extracts it at mount
+    time, so the listing check must accept either form.
+    """
     problems = []
     for prefix in REQUIRED_PREFIXES:
-        if not any(name.startswith(prefix) for name in names):
-            problems.append(f"dataset has no {prefix} files")
+        folder = prefix.rstrip("/")
+        present = any(
+            name.startswith(prefix) or name == f"{folder}.zip" for name in names
+        )
+        if not present:
+            problems.append(f"dataset has no {prefix} files (or {folder}.zip)")
     if not any(name == "kit_manifest.json" for name in names):
         problems.append("dataset has no kit_manifest.json")
     return problems
@@ -157,8 +195,7 @@ def main() -> None:
 
     missing: list[str] = []
     for attempt in range(4):
-        code, listing = run_optional([args.kaggle_bin, "datasets", "files", args.kaggle_dataset, "--format", "json"])
-        names = parse_dataset_listing_json(listing) if code == 0 else []
+        names = list_dataset_files(args.kaggle_bin, args.kaggle_dataset)
         if not names:
             _, listing = run_optional([args.kaggle_bin, "datasets", "files", args.kaggle_dataset])
             names = parse_dataset_listing(listing)
