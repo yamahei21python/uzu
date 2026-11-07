@@ -86,6 +86,7 @@ KIT_LANES = [
     "group-size-ablation-08b.json",
     "bit-alloc-ablation-08b.json",
     "bits-down-out-6.json",
+    "cpu-tuning-08b.json",
     "robustness-08b-shard1of3.json",
     "robustness-08b-shard2of3.json",
     "robustness-08b-shard3of3.json",
