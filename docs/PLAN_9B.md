@@ -148,6 +148,41 @@ group 64 は −267MB（−5.5%）= TPS +5.8%。公式は g32 なのでここが
 
 
 
+
+## 公開 draft の棚卸し（2026-11-08 調査）
+
+HF の DFlash 系を全件走査し、Qwen3.5-9B 用を config で比較した。
+
+| repo | 層 | block | target_layer_ids | weaver |
+|---|---:|---:|---|---|
+| **guglxni/Qwen3.5-9B-abliterated-DFlash** | **5** | 16 | 1,8,15,22,29 | なし |
+| unieai/Qwen3.5-9B-DFlash | 5 | 16 | 1,8,15,22,29 | なし |
+| blaj/Qwen3.5-9B-abliterated-DFlash-{bf16,int8,int4}-ov | 5 | 16 | 1,8,15,22,29 | なし |
+| z-lab/Qwen3.5-9B-DFlash | **6** | 16 | 1,5,9,...,29（8 本） | なし |
+| modal-labs/Qwen3.5-9B-DFlash | 6 | 16 | 1,5,9,...,29（8 本） | なし |
+
+**9B 用の Weaver は公開されていない。** `trymirai/weaver` は存在するが中身は
+`weaver/qwen36_27b_weaver.pth`（27B 用）だけで、9B には使えない。
+公式 9B の 8 層 + Weaver は非公開の自社学習。
+
+### 6 層の方が良いか → **No**
+
+公式 9B-M を target に、両方 4bit 化して実測（M3、同一タスク）。
+
+| draft | 層 | メモリ | Generate |
+|---|---:|---:|---:|
+| guglxni | 5 | 5.60GB | **49.0 t/s** |
+| z-lab | 6 | 5.74GB | 46.2 t/s |
+
+6 層は target 特徴が 8 本に増えるぶん 1 パスが重く、受理率の向上で償却できていない
+（±4 t/s の測定ノイズ込みでも 5 層に勝てない）。
+
+### 結論
+
+**公開 draft の中では guglxni（5 層）が最良**。これ以上の改善は
+「我々のモデルでの fine-tune」と「Weaver の自前学習」しかない。
+Weaver は 9B 用の重みが無いため、ゼロから学習するしかない（`--weaver` に渡す HF repo が要る）。
+
 ## draft の投資順序（2026-11-08 判断）
 
 | 段階 | 構成 | 追加コスト | 期待 |
