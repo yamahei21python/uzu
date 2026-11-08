@@ -16,6 +16,17 @@ wide8 の品質は asym 1.13/1.24 に対し sym 1.73/2.10。**uzu が int8 ZP �
 | `selection.rs` | (ZP, 8) を symmetric と同じ `Tile8x32x128_Simdgroups1x2x4` に |
 | `quant_dispatch_test.rs` | w8 ZP の parity ケースを追加 |
 
+## 原因（2026-11-08 特定済み）
+
+**split-k の zero-point bias 二重計上**だった。
+
+- bias はステージングされた全要素（group 境界のパディング含む）に加算される
+- k-split すると、そのパディング分の bias が **split の数だけ重複**する
+- `UZU_FORCE_NO_SPLIT_K=1` で全ケース一致 → 確定
+
+修正: int8 zero-point では `split_k = 1` に固定（`selection.rs`）。
+実形状では n が大きく base_tiles が十分あるため、実害はほぼ無い見込み。
+
 ## 現状（parity の実測）
 
 | 条件 | 結果 |
@@ -23,23 +34,14 @@ wide8 の品質は asym 1.13/1.24 に対し sym 1.73/2.10。**uzu が int8 ZP �
 | m=1（decode, k=1024） | ✅ 一致 |
 | m=2（k=256） | ✅ 一致 |
 | m=16（k=256） | ✅ 一致 |
-| **m=16 / m=33（k=1024）** | ❌ 相対 10% の差（0.59〜0.69） |
+| m=16 / m=33（k=1024, k=768, k=512） | ✅ 一致（修正後） |
 | symmetric int8（同じ k=1024, m=16/33） | ✅ 一致 |
 
 **k が大きいときだけ壊れる。symmetric は壊れない** ので、zero-point 固有の経路に原因がある。
 
-## 疑っているところ
+## 未確認
 
-- `quant_scale_zero_point.h` の `next()` は group step ごとに
-  `zero_point_index += zero_point_group_stride` する。k=1024 では 32 回進む
-- split-k が選ばれたときの bias の扱い（`out_bias = -scale * zp` を分割ごとに加算していないか）
-- symmetric は同じ構造なのに通るため、split-k 説は弱い
-
-## 次の一手
-
-1. k=512 で試す（境界を絞る）
-2. `split_k` を強制的に 1 にして比較
-3. `quant_scale_zero_point.h` の `next()` と Rust 側の stride 計算を突き合わせる
-
-**注意**: このブランチのテストは 2 件落ちている（m=16/m=33 の k=1024）。
-それ以外の 9 件は通る。decode は正しいので、prefill を直せば実用になる。
+- **実モデルでの速度と品質**。parity テストは合成データなので、
+  実変換モデル（wide8 asymmetric）で bench が通るかは別途確認中
+  （`uzu-asym8-wide8` を Kaggle CPU でビルド）
+- split_k=1 固定による prefill 速度の低下量（実形状では小さいと予想）

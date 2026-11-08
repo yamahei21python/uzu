@@ -161,6 +161,12 @@ impl GemmProblem {
         engine: GemmEngine,
         tiling: GemmTiling,
     ) -> u32 {
+        // A zero-point bias is folded into every staged element, including the
+        // padding at a group boundary, so a k-split would count that padding
+        // once per split. int8 zero-point weights therefore stay unsplit.
+        if self.shape.b_bits == Some(8) && self.shape.b_prologue == GemmBPrologueKind::ScaleZeroPointDequant {
+            return 1;
+        }
         let shape = self.shape;
         let splittable = shape.is_quant() || (shape.b_transpose && shape.b_leading_dimension.is_none());
         if !splittable || !self.split_k_output_supported() {
