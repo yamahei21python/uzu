@@ -154,6 +154,22 @@ ValueError: unsupported quantization parameter width: 6
 
 
 
+
+### 校正デバイスで 0.3pp 変わる（2026-11-08 実測）
+
+同一条件 `s32 / q128 / d1e-2 / mixed50 / calib float32` を CPU と GPU で比較。
+
+| デバイス | EN | JA |
+|---|---:|---:|
+| CPU（1 デバイス） | **2.16%** | **2.73%** |
+| GPU T4×2（TP=2） | 2.51% | 3.04% |
+| 差 | +0.35pp | +0.31pp |
+
+- JA の差は seed 幅（0.23pp）を超える → **デバイス効果は本物**
+- 原因候補は TP=2 の sharded dot（丸め・演算順序）
+- 帰結: **校正は CPU で行い、GPU の数値とは混ぜない**（eval は 0.02% 一致で混在可）
+- q512 の CPU bf16 1.34% vs GPU f32 1.97% の差のうち、約 0.3pp がデバイス由来と説明できる
+
 ### damping の最適値は samples に依存（2026-11-08 実測）
 
 | 条件 | d1e-2 | d1e-1 | d1e0 |
