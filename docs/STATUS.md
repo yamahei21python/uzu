@@ -107,6 +107,16 @@ ValueError: unsupported quantization parameter width: 6
   8bit に置き換えるとサイズが増えるため、配分の再計算が必要
 - 4bit / 8bit / bf16 の3択で設計し直す
 
+
+### 4B は CPU で校正できない（2026-11-08 実測）
+
+4B を bf16 でロードした時点で **9.9GB**。1 層・1 サンプル・32 tokens でピーク **26.9GB**。
+4 層・8 サンプル・256 tokens では **SIGKILL (-9)**（サンプル 1 個目）。
+
+- 内訳: 重み bf16 8GB + 勾配 + import 時の中間で ~27GB。層フィルタでは削れない
+- **4B / 9B は Modal A100 が必須**。CPU で回す余地はない
+- 0.8B だけが CPU 対象（bf16 校正で q512 まで可）
+
 ### group size の次元制約（2026-11-07 実測）
 
 `rht_int4_convert.py` は **in/out 両方**が `max(block_size, group_size)` で割り切れることを要求する。
