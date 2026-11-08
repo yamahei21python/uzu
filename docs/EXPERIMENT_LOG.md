@@ -17,6 +17,10 @@
 | QAD 10 step（旧） | **Kaggle CPU** | 10 step / seq 128 / freeze | `uzu-qad-cpu`（early-stop で ERROR → 修正） |
 | **q512 probe** | **Kaggle GPU T4×2** | s16 / q512 / d1e-2 / 100 chunks | `uzu-lane-q512-t4`（27 分） |
 | eval parity | **Kaggle GPU T4×2** | BF16 自身 / 100 chunks / f32 | `uzu-eval-parity-final` |
+| s64 x q256 cells | **Kaggle GPU T4×2** | s64 / q256 / d1e-4〜1e-2 / 100 chunks | `uzu-q256-s64` |
+| **q512 bf16 校正** | **Kaggle CPU** | s16 / q512 / **calib bf16** / 100 chunks | `uzu-q512-bf16-calib`（f32 では -9） |
+| budget q128 | Kaggle CPU | s128 / s256 x q128 / d1e-3 | `uzu-lane-budget-q128` |
+| damping 1e0 | Kaggle CPU | enonly / mixed50 / d1e0 | `uzu-lane-damping-d1e0` |
 | 4B / 9B RTN eval | **Modal A100-80GB** | RTN / 20 chunks / bf16 | `modal_pipeline` eval ログ |
 | QAD GPU smoke | **Kaggle GPU T4×2** | 10 step / seq 128 / replicated→OOM | `uzu-qad-gpu-smoke-owner`（TP 版は未検証） |
 
