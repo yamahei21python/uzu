@@ -1,8 +1,8 @@
 # 現状
 
-最終更新: 2026-11-07 / main `b4e4c828` / テスト 186 passed
+最終更新: 2026-11-08 / main `53d1a1b0` / テスト 435 passed
 
-数値・実行状態・未確定事項の現在値を 1 枚にまとめる。経緯は `docs/SESSION_SUMMARY_2026-11-07.md`、規約は `docs/ENVIRONMENT.md`。
+数値・実行状態・未確定事項の現在値を 1 枚にまとめる。経緯は `docs/SESSION_SUMMARY_2026-11-08.md`（前日は `_2026-11-07.md`）、規約は `docs/ENVIRONMENT.md`。
 
 ### 実行場所の規約（2026-11-08 追加）
 
@@ -627,7 +627,8 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 
 | ファイル | 内容 |
 |---|---|
-| `docs/SESSION_SUMMARY_2026-11-07.md` | 経緯・決定事項 |
+| `docs/SESSION_SUMMARY_2026-11-08.md` | 2026-11-08 の結果・バグ・方針変更 |
+| `docs/SESSION_SUMMARY_2026-11-07.md` | 前日の経緯・決定事項 |
 | `docs/ENVIRONMENT.md` | 環境一致と provenance の規約 |
 | `docs/TASKS.md` | 全 33 タスク（`scripts/task_board.py --write` で再生成） |
 | `docs/KAGGLE_SLOTS.md` | 枠運用と handoff |
