@@ -495,7 +495,8 @@ owner cpu 0/5   gpu 0/2
 
 | kernel | lane | 状態 | 結果 |
 |---|---|---|---|
-| `uzu-qad-best` v5 | QAD 50 step（**CPU** / **muon 1e-3** / freeze-scales / skip-checkpoint） | RUNNING | GPU はクォータ切れ。GPU では OOM |
+| `uzu-qad-best` v5 | QAD 50 step（CPU / muon） | **ERROR**（64 分後に死亡、内部例外なし） | CPU も不安定 |
+| **QAD v6（Muse 依頼）** | 最良 student（wide8 + emb4 / seq64 / muon） | **依頼済み**（Issue #31 コメント 6721748454） | GPU 枠が空いている側で |
 | `uzu-t4-probe` | T4 で draft 学習が回るかの実測 | RUNNING | — |
 | `uzu-sym8-eval` | symmetric wide8 の品質 | RUNNING | — |
 | `uzu-wide-d1e0` | wide8 + damping 1.0 | RUNNING | — |
