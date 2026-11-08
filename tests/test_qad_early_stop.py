@@ -108,3 +108,23 @@ def test_checkpoint_params_only_flag_is_registered() -> None:
     )
     assert "--checkpoint-params-only" in result.stdout
     assert "AdamW moments" in result.stdout
+
+
+def test_stale_lalamo_backup_is_detected(tmp_path) -> None:
+    import os
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(root / "scripts"))
+    from make_lalamo_eval_copy import fresh_backup
+
+    weights = tmp_path / "model.safetensors"
+    backup = tmp_path / "model.safetensors.lalamo.bak"
+    weights.write_bytes(b"new")
+    backup.write_bytes(b"old")
+    os.utime(backup, (1_000_000, 1_000_000))
+    os.utime(weights, (2_000_000, 2_000_000))
+    assert fresh_backup(weights, backup) is False
+    os.utime(backup, (3_000_000, 3_000_000))
+    assert fresh_backup(weights, backup) is True

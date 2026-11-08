@@ -57,6 +57,14 @@ def lalamo_config(source: Path) -> dict:
     return config
 
 
+def fresh_backup(weights: Path, backup: Path) -> bool:
+    """The backup must not predate the weights it is supposed to mirror."""
+    try:
+        return backup.stat().st_mtime >= weights.stat().st_mtime
+    except OSError:
+        return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, required=True)
@@ -68,7 +76,14 @@ def main() -> None:
 
     weights = args.source / "model.safetensors"
     original_weights = args.source / "model.safetensors.lalamo.bak"
-    link_or_copy(original_weights if original_weights.exists() else weights, args.dest / "model.safetensors")
+    use_backup = original_weights.exists() and fresh_backup(weights, original_weights)
+    if original_weights.exists() and not use_backup:
+        print(
+            f"warning: {original_weights.name} is older than {weights.name}; "
+            "ignoring the stale lalamo backup",
+            flush=True,
+        )
+    link_or_copy(original_weights if use_backup else weights, args.dest / "model.safetensors")
 
     for name in ("tokenizer.json", "encoding.json"):
         source = args.source / name

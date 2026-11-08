@@ -707,6 +707,11 @@ def main() -> None:
         print(f"final checkpoint done  peak_rss={peak_rss_mb():.0f}MB", flush=True)
 
     print(f"export start peak_rss={peak_rss_mb():.0f}MB", flush=True)
+    # A reused output directory can hold the previous run's lalamo backup and
+    # encoding. The backup wins in make_lalamo_eval_copy, so a stale one makes
+    # the "after" measurement silently read the pre-training weights.
+    for stale in ("model.safetensors.lalamo.bak", "encoding.json"):
+        (args.output_dir / stale).unlink(missing_ok=True)
     if args.master_dtype != "bfloat16":
         params = {key: value.astype(master_dtypes.get(key, value.dtype)) for key, value in params.items()}
     trained = inject_params(student, params)
@@ -729,6 +734,16 @@ def main() -> None:
     print(f"export saved peak_rss={peak_rss_mb():.0f}MB", flush=True)
     rewrite(args.output_dir / "model.safetensors")
     normalize(args.output_dir)
+    # uzu refuses a model without encoding.json; it is architectural, so the
+    # student's copy is still valid after the weights change.
+    encoded = args.student_dir / "encoding.json"
+    payload = json.loads(encoded.read_text(encoding="utf-8")) if encoded.exists() else {
+        "type": "hanashi",
+        "name": "qwen3.5",
+    }
+    (args.output_dir / "encoding.json").write_text(
+        json.dumps(payload, indent=1) + "\n", encoding="utf-8"
+    )
     print(f"export done peak_rss={peak_rss_mb():.0f}MB", flush=True)
     print(f"saved QAD model -> {args.output_dir}")
 
