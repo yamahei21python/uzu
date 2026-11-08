@@ -495,7 +495,7 @@ owner cpu 0/5   gpu 0/2
 
 | kernel | lane | 状態 | 結果 |
 |---|---|---|---|
-| `uzu-qad-best` v5 | QAD 50 step（**CPU** / adamw / lr 5e-4 / freeze-scales / skip-checkpoint） | RUNNING | GPU はクォータ切れ |
+| `uzu-qad-best` v5 | QAD 50 step（**CPU** / **muon 1e-3** / freeze-scales / skip-checkpoint） | RUNNING | GPU はクォータ切れ。GPU では OOM |
 | `uzu-t4-probe` | T4 で draft 学習が回るかの実測 | RUNNING | — |
 | `uzu-sym8-eval` | symmetric wide8 の品質 | RUNNING | — |
 | `uzu-wide-d1e0` | wide8 + damping 1.0 | RUNNING | — |
