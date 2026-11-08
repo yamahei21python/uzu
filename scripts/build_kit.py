@@ -40,6 +40,8 @@ KIT_SCRIPTS = [
     "merge_language_hessians.py",
     "merge_calibration_groups.py",
     "eval_quantized.py",
+    "eval_external_model.py",
+    "quantize_speculator.py",
     "qad_finetune.py",
     "compute_bpc.py",
     "run_lane.py",

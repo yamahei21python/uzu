@@ -127,20 +127,25 @@ def slug(kernel_id: str) -> str:
     return kernel_id.split("/")[-1]
 
 
-def build_pip_args(platform: str) -> str:
+# JAX changes numerics between releases, so the kernel pins what the numbers were
+# taken with. Override with --jax-version when intentionally moving.
+JAX_VERSION = "0.12.0.1"
+
+
+def build_pip_args(platform: str, jax_version: str) -> str:
     lalamo = "git+https://github.com/trymirai/lalamo@e401e17761f2fcd337b0cf20218d67d656e6ecba"
-    jax = "jax[cuda12]" if platform == "gpu" else "jax"
+    jax = f"jax[cuda12]=={jax_version}" if platform == "gpu" else f"jax=={jax_version}"
     return f'"{lalamo}", "{jax}", "huggingface_hub", "tokenizers"'
 
 
-def render_external(spec: dict, platform: str, kit_repo: str, kit_revision: str, model_repo: str) -> str:
+def render_external(spec: dict, platform: str, kit_repo: str, kit_revision: str, jax_version: str, model_repo: str) -> str:
     corpora = list((spec.get("eval") or {}).get("corpora", {}).values())
     if not corpora:
         raise SystemExit("invalid spec: eval.corpora is required for external-eval")
     args = "\n".join(f"command += ['--corpus', '/kaggle/working/kit/{corpus}']" for corpus in corpora)
     return EXTERNAL_TEMPLATE.format(
         jax_platform=platform,
-        pip_args=build_pip_args(platform),
+        pip_args=build_pip_args(platform, jax_version),
         kit_repo=kit_repo,
         kit_revision=kit_revision,
         model_repo=model_repo,
@@ -148,7 +153,7 @@ def render_external(spec: dict, platform: str, kit_repo: str, kit_revision: str,
     )
 
 
-def render(spec: dict, platform: str, kit_repo: str, kit_revision: str, hf_results: str | None) -> str:
+def render(spec: dict, platform: str, kit_repo: str, kit_revision: str, jax_version: str, hf_results: str | None) -> str:
     extra: list[str] = []
     if hf_results:
         extra.append(f"command += ['--hf-results', {hf_results!r}]")
@@ -157,7 +162,7 @@ def render(spec: dict, platform: str, kit_repo: str, kit_revision: str, hf_resul
     return KERNEL_TEMPLATE.format(
         lane_spec=json.dumps(spec, ensure_ascii=False),
         jax_platform=platform,
-        pip_args=build_pip_args(platform),
+        pip_args=build_pip_args(platform, jax_version),
         kit_repo=kit_repo,
         kit_revision=kit_revision,
         extra_args="\n".join(extra),
@@ -207,6 +212,7 @@ def main() -> None:
     parser.add_argument("--platform", choices=("cpu", "gpu"), default="cpu")
     parser.add_argument("--dataset", action="append", default=[], help="owner/dataset (repeatable)")
     parser.add_argument("--kit-repo", default="yamahei21/uzu-quant-kit")
+    parser.add_argument("--jax-version", default=JAX_VERSION)
     parser.add_argument("--kit-revision", default=None,
                         help="kit commit to download (default: this repo's HEAD)")
     parser.add_argument("--hf-results", default=None, help="repo for run_lane --hf-results")
@@ -231,9 +237,9 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     name = slug(args.kernel_id)
     if args.kind == "external-eval":
-        code = render_external(spec, args.platform, args.kit_repo, revision, args.model_repo)
+        code = render_external(spec, args.platform, args.kit_repo, revision, args.jax_version, args.model_repo)
     else:
-        code = render(spec, args.platform, args.kit_repo, revision, args.hf_results)
+        code = render(spec, args.platform, args.kit_repo, revision, args.jax_version, args.hf_results)
     (args.out / f"{name}.py").write_text(code, encoding="utf-8")
     metadata = {
         "id": args.kernel_id,

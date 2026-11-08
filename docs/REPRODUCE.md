@@ -2,6 +2,7 @@
 
 「何をどう回したら同じ数字が出るか」を種別ごとにまとめる。
 **正本は lane spec**。カーネルは `scripts/make_kaggle_kernel.py` で生成する。
+生成物は **kit の commit** と **JAX の版**を固定する（両方とも数値を変える）。
 
 ```
 spec (JSON) → kernel 生成 → Kaggle → run_lane.py → calibration → convert → eval copy → eval → result.json
@@ -111,6 +112,7 @@ python kit/scripts/qad_finetune.py --teacher-dir <bf16> --student-dir <work>/stu
 | Kaggle dataset の版固定 | 未対応。`dataset_sources` は版を指定できず、常に最新がマウントされる |
 | 生成カーネルの動作確認 | dry-run と生成物の検証のみ。実際に push して回してはいない |
 | `run_lane` の `symmetric_bits` / `layer_bits_json` | dry-run で確認したが、テストでは未固定 |
+| numpy / huggingface_hub の版 | 未固定（JAX と kit のみ固定） |
 
 ## 4. 再現性の現状
 

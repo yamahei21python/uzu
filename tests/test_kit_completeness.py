@@ -77,3 +77,10 @@ def test_check_kit_flags_a_missing_script(tmp_path: Path) -> None:
     (kit / "scripts" / "rewrite_lalamo_hybrid_spec.py").unlink()
     problems = check(kit)
     assert any("rewrite_lalamo_hybrid_spec" in problem for problem in problems)
+
+
+def test_runtime_helpers_are_packaged() -> None:
+    """These are only ever imported from inside a kernel, so a missing entry
+    in the whitelist fails at run time rather than at import time."""
+    assert "eval_external_model.py" in KIT_SCRIPTS
+    assert "quantize_speculator.py" in KIT_SCRIPTS
