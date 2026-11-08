@@ -300,3 +300,7 @@ lalamo speculator convert <dflash_repo_or_path> [--weaver <weaver_repo>] \
 ### Step 4: 実測
 
 M3 で `cli bench`。現状 9B は 15.3 t/s（投機なし）。目標 40 t/s 以上。
+
+## 参照
+
+- Weaver の詳細・コスト・Kaggle/Modal の分担: `docs/WEAVER.md`
