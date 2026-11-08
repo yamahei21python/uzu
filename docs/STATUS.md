@@ -138,6 +138,28 @@ ValueError: unsupported quantization parameter width: 6
 
 
 
+
+### 併用は加算しない（2026-11-08 / 100 chunks / GPU）
+
+Hessian 混合（balanced-h）の merge damping を 1e-2 にした結果。
+
+| 条件 | EN | JA |
+|---|---:|---:|
+| balanced-35 | **1.75%** | 2.90% |
+| balanced-50 | 2.12% | 2.63% |
+| balanced-65 | 2.29% | **2.41%** |
+| 参考: damping 1e-1 のみ | 1.99% | 2.26% |
+| 参考: balanced-h d1e-3 | 2.32% | 2.72% |
+
+- 加算しない。ratio で EN/JA のトレードオフが動くだけ
+- **レバーは1つに絞る**。damping は無料なので damping を採用し、Hessian 混合は不採用
+- 同じ機構（信頼できない固有値方向の抑制）を叩いているため、と解釈
+
+### 再現性（2026-11-08）
+
+`s32_q128_d1e-2` を別レーン（shard2 / clean）で 2 回測定 → どちらも EN 2.16% / JA 2.73%。
+レーン間の再現性は良好。
+
 ### damping は 1e-1 まで改善（2026-11-08 / 100 chunks / CPU）
 
 | damping | mixed50 EN | mixed50 JA | enonly EN | enonly JA |
