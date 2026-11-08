@@ -85,3 +85,16 @@ python scripts/modal_batch.py --sizes 4b,9b --commands import,rtn,eval \
 - 9B の calibration は layer group 分割が必須（1 層ずつでも H が大きい）
 - 4B は `--group-size 8` くらいまで大きくできる見込み（未検証）
 - QAD は単一 GPU。FSDP は未対応（`--parallel` は replicated のまま）
+
+## 位置づけ（2026-11-08 決定）
+
+**Modal は最終手段。** まず Kaggle（CPU 5 並列 / GPU T4×2）で工夫する。
+
+| 順序 | 手段 |
+|---|---|
+| 1 | Kaggle CPU（無料・週次クォータ無し） |
+| 2 | Kaggle GPU T4×2（30h/週） |
+| 3 | 構成を変えて 1・2 に収める（fsdp / 量子化教師 / seq 短縮 / freeze） |
+| 4 | **Modal A100**（従量課金） |
+
+Modal を使う前に「なぜ Kaggle で回らないか」を docs に書く。
