@@ -181,6 +181,23 @@ but does not evenly divide the dimension size 1. Got shape: (1,)
 | `--skip-checkpoint` | 中（orbax のピーク） | resume 不可 |
 | `--master-dtype bfloat16` | −1.5GB | **更新が 1 ulp 未満で丸め落ちる（不可）** |
 
+
+### T4 の実測値（2026-11-08 `uzu-t4-probe`）
+
+| 演算 | 実効 |
+|---|---:|
+| fp16 matmul | **1.35 TFLOP/s** |
+| bf16 matmul | **0.25 TFLOP/s**（fp16 の 1/5） |
+| fp32 matmul | 0.68 TFLOP/s |
+| flash-attn の install | **1500 秒でタイムアウト（実質不可）** |
+| `vllm-project/speculators` | 未到達（flash-attn で停止） |
+
+**含意**:
+
+- draft 学習は flash-attn 前提の実装が多く、T4 ではインストールすら通らない
+- bf16 は fp16 の 1/5 なので、bf16 前提のレシピはさらに不利
+- A100（bf16 で 100 TFLOP/s 超）との差は **数百倍**。draft 学習を T4 で回すのは現実的でない
+
 ### GPU を使う前のチェックリスト
 
 1. `kaggle kernels status` ではなく **クォータ**を確認（`rtk python3 scripts/kaggle_usage.py`）

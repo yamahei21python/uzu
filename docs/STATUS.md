@@ -576,7 +576,8 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 | コーパス混合 vs Hessian 混合 | balanced-h（Muse） | 加算しない。混合比でトレードオフ |
 | 4B/9B の emb/readout INT4 維持 | emb4 の値段 | 0.8B で EN +0.64 / JA +0.83pp。**emb8 を既定にすべき** |
 | wide8 が EN で有意か | seed 追加 2〜3 本 | 平均 +1.05% vs down-out8 +1.39%（差 0.34pp < seed 幅 0.44pp） |
-| symmetric int8 の品質・速度 | `uzu-sym8-build` の再測定 | 未測定（asymmetric の値しかない） |
+| **8bit 配分を採るか** | symmetric の実測 | **symmetric は +0.60 EN / +0.86 JA 悪化**。速度 −15% と釣り合うか要判断 |
+| T4 で draft 学習 | `uzu-t4-probe` | **不可**（flash-attn タイムアウト、bf16 0.25 TFLOP/s） |
 | QAD が効くか | QAD before/after ΔBPC | **効く（最弱 student で EN −1.46 / JA −0.88pp）**。強い student では逓減の見込み |
 | 混合比の曲線（mix35 / jaonly） | Muse clean-suite | 実行中 |
 
