@@ -136,3 +136,28 @@ def test_backup_is_valid_only_with_a_matching_stamp(tmp_path) -> None:
     os.utime(weights, None)
     weights.write_bytes(b"newer")
     assert fresh_backup(weights, backup) is False
+
+
+def test_muon_and_tensor_parallel_is_rejected_early(tmp_path) -> None:
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(root / "scripts" / "qad_finetune.py"),
+            "--teacher-dir", str(tmp_path / "t"),
+            "--student-dir", str(tmp_path / "s"),
+            "--output-dir", str(tmp_path / "o"),
+            "--corpus", "corpus.txt",
+            "--optimizer", "muon",
+            "--parallel", "tensor",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "tensor parallelism" in (result.stdout + result.stderr)
