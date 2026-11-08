@@ -487,35 +487,31 @@ preflight, preflight.sdpa_xla, env_fingerprint, qad.freeze_scales
 
 ---
 
-## 3. 実行状態
+## 3. 実行状態（2026-11-08 夜）
 
 ```
-owner cpu 4/5   gpu 0/2
+owner cpu 0/5   gpu 0/2
 ```
 
-| kernel | lane | 状態 |
-|---|---|---|
-| `uzu-lane-runner` | seed-variance-08b | running |
-| `uzu-lane-cpu-b2` | damping + bit-alloc | running |
-| `uzu-lane-sweep-2` | robustness shard2of5 | running |
-| `uzu-smoke-all` | all-lane smoke | running（`problems` 未確認） |
-| Muse 5 本 | robust s3 / s4 / s5、cpu-clean、cpu-balanced | running |
+| kernel | lane | 状態 | 結果 |
+|---|---|---|---|
+| `uzu-sym8-build` | symmetric int8 での wide/downout 再ビルド（CPU） | **COMPLETE** | 成果物を取得中 |
+| `uzu-qad-best` v2 | wide8 + emb4 student に QAD 50 step（GPU） | **RUNNING** | 60〜90 分 |
+| `uzu-official-eval` | 公式 0.8B-M の品質（GPU） | COMPLETE | EN +1.21% / JA +3.83% |
+| `uzu-alloc-downout8-d1e0` | damping 1e0（CPU） | COMPLETE | EN +1.27% / JA +1.49% |
+| `uzu-lane-budget-q128` | 総トークン説（CPU） | COMPLETE | 32k なら q128 ≒ q512 |
+| `calib-device-cpu-bf16` | 校正 dtype（CPU） | COMPLETE | f32 > bf16（EN +0.63pp） |
+| `uzu-qad-best` v1 | QAD（GPU） | ERROR | `.bak` 誤判定。`1350d022` で修正、v2 で再投入 |
 
-### 失敗
+### 今日の修正（変換・評価の正しさ）
 
-- `uzu-lane-sweep-1` — robustness shard1of5（原因未調査）
-
-### `uzu-qad-cpu` の原因（確定）
-
-`val_kl` が step 0 と step 5 で `0.262012` の 6 桁完全一致 → early stop。
-
-- validation は更新後 `params` で測っていた（5% 変えると logits は変わる）。バグではない
-- 原因は **master_weights が bf16 で、AdamW の更新が 1 ulp 未満**。重み 0.008 の bf16 ulp は 6.1e-5、lr 2e-5 の更新は毎 step 丸め落ちる。累積もしない（毎回 bf16 の値から丸める）。よって 4-bit forward は bit 単位で不変
-- 実測: 全 master weight を ±1 ulp 動かしても logits 差分は **0.000e+00**。5% 動かすと 0.8 変わる
-- 修正: `--master-dtype float32`（既定）、`changed` / `max_delta` を毎 step 記録、`changed==0` で警告、val 完全一致は bad eval に数えない、final step で early stop を例外にしない
-- **QAD の master lr は 1e-3 前後**。2e-5 は finetuning の値で、4-bit の量子化刻みに対して 2 桁小さい
-
----
+| commit | 内容 |
+|---|---|
+| `48bcc1d5` | QAD export が `encoding.json` を書かない / 古い `.bak` を残す |
+| `adb705ca` | `make_qad_dataset` が層別ビット・embedding 量子化を渡せない |
+| `9e471128` | **8bit を asymmetric で書いていた**（uzu は 4bit 以外の zero-point を未コンパイル）→ `--symmetric-bits` 既定 8 |
+| `1350d022` | eval copy の `.bak` 鮮度判定が逆（`.bak` は rewrite 前のコピーなので必ず古い）→ stamp 方式へ |
+| `d32b8c07` | 公式比較・damping 1e0・seed/embedding の記録 |
 
 ## 4. 結果回収
 
@@ -545,11 +541,13 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 
 | 保留 | 何で決まる | 状態 |
 |---|---|---|
-| mixed50 vs mix65 が有意か | seed 分散 | 実行中 |
-| 変換設定（damping / group / bits） | damping + bit-alloc | 実行中 |
-| コーパス混合 vs Hessian 混合 | balanced-h（Muse） | 実行中 |
-| 4B/9B の emb/readout INT4 維持 | 未検証 | 未着手 |
-| QAD が効くか | QAD CPU val KL | 0.8B で lr 1e-3 の再投入待ち（2e-5 は no-op と判明） |
+| mixed50 vs mix65 が有意か | seed 分散 | 差は seed 幅内で有意でない（暫定） |
+| 変換設定（damping / group / bits） | damping + bit-alloc | **damping 1e0 を採用候補**。wide8 で未検証 |
+| コーパス混合 vs Hessian 混合 | balanced-h（Muse） | 加算しない。混合比でトレードオフ |
+| 4B/9B の emb/readout INT4 維持 | emb4 の値段 | 0.8B で EN +0.64 / JA +0.83pp。**emb8 を既定にすべき** |
+| wide8 が EN で有意か | seed 追加 2〜3 本 | 平均 +1.05% vs down-out8 +1.39%（差 0.34pp < seed 幅 0.44pp） |
+| symmetric int8 の品質・速度 | `uzu-sym8-build` の再測定 | 未測定（asymmetric の値しかない） |
+| QAD が効くか | QAD before/after ΔBPC | `uzu-qad-best` v2 実行中（wide8 + emb4 / 50 step） |
 | 混合比の曲線（mix35 / jaonly） | Muse clean-suite | 実行中 |
 
 ### 判定の物差し
@@ -562,17 +560,13 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 
 ## 6. 次の一手
 
-1. `uzu-smoke-all` の `problems` が空か確認（全レーン健全性の前提）
-2. 失敗 2 本のログを原因分類（環境 / 引数 / OOM）
-3. seed 分散 → 3% 差の有意性判定（**最初の分岐**）
-4. damping / group / bits → 変換設定の確定
-5. Muse の mix35 / jaonly / balanced-h を回収して混合比の曲線を閉じる
-6. QAD を `--master-dtype float32 --lr 1e-3` で再投入し val KL の推移を見る
-7. Modal 4B を YAQA calibration へ
-8. `uzu-ja-corpora` 削除（走行ジョブ終了待ち）
-
----
-
+1. **QAD v2 の before/after**（実行中）→ 公式（QAD 込み）との差を詰める
+2. **symmetric wide8 / downout8 を Mac で実測**（ロード確認 + t/s）。成果物は取得中
+3. symmetric で wide8 の品質を再測定（asymmetric の 1.13 / 1.24 は参考値）
+4. **damping 1e0 を wide8 に適用**して 1.0% 切りを狙う
+5. setting 確定 → 4B へ移植（group 64 / emb8 / damping 1e0）
+6. wide8 の EN seed を 2〜3 本追加（有意性の確定）
+7. 公式との比較を KL でも取る（公式の主張と同じ物差し）
 
 ## 8. 4B の実行設定（Modal / 2026-11-08 決定）
 
