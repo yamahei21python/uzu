@@ -70,3 +70,44 @@ rht_int4_convert --load-from /tmp/bf16_lalamo --bits 4 --group-size 32 \
 
 注意: この確認モデルは YAQA 校正なしの RTN。品質の数字（1.13 / 1.24）は
 校正ありのモデルで測ったもので、このローカルモデルの品質ではない。
+
+## split-k の解決（2026-11-09 / 委任先の実測にもとづく）
+
+### 原因は丸め精度だった
+
+幾何・メタデータ・インデックスは最初から正しかった。誤差の正体は
+**split-k の部分和を bf16 で保存していたこと**。
+
+- asymmetric ZP の重みは群平均が `scale*(127.5 - zp)` だけゼロからずれる
+- 部分和は ±100 規模になり、reduce で相殺されて 6 程度になる
+- bf16 は |S| ∈ [64,128) で ulp = 0.5 → 8 分割で最大 ~0.9 の誤差
+- 実測: 2048 要素中 1〜2 要素だけ ±0.6 ずれる（相対 10% に見えていた）
+- symmetric は平均 ≈ 0 で部分和が小さく、誤差が許容内
+
+これで「案A（group 境界揃え）が無効だった」ことも説明できる。
+`align = 128` が既に group 境界を包含しており、案A は数学的に no-op だった。
+
+### 修正
+
+1. `kernel.rs`: int8 ZP のとき **partial スクラッチを F32** に
+2. `selection.rs`: `split_k = 1` の暫定回避を削除
+
+### ついでに見つかった別バグ（これも修正）
+
+`small_m_weights` が (ZP, 8) を `Tile8x32x128`（small-batch DirectSchedule）に割り当てていたが、
+**そのスケジュールは symmetric 専用**（`magic_code_float<128>` を使い zero point を読まない）。
+m ∈ [4,8] で **41% の誤差**（実測: 期待 −150 → 実際 −87.5）。
+
+修正: この tile は symmetric のみに限定。ZP int8 は staged GEMM / GEMV に落ちる。
+
+### 検証
+
+- parity: 16 ケース（m=1/2/5/16/33, k=256〜1024, g32/64, symmetric 対照）全一致
+- matmul モジュール: **209 passed / 0 failed**
+- 実形状（m=512/k=4096/n=4096）は選択ロジックを unit test で担保。
+  MXU 実行は M3 に MXU が無いため未検証（M5 で要確認）
+
+### コスト
+
+F32 partial は split_k>1 の int8 ZP 層のみ。scratch が 2 倍（9B で 32MB → 64MB）。
+重み 5.37GB に対して 0.6% なので、速度への影響はほぼ無い。

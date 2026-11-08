@@ -512,7 +512,15 @@ impl GemmKernel {
         )?;
 
         let elem = (m as usize) * (n as usize);
-        let partial_data_type = if a_int8.is_some() || tiling.is_small_batch_variant() {
+        // Zero-point int8 weights carry a per-group mean of scale * (2^(bits-1) - zp), so each
+        // partition's partial sum is dominated by that offset and cancels across partitions in
+        // the reduce. Storing those large partials in bf16 loses up to half an ulp per split
+        // (measured: ~10% drift at split_k=8, k=1024), so they accumulate in f32 — the scratch
+        // precision the int8-activation path already uses.
+        let partial_data_type = if a_int8.is_some()
+            || tiling.is_small_batch_variant()
+            || (shape.b_bits == Some(8) && shape.b_prologue == GemmBPrologueKind::ScaleZeroPointDequant)
+        {
             DataType::F32
         } else {
             self.output_data_type

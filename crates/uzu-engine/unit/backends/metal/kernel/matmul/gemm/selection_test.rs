@@ -18,6 +18,45 @@ fn quant(mut shape: MatmulShape) -> MatmulShape {
     shape
 }
 
+fn w8_zero_point(mut shape: MatmulShape) -> MatmulShape {
+    shape.b_prologue = GemmBPrologueKind::ScaleZeroPointDequant;
+    shape.b_bits = Some(8);
+    shape.b_group_size = Some(32);
+    shape.signed_codes = true;
+    shape
+}
+
+#[uzu_test]
+fn zero_point_int8_weights_select_split_k() {
+    // int8 zero-point weights must split like their symmetric counterparts: the
+    // split-k scratch accumulates in f32, so splitting is numerically safe again.
+    for (k, expected_split_k) in [(256u32, 2u32), (512, 4), (768, 6), (1024, 8)] {
+        let plan = problem(w8_zero_point(shape(16, 128, k)), DataType::BF16)
+            .select_plan_for_engine(GemmEngine::Simdgroup)
+            .expect("simdgroup plan");
+        assert_eq!(plan.split_k, expected_split_k, "k={k}");
+    }
+    let m33 = problem(w8_zero_point(shape(33, 128, 1024)), DataType::BF16)
+        .select_plan_for_engine(GemmEngine::Simdgroup)
+        .expect("simdgroup plan");
+    assert_eq!(m33.split_k, 8, "m=33");
+    // W4 zero-point keeps the same selection rule.
+    let mut w4 = w8_zero_point(shape(16, 128, 1024));
+    w4.b_prologue = GemmBPrologueKind::ScaleZeroPointDequant;
+    w4.b_bits = Some(4);
+    let w4_plan = problem(w4, DataType::BF16).select_plan_for_engine(GemmEngine::Simdgroup).expect("simdgroup plan");
+    assert_eq!(w4_plan.split_k, 8, "W4 zero-point");
+    // The wide prefill shape still splits on the MXU.
+    let wide = problem(w8_zero_point(shape(512, 4096, 4096)), DataType::BF16).select_plan();
+    assert_eq!(wide.engine, GemmEngine::Mxu);
+    assert_eq!(wide.split_k, 4, "m=512 n=4096 k=4096");
+    // The simdgroup engine splits the same batch size once N is narrow enough.
+    let narrow = problem(w8_zero_point(shape(512, 512, 4096)), DataType::BF16)
+        .select_plan_for_engine(GemmEngine::Simdgroup)
+        .expect("simdgroup plan");
+    assert_eq!(narrow.split_k, 8, "m=512 n=512 k=4096");
+}
+
 fn problem(
     shape: MatmulShape,
     output_data_type: DataType,

@@ -50,7 +50,9 @@ pub fn small_m_weights(shape: &MatmulShape) -> Option<(ActivationFormat, GemmTil
             GemmTiling::Tile8x32x64_Simdgroups1x2x4,
             512,
         )),
-        (GemmBPrologueKind::ScaleSymmetricDequant | GemmBPrologueKind::ScaleZeroPointDequant, Some(8)) => {
+        // The small-batch direct schedule decodes 8-bit codes with symmetric magic constants and
+        // never reads zero points, so only symmetric int8 may take this tile.
+        (GemmBPrologueKind::ScaleSymmetricDequant, Some(8)) => {
             Some((ActivationFormat::Bf16, GemmTiling::Tile8x32x128_Simdgroups1x2x4, 256))
         },
         _ => None,
@@ -176,13 +178,6 @@ impl GemmProblem {
         let align = step.max(ACTIVATION_SCALE_GROUP_SIZE) * tiling.simdgroups_k();
         let target_tiles = policy::split_k_target_tiles(shape.a_is_quantized(), tiling, shape.b_bits);
         let mut split_k = (target_tiles / base_tiles).max(1).min((shape.k / align).max(1));
-        // Zero-point bias is folded into every staged element, and aligning the
-        // split to group boundaries is not enough to keep it counted once
-        // (measured: int8 zero-point still drifts 10% with aligned splits), so
-        // these weights stay unsplit until the staging path is reworked.
-        if shape.b_bits == Some(8) && shape.b_prologue == GemmBPrologueKind::ScaleZeroPointDequant {
-            return 1;
-        }
         if shape.a_is_quantized() && engine == GemmEngine::Mxu && tiling.block_k() != 0 {
             split_k = split_k.min((shape.k / tiling.block_k()).max(1));
         }

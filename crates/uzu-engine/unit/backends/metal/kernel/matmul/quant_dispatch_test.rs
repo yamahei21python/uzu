@@ -558,9 +558,11 @@ fn a8w4_zero_point_tail_parity(#[case] m: u32) {
 #[test_attr(uzu_test)]
 #[case::w4_bias(4, QuantizationMethod::ScaleBias, 256, 2, 32)]
 #[case::w4_zp(4, QuantizationMethod::ScaleZeroPoint, 256, 2, 32)]
+#[case::w4_zp_m16_k1024(4, QuantizationMethod::ScaleZeroPoint, 1024, 16, 32)]
 #[case::w8_sym(8, QuantizationMethod::ScaleSymmetric, 256, 2, 32)]
 #[case::w8_zp(8, QuantizationMethod::ScaleZeroPoint, 256, 2, 32)]
 #[case::w8_zp_m1(8, QuantizationMethod::ScaleZeroPoint, 1024, 1, 32)]
+#[case::w8_zp_m5(8, QuantizationMethod::ScaleZeroPoint, 1024, 5, 32)]
 #[case::w8_sym_m16(8, QuantizationMethod::ScaleSymmetric, 1024, 16, 32)]
 #[case::w8_zp_m16_k256(8, QuantizationMethod::ScaleZeroPoint, 256, 16, 32)]
 #[case::w8_zp_m16_k512(8, QuantizationMethod::ScaleZeroPoint, 512, 16, 32)]
@@ -593,6 +595,35 @@ fn signed_weights_full_precision_activations_parity_bf16(
             0.5,
         );
     }
+}
+
+/// The 0.8B prefill shape. On MXU hardware the auto dispatch picks the MXU with
+/// split_k=4 (asserted in the selection test); without MXU the simdgroup engine
+/// runs it with split_k=1.
+#[uzu_test]
+fn w8_zero_point_prefill_shape_split_k_parity_bf16() {
+    let context = block_on(MetalContext::new()).expect("Metal context");
+    let (m, k, n, group_size) = (512u32, 4096u32, 4096u32, 32u32);
+    let input = QuantInput::<bf16>::new(m, k, n, group_size, 8, QuantizationMethod::ScaleZeroPoint, 0)
+        .with_signed_weight_codes();
+    let reference_input = QuantInput::<bf16>::new(m, k, n, group_size, 8, QuantizationMethod::ScaleZeroPoint, 0);
+    let reference = run_quant_cpu::<bf16>(&reference_input);
+    let actual = run_quant_metal::<bf16>(&context, &input, GemmBLayout::RowMajor, None);
+    assert_parity::<bf16>("W8 ZP prefill shape", &reference, &actual, 0.05, 0.5);
+}
+
+/// Prefill-scale GEMM that the simdgroup engine actually splits (m=512, n=512, k=4096
+/// selects split_k=8): the zero-point partial sums accumulate in f32 scratch.
+#[uzu_test]
+fn w8_zero_point_prefill_scale_split_k8_parity_bf16() {
+    let context = block_on(MetalContext::new()).expect("Metal context");
+    let (m, k, n, group_size) = (512u32, 4096u32, 512u32, 32u32);
+    let input = QuantInput::<bf16>::new(m, k, n, group_size, 8, QuantizationMethod::ScaleZeroPoint, 0)
+        .with_signed_weight_codes();
+    let reference_input = QuantInput::<bf16>::new(m, k, n, group_size, 8, QuantizationMethod::ScaleZeroPoint, 0);
+    let reference = run_quant_cpu::<bf16>(&reference_input);
+    let actual = run_quant_metal::<bf16>(&context, &input, GemmBLayout::RowMajor, None);
+    assert_parity::<bf16>("W8 ZP prefill-scale split_k=8", &reference, &actual, 0.05, 0.5);
 }
 
 #[rstest]
