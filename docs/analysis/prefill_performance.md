@@ -232,3 +232,35 @@ for (int k = 0; k < aligned_k_iterations; ++k) {
 
 ### 総合改善見込み
 - パッチ 1〜3 を適用することで、現状の **88 t/s から 150〜190 t/s（約 1.7〜2.2 倍）** への改善が現実的に期待できる（M3 の実効 FP32/FP16 能力から見て十分に達成可能な領域）。
+
+---
+
+## 検証結果（委任元 / 2026-11-08）
+
+報告の主張をコードで確かめた。**採用できるのは 1 つだけ**。
+
+| 主張 | 判定 | 根拠 |
+|---|---|---|
+| GEMM の k ループが単一バッファ、1 反復に barrier 2 回 | ✅ **正しい** | `gemm/common/simdgroup_mma_core.h`: load → barrier → matmul → next で、先読みが無い |
+| 入力 RHT が GEMM の外で個別カーネル | ✅ **正しい** | `encodable_block/linear/rht_wrapper.rs` の `input_rht.prepare_in_place` を毎 linear で呼ぶ |
+| 出力 RHT が別カーネルで VRAM 往復 | ❌ **誤り** | `gemm/common/gemm_rht.h` の `apply_output_random_hadamard_transform` は MMA コア内（`mxu_mma_core.h:216`）で呼ばれ、**エピローグで融合**されている。往復は無い |
+| Attention の Combine が常に起動 | ❌ **誤り** | `attention/mod.rs:183` の `direct`（kv ≤ TILE_KEYS）では `statistics` が None になり、`:297` で早期 return。combine は呼ばれない |
+| M>16 で `Tile64x64x32` 固定 | ✅ **正しい（量子化のみ）** | `policy.rs` の `simdgroup_quant_tile`。非量子化は `Tile64x32x32` 固定 |
+| 150〜190 t/s まで改善 | ⚠️ **過大の見込み** | 入力 RHT は 1 要素あたり log2(32)=5 回の加減算で、GEMM の 2N に対して無視できる。利得の本体は barrier の解消のみ |
+
+### 残る結論
+
+**本当の構造問題は「k ループにダブルバッファリングが無い」こと 1 点。**
+
+- 1 反復ごとに load と MMA が直列化する。`K=4096` なら 128 反復 × 2 barrier
+- 入力 RHT の個別起動は回数が多いが、計算量としては小さい
+- したがって現実的な改善幅は **+20〜40%**（88 → 105〜125 t/s）で、2 倍はない
+
+### 次にやるなら
+
+1. `bench_protocol.py` で **prompt 長を 128 / 512 / 2048 と振って**現状の prefill を測る
+2. `simdgroup_mma_core.h` の k ループを 2 段ステージングに変更（共有メモリを 2 面）
+3. 同じ測定で改善幅を確認
+
+**この変更はカーネルの書き換えなので、テスト（`dispatch_paths_test` / `quant_dispatch_test`）が
+通ることを前提に、別ブランチで行う。**
