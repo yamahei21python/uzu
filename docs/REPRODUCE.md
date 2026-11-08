@@ -97,6 +97,8 @@ python kit/scripts/qad_finetune.py --teacher-dir <bf16> --student-dir <work>/stu
 
 **load average < 2 で測る。** 負荷があると ±9 t/s 動く。
 
+タスクは repo に置いた: `experiments/bench/task_count_512.json`（512 tokens × 2 runs, greedy）。
+
 ## 3. まだ自動化していないもの
 
 | 項目 | 状況 |
@@ -106,6 +108,9 @@ python kit/scripts/qad_finetune.py --teacher-dir <bf16> --student-dir <work>/stu
 | seed 反復（wide8 の 3 seed） | `conditions` で表現可能だが spec 未作成。Muse 側で実行 |
 | 4B / 9B | spec 未作成。Modal のスクリプトも未整備 |
 | speculator の fine-tune | 未着手 |
+| Kaggle dataset の版固定 | 未対応。`dataset_sources` は版を指定できず、常に最新がマウントされる |
+| 生成カーネルの動作確認 | dry-run と生成物の検証のみ。実際に push して回してはいない |
+| `run_lane` の `symmetric_bits` / `layer_bits_json` | dry-run で確認したが、テストでは未固定 |
 
 ## 4. 再現性の現状
 

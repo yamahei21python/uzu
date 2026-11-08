@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -38,7 +39,7 @@ os.environ["JAX_PLATFORM_NAME"] = {jax_platform!r}
 subprocess.run([sys.executable, "-m", "pip", "install", "-q",
     {pip_args}], check=True)
 subprocess.run(["hf", "download", {kit_repo!r}, "--repo-type", "dataset",
-    "--local-dir", "/kaggle/working/kit"], check=True)
+    "--revision", {kit_revision!r}, "--local-dir", "/kaggle/working/kit"], check=True)
 subprocess.run([sys.executable, "/kaggle/working/kit/scripts/build_kit.py",
     "--check", "/kaggle/working/kit"], check=True)
 
@@ -67,7 +68,7 @@ os.environ["JAX_PLATFORM_NAME"] = {jax_platform!r}
 subprocess.run([sys.executable, "-m", "pip", "install", "-q",
     {pip_args}], check=True)
 subprocess.run(["hf", "download", {kit_repo!r}, "--repo-type", "dataset",
-    "--local-dir", "/kaggle/working/kit"], check=True)
+    "--revision", {kit_revision!r}, "--local-dir", "/kaggle/working/kit"], check=True)
 subprocess.run([sys.executable, "/kaggle/working/kit/scripts/build_kit.py",
     "--check", "/kaggle/working/kit"], check=True)
 subprocess.run(["hf", "download", {model_repo!r}, "--local-dir", "/kaggle/working/candidate"], check=True)
@@ -93,6 +94,35 @@ subprocess.run(command, check=True)
 '''
 
 
+KIT_MANIFEST_CANDIDATES = (
+    Path("kaggleAI/datasets/uzu-quant-kit-public/kit_manifest.json"),
+    Path("../kaggleAI/datasets/uzu-quant-kit-public/kit_manifest.json"),
+)
+
+
+def kit_revision(explicit: str | None) -> tuple[str, str]:
+    """Return (revision, where it came from).
+
+    The kit is published as a dataset version named after the source commit, so
+    a kernel must download that commit rather than whatever is newest.
+    """
+    if explicit:
+        return explicit, "--kit-revision"
+    env = os.environ.get("UZU_KIT_REVISION")
+    if env:
+        return env, "UZU_KIT_REVISION"
+    for candidate in KIT_MANIFEST_CANDIDATES:
+        if candidate.exists():
+            manifest = json.loads(candidate.read_text(encoding="utf-8"))
+            commit = manifest.get("built_from_commit")
+            if commit:
+                return commit, str(candidate)
+    result = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise SystemExit("cannot determine the kit revision; pass --kit-revision")
+    return result.stdout.strip(), "git HEAD (kit may not be published there)"
+
+
 def slug(kernel_id: str) -> str:
     return kernel_id.split("/")[-1]
 
@@ -103,7 +133,7 @@ def build_pip_args(platform: str) -> str:
     return f'"{lalamo}", "{jax}", "huggingface_hub", "tokenizers"'
 
 
-def render_external(spec: dict, platform: str, kit_repo: str, model_repo: str) -> str:
+def render_external(spec: dict, platform: str, kit_repo: str, kit_revision: str, model_repo: str) -> str:
     corpora = list((spec.get("eval") or {}).get("corpora", {}).values())
     if not corpora:
         raise SystemExit("invalid spec: eval.corpora is required for external-eval")
@@ -112,12 +142,13 @@ def render_external(spec: dict, platform: str, kit_repo: str, model_repo: str) -
         jax_platform=platform,
         pip_args=build_pip_args(platform),
         kit_repo=kit_repo,
+        kit_revision=kit_revision,
         model_repo=model_repo,
         corpora_args=args,
     )
 
 
-def render(spec: dict, platform: str, kit_repo: str, hf_results: str | None) -> str:
+def render(spec: dict, platform: str, kit_repo: str, kit_revision: str, hf_results: str | None) -> str:
     extra: list[str] = []
     if hf_results:
         extra.append(f"command += ['--hf-results', {hf_results!r}]")
@@ -128,6 +159,7 @@ def render(spec: dict, platform: str, kit_repo: str, hf_results: str | None) -> 
         jax_platform=platform,
         pip_args=build_pip_args(platform),
         kit_repo=kit_repo,
+        kit_revision=kit_revision,
         extra_args="\n".join(extra),
     )
 
@@ -175,6 +207,8 @@ def main() -> None:
     parser.add_argument("--platform", choices=("cpu", "gpu"), default="cpu")
     parser.add_argument("--dataset", action="append", default=[], help="owner/dataset (repeatable)")
     parser.add_argument("--kit-repo", default="yamahei21/uzu-quant-kit")
+    parser.add_argument("--kit-revision", default=None,
+                        help="kit commit to download (default: this repo's HEAD)")
     parser.add_argument("--hf-results", default=None, help="repo for run_lane --hf-results")
     parser.add_argument("--push", action="store_true")
     args = parser.parse_args()
@@ -189,15 +223,17 @@ def main() -> None:
         )
     validate_dataset_sources(datasets)
 
+    revision, revision_source = kit_revision(args.kit_revision)
+    print(f"kit revision: {revision} ({revision_source})")
     if args.kind == "external-eval" and not args.model_repo:
         raise SystemExit("--model-repo is required for --kind external-eval")
 
     args.out.mkdir(parents=True, exist_ok=True)
     name = slug(args.kernel_id)
     if args.kind == "external-eval":
-        code = render_external(spec, args.platform, args.kit_repo, args.model_repo)
+        code = render_external(spec, args.platform, args.kit_repo, revision, args.model_repo)
     else:
-        code = render(spec, args.platform, args.kit_repo, args.hf_results)
+        code = render(spec, args.platform, args.kit_repo, revision, args.hf_results)
     (args.out / f"{name}.py").write_text(code, encoding="utf-8")
     metadata = {
         "id": args.kernel_id,

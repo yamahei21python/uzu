@@ -1,0 +1,1 @@
+{"identifier": "probe-001", "repo_id": "local/qwen35-0.8b-int4", "number_of_runs": 2, "tokens_limit": 512, "greedy": true, "messages": [{"role": "user", "content": "Count from one to twenty."}]}

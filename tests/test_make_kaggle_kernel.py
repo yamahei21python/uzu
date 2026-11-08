@@ -110,3 +110,12 @@ def test_external_eval_generates_download_and_corpora(tmp_path: Path) -> None:
     assert "eval_external_model.py" in code
     assert "trymirai/Qwen3.5-0.8B-M" in code
     assert "eval_en_wikitext2_dedup.txt" in code
+
+
+def test_pins_the_kit_revision(tmp_path: Path) -> None:
+    import re
+
+    result = run(tmp_path, "--dataset", "owner/uzu-bf16-demo", "--kit-revision", "a" * 40)
+    assert result.returncode == 0, result.stderr
+    code = (tmp_path / "out" / "uzu-lane-demo.py").read_text()
+    assert re.search(r'"--revision", \'a{40}\'', code)
