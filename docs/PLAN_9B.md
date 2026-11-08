@@ -59,13 +59,34 @@ lalamo の convert は書き出さないので、以下の最小構成を手で�
 - `tree_budget` は `dflash_depth`（既定 block_size=16）以下であること
 - weaver を使うなら `{"type":"Weaver","rounds":8,"expand_per_round":4,"expand_width":4}`
 
+### 4bit 化ツール（実装済み: `scripts/quantize_speculator.py`）
+
+`lalamo speculator convert` は float しか出せないため、変換後の draft を
+4bit に圧縮する専用スクリプトを追加した。
+
+```bash
+python scripts/quantize_speculator.py \
+  --source /tmp/spec_guglxni --output /tmp/spec_guglxni_int4 \
+  --bits 4 --group-size 32
+```
+
+- 本体と同じ **HybridSpec（RHT block 32 + 非対称 int4 g32）** で全 Linear を圧縮
+- 22 層を 22 秒で処理、2.18GB → **632MB**
+- `shapes.json`（Argmax chain / budget 16）を自動生成
+- lalamo の入れ子 HybridSpec を uzu のフラット形式へ**自動 rewrite**
+  （これを忘れると `AnyWeightMatrixSpec` でロード失敗する）
+
 ### 実測（公式 9B-M を target に流用）
 
 | 構成 | メモリ | Generate | 倍率 |
 |---|---:|---:|---:|
 | 公式 9B-M（投機なし） | 5.00GB | 16.2 t/s | 1.0x |
-| 公式 9B-M + **guglxni draft（5層 / Argmax chain / bf16）** | 7.05GB | **41.2 t/s** | **2.5x** |
-| **公式 9B-M + 公式 draft（8層 / Weaver 木 / 4bit）** | 5.74GB | **63.4 t/s** | **3.9x** |
+| 公式 9B-M + guglxni draft（5層 / Argmax / **bf16 2.18GB**） | 7.05GB | 41.2 t/s | 2.5x |
+| 公式 9B-M + guglxni draft（5層 / Argmax / **4bit 632MB**） | 5.60GB | **49.0 t/s** | **3.0x** |
+| 公式 9B-M + 公式 draft（8層 / Weaver / 4bit 755MB） | 5.74GB | 63.4 t/s | 3.9x |
+
+**draft を 4bit 化するだけで +19%（41.2 → 49.0）とメモリ −1.45GB。**
+draft は 1 ブロック 1 回しか走らないが、bf16 の帯域消費が効いていた。
 
 **読み取れること**:
 
