@@ -155,6 +155,36 @@ ValueError: unsupported quantization parameter width: 6
 
 
 
+
+### 8bit の範囲拡大が効く（2026-11-08 / 100 chunks / CPU / d1e-1）
+
+| 配分 | EN | JA |
+|---|---:|---:|
+| uniform4 | 1.85%（3 seed 平均） | 2.40% |
+| down + out（down-out8） | 1.39% | 1.70% |
+| **down + out + qkvg + out_projection（wide8）** | **1.13%** | **1.24%** |
+
+- down-out8 と uniform4 の差: EN 0.46pp / JA 0.70pp。**両方とも seed 幅（0.44 / 0.25）を超える**
+- wide8 と down-out8 の差: EN 0.26pp（幅内・未確定）/ JA 0.46pp（**幅超え・有意**）
+- 9B の推奨配分（out_proj + qkvg + out_projection = 5.24GB）の根拠が 0.8B で揃った
+
+### seed 幅（d1e-1 / s32 / q128 / uniform4）
+
+| seed | EN | JA |
+|---:|---:|---:|
+| 0 | 1.99% | 2.26% |
+| 1 | 1.56% | 2.43% |
+| 2 | 2.00% | 2.51% |
+| 幅 | **0.44pp** | **0.25pp** |
+
+seed0 は clean レーンの mixed50-d1e-1 と完全一致（決定性の確認）。
+
+### eval は両ディレクトリとも eval copy が必要
+
+`eval_quantized.py` は `config.json` に `token_codec_config.response_format` を要求する。
+公開 BF16 データセットは lalamo 素の config なので、**bf16 側も** `make_lalamo_eval_copy.py` を通す。
+`run_lane` は自動でやるが、直接呼ぶときは手動で必要。
+
 ### 校正デバイスで 0.3pp 変わる（2026-11-08 実測）
 
 同一条件 `s32 / q128 / d1e-2 / mixed50 / calib float32` を CPU と GPU で比較。
