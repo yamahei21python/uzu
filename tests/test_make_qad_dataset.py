@@ -131,3 +131,36 @@ def test_kaggle_upload_requires_id_when_requested(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     # dry-run returns before touching the filesystem, so validation happens on real runs only
     assert "make_lalamo_eval_copy.py" in result.stdout
+
+
+def test_embedding_and_layer_bits_are_passed_to_convert(tmp_path: Path) -> None:
+    import subprocess
+
+    root = Path(__file__).resolve().parents[1]
+    spec = tmp_path / "rules.json"
+    spec.write_text('{"default": 4, "rules": []}', encoding="utf-8")
+    bf16 = tmp_path / "bf16"
+    bf16.mkdir()
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(root / "scripts" / "make_qad_dataset.py"),
+            "--bf16", str(bf16),
+            "--out", str(tmp_path / "out"),
+            "--corpus", "corpus.txt",
+            "--eval-corpus", "eval.txt",
+            "--layer-bits-json", str(spec),
+            "--quantize-embedding",
+            "--embedding-bits", "4",
+            "--dry-run",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    convert = [line for line in result.stdout.splitlines() if "rht_int4_convert.py" in line]
+    assert convert
+    assert "--layer-bits-json" in convert[0]
+    assert "--quantize-embedding" in convert[0]
+    assert "--embedding-bits 4" in convert[0]

@@ -112,6 +112,14 @@ def main() -> None:
     parser.add_argument("--output-block-limit", type=int, default=2048)
     parser.add_argument("--damping", type=float, default=1e-3)
     parser.add_argument("--parallel", default="tensor")
+    parser.add_argument(
+        "--layer-bits-json",
+        type=Path,
+        default=None,
+        help="per-layer bit overrides for the student, e.g. lanes/bits-wide-8.json",
+    )
+    parser.add_argument("--quantize-embedding", action="store_true")
+    parser.add_argument("--embedding-bits", type=int, default=None, choices=(4, 8))
     parser.add_argument("--calibration-json", type=Path, default=None, help="reuse an existing calibration.json")
     parser.add_argument("--calibration-npz", type=Path, default=None, help="reuse an existing calibration.npz")
     parser.add_argument("--kaggle-id", default=None, help="write dataset-metadata.json for this Kaggle id")
@@ -170,7 +178,18 @@ def main() -> None:
             str(calibration_json),
             "--parallel",
             args.parallel,
-        ],
+        ]
+        + (
+            ["--layer-bits-json", str(args.layer_bits_json)]
+            if args.layer_bits_json
+            else []
+        )
+        + (["--quantize-embedding"] if args.quantize_embedding else [])
+        + (
+            ["--embedding-bits", str(args.embedding_bits)]
+            if args.embedding_bits is not None
+            else []
+        ),
         args.dry_run,
     )
     run(
