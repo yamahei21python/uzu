@@ -25,6 +25,10 @@
 **uzu 側は推論のみ実装**（`crates/uzu-engine/src/speculators/dflash_tfm.rs`）。
 学習コードは無い。公式の draft はモデル毎に専用学習されている。
 
+## 順序
+
+0.8B の残件 → 4B を 1 条件 → **9B 本体** → speculator。9B は最後。
+
 ## 段取り
 
 ### Step 1: 公式 draft の流用テスト（最安・最速）

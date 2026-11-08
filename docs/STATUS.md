@@ -560,15 +560,17 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 
 ## 6. 次の一手（2026-11-08 決定）
 
-**主戦場は 9B。4B は軽く。KL 評価はやらない。**
+**順序は 0.8B → 4B → 9B。飛ばさない。**
 
-| 優先 | 内容 | 詳細 |
-|---|---|---|
-| 1 | 9B 本体を確定（Modal A100） | g64 / wide8 / emb8 / d1e0。`docs/PLAN_9B.md` |
-| 2 | **公式 speculator の流用テスト** | 公式 9B の 755MB draft を我々の 9B に付けて受理率を測る |
-| 3 | 流用不可なら自前 draft 学習 | DFlash 8 層 + Weaver。uzu 形式へ export |
-| 4 | 0.8B の残件を閉じる | QAD v2 / symmetric 品質 / d1e0 を wide8 に |
-| 5 | 4B は 1 条件だけ確認 | 設定移植の妥当性のみ。seed は振らない |
+| Phase | 内容 | 資源 | 終了条件 |
+|---|---|---|---|
+| 1 | 0.8B を閉じる: QAD v2 / symmetric 品質 / d1e0 を wide8 に / EN seed 2 本 | Kaggle CPU（無料） | 最終表を固定 |
+| 2 | 4B を 1 条件だけ移植（g64 / emb8 / wide8 / d1e0）+ eval | Modal A100 | 設定が 9B に効く見込みが立つ |
+| 3 | 9B 本体（g64 / wide8 / emb8）+ eval | Modal A100 | 品質と t/s が出る |
+| 4 | 公式 speculator の流用テスト | ローカル Mac | 受理率で可否 |
+| 5 | 不要なら自前 draft 学習（DFlash + Weaver） | Modal A100 | 実効 t/s が 2 倍以上 |
+
+4B を飛ばして 9B に行かない。4B は「設定の妥当性を見る 1 本」で終わり。
 
 ## 8. 4B の実行設定（Modal / 2026-11-08 決定）
 
