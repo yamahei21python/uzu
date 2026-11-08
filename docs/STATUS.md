@@ -605,19 +605,18 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 
 ---
 
-## 6. 次の一手（2026-11-08 決定）
+## 6. 次の一手
 
-**順序は 0.8B → 4B → 9B。飛ばさない。**
+**優先度順のタスク一覧は `docs/NEXT_TASKS.md` に集約した。**
 
-| Phase | 内容 | 資源 | 終了条件 |
-|---|---|---|---|
-| 1 | 0.8B を閉じる: QAD v2 / symmetric 品質 / d1e0 を wide8 に / EN seed 2 本 | Kaggle CPU（無料） | 最終表を固定 |
-| 2 | 4B を 1 条件だけ移植（g64 / emb8 / wide8 / d1e0）+ eval | Modal A100 | 設定が 9B に効く見込みが立つ |
-| 3 | 9B 本体（g64 / wide8 / emb8）+ eval | Modal A100 | 品質と t/s が出る |
-| 4 | **自前 draft 学習（必須）** | Modal A100 | 実効 t/s が 2 倍以上 |
-| 5 | （参考）公式 draft を付けて受理率を測る | ローカル Mac | 分布差の確認だけ。採用しない |
+要約:
 
-4B を飛ばして 9B に行かない。4B は「設定の妥当性を見る 1 本」で終わり。
+| 優先 | 内容 |
+|---|---|
+| P0（結果待ち） | asym8-f32 の品質 / QAD v2（Muse）/ MXU sk=4 / F32 ベンチ |
+| P1（週明け） | 4B を 1 条件 → 9B 本体（Modal A100） |
+| P2（速度の本命） | プロンプトから応答生成 → draft fine-tune → Weaver |
+| P3（整備） | kit 再公開 / 0.8B 最終表 / run_lane のテスト |
 
 ## 8. 4B の実行設定（Modal / 2026-11-08 決定）
 
