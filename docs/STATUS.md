@@ -448,6 +448,26 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 
 ---
 
+
+## 8. 4B の実行設定（Modal / 2026-11-08 決定）
+
+| 項目 | 値 |
+|---|---|
+| 置き場所 | **Modal A100-80GB**（Kaggle CPU は SIGKILL、T4 は bf16 不可） |
+| calibration | `--calib-dtype bfloat16` / samples 8 / max_tokens 256 / damping 1e-2 / output_block none / 4層グループ |
+| convert | bits 4 / group 64 / block 32 / RHT |
+| 8bit 配分 | `out_proj` + `qkvg_projection` + `out_projection` → 約 **2.52GB** |
+| eval | 100 chunks。A100 は bf16 で可（レーン間 baseline の 0.06% ずれに注意） |
+
+**注意**: 校正を GPU で行うと CPU より約 **0.3pp 悪い**（実測）。4B の数値は
+「GPU 校正由来」として扱い、0.8B の CPU 校正値と直接比較しない。
+
+### 未確定（4B）
+
+- 8bit の範囲（qkvg / out_projection は 0.8B で検証中）
+- group 64 の品質（0.8B は g32 上限のため未検証）
+- samples 8 で足りるか（0.8B では samples が効いた）
+
 ## 7. 参照
 
 | ファイル | 内容 |

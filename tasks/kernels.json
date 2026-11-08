@@ -53,32 +53,32 @@
       "owner": "muse",
       "ref": "kentasatomuse/uzu-robust-s3",
       "lane": "robustness shard3of5",
-      "status": "reported",
+      "status": "done",
       "note": "Muse 起動報告"
     },
     {
       "owner": "muse",
       "ref": "kentasatomuse/uzu-robust-s4",
       "lane": "robustness shard4of5",
-      "status": "reported"
+      "status": "done"
     },
     {
       "owner": "muse",
       "ref": "kentasatomuse/uzu-robust-s5",
       "lane": "robustness shard5of5",
-      "status": "reported"
+      "status": "done"
     },
     {
       "owner": "muse",
       "ref": "kentasatomuse/uzu-cpu-clean",
       "lane": "clean-suite (mix65/mix35/jaonly)",
-      "status": "reported"
+      "status": "done"
     },
     {
       "owner": "muse",
       "ref": "kentasatomuse/uzu-cpu-balanced",
       "lane": "balanced-h 50/65/35",
-      "status": "reported"
+      "status": "done"
     },
     {
       "owner": "owner",
@@ -106,6 +106,132 @@
       "lane": "4B / 9B eval + QAD",
       "status": "planned",
       "note": "0.8B の判断後"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-qad-smoke",
+      "lane": "QAD early-stop smoke",
+      "kind": "cpu",
+      "note": "steps2/freeze/last-step guard"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-lane-balanced-h",
+      "lane": "balanced-h 50/65/35",
+      "kind": "cpu",
+      "note": "run_lane, hf-results"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-gpu-eval-parity",
+      "lane": "T4 eval parity",
+      "kind": "gpu",
+      "note": "float32/bfloat16, 100 chunks"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-lane-q512-t4",
+      "lane": "q512 on T4x2 (TP)",
+      "kind": "gpu",
+      "note": "校正長の効果、float32"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-qad-gpu-smoke",
+      "lane": "QAD GPU smoke",
+      "kind": "gpu",
+      "note": "xla 未適用で失敗"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-lane-bit-alloc",
+      "lane": "bit-alloc (down/out 6bit) rerun",
+      "kind": "cpu",
+      "note": "layer-bits fix"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-lane-damping-d1e-1",
+      "lane": "damping 1e-1",
+      "kind": "cpu",
+      "note": "enonly/mixed50"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-q512-remaining-a",
+      "lane": "q512 remaining A",
+      "kind": "gpu",
+      "note": "4 conditions"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-q512-remaining-b",
+      "lane": "q512 remaining B",
+      "kind": "gpu",
+      "note": "3 conditions"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-lane-damping-d1e0",
+      "lane": "damping 1e0",
+      "kind": "cpu",
+      "note": "enonly/mixed50"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-lane-budget-q128",
+      "lane": "token budget q128",
+      "kind": "cpu",
+      "note": "s128/s256"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-q512-bf16-calib",
+      "lane": "q512 bf16 calibration",
+      "kind": "cpu",
+      "note": "memory check"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-balanced-h-d1e-2",
+      "lane": "stacking test (Hessian x d1e-2)",
+      "kind": "gpu",
+      "note": "done: no stacking"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-q256-s64",
+      "lane": "s64 q256 cells",
+      "kind": "gpu",
+      "note": "3 conditions"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/calib-device-cpu-bf16",
+      "lane": "calib device dtype separation (CPU bf16)",
+      "kind": "cpu",
+      "note": "q128 s32 d1e-2"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/calib-device-gpu-f32",
+      "lane": "calib device dtype separation (GPU f32)",
+      "kind": "gpu",
+      "note": "q128 s32 d1e-2"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-alloc-downout8-d1e0",
+      "lane": "alloc down-out8 x d1e0",
+      "kind": "cpu",
+      "note": "2 conditions"
+    },
+    {
+      "owner": "owner",
+      "ref": "yamahei21python/uzu-q256-s64-bf16",
+      "lane": "s64 q256 bf16 on CPU",
+      "kind": "cpu",
+      "note": "cpu viability"
     }
   ]
 }
