@@ -167,6 +167,20 @@ def run(command: list[str]) -> str:
     return result.stdout
 
 
+def fetch_dataset_sha(repo: str, timeout: int = 60) -> str | None:
+    import json
+    import urllib.request
+
+    try:
+        request = urllib.request.Request(
+            f"https://huggingface.co/api/datasets/{repo}", headers={"User-Agent": "uzu-publish"}
+        )
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.loads(response.read()).get("sha")
+    except Exception:
+        return None
+
+
 def fetch_text(url: str, timeout: int = 60) -> str | None:
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:
@@ -202,6 +216,13 @@ def main() -> None:
              "--commit-message", message])
         run([args.kaggle_bin, "datasets", "version", "-p", str(output), "-m", message,
              "--dir-mode", "zip"])
+        # hf download --revision needs the dataset commit, not the source repo commit.
+        sha = fetch_dataset_sha(args.hf_repo)
+        if sha:
+            (output / ".hf_revision").write_text(sha + "\n", encoding="utf-8")
+            print(f"hf dataset revision: {sha}")
+        else:
+            print("warning: could not read the HF dataset revision; kernels cannot pin the kit")
 
     problems: list[str] = []
 

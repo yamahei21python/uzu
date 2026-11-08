@@ -94,9 +94,9 @@ subprocess.run(command, check=True)
 '''
 
 
-KIT_MANIFEST_CANDIDATES = (
-    Path("kaggleAI/datasets/uzu-quant-kit-public/kit_manifest.json"),
-    Path("../kaggleAI/datasets/uzu-quant-kit-public/kit_manifest.json"),
+KIT_DIR_CANDIDATES = (
+    Path("kaggleAI/datasets/uzu-quant-kit-public"),
+    Path("../kaggleAI/datasets/uzu-quant-kit-public"),
 )
 
 
@@ -111,12 +111,13 @@ def kit_revision(explicit: str | None) -> tuple[str, str]:
     env = os.environ.get("UZU_KIT_REVISION")
     if env:
         return env, "UZU_KIT_REVISION"
-    for candidate in KIT_MANIFEST_CANDIDATES:
-        if candidate.exists():
-            manifest = json.loads(candidate.read_text(encoding="utf-8"))
-            commit = manifest.get("built_from_commit")
+    for directory in KIT_DIR_CANDIDATES:
+        # hf download --revision takes the dataset commit, not the source repo commit.
+        pinned = directory / ".hf_revision"
+        if pinned.exists():
+            commit = pinned.read_text(encoding="utf-8").strip()
             if commit:
-                return commit, str(candidate)
+                return commit, str(pinned)
     result = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
     if result.returncode != 0:
         raise SystemExit("cannot determine the kit revision; pass --kit-revision")
