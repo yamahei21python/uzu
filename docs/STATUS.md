@@ -495,7 +495,7 @@ owner cpu 0/5   gpu 0/2
 
 | kernel | lane | 状態 | 結果 |
 |---|---|---|---|
-| `uzu-qad-best` v3 | QAD 50 step（fsdp / lr 5e-4 / freeze-scales / skip-checkpoint） | **ERROR** | 原因調査中（v2 の OOM とは別） |
+| `uzu-qad-best` v4 | QAD 50 step（tp / lr 5e-4 / freeze-scales / skip-checkpoint） | RUNNING | v3 は FSDP 不可で即死 |
 | `uzu-t4-probe` | T4 で draft 学習が回るかの実測 | RUNNING | — |
 | `uzu-sym8-eval` | symmetric wide8 の品質 | RUNNING | — |
 | `uzu-wide-d1e0` | wide8 + damping 1.0 | RUNNING | — |
@@ -518,8 +518,17 @@ jit_train_step
 v3 の変更: `--parallel fsdp` / `--freeze-scales` / `--skip-checkpoint` /
 `--master-dtype float32` / `--lr 5e-4` / `--grad-clip 1.0`。
 
-> QAD は v1（export 欠陥）、v2（GPU OOM）、v3（原因不明）と 3 回失敗している。
-> v3 は fsdp + freeze-scales + skip-checkpoint でメモリを削った構成。ログを確認して判断する。
+> QAD は v1（export 欠陥）、v2（GPU OOM）、v3（FSDP 不可）と 3 回失敗している。
+
+**FSDP は 0.8B では使えない**（v3 の失敗理由）。
+
+```
+ValueError: Sharding spec ('fsdp',) implies that array axis 0 is partitioned 2 times,
+but does not evenly divide the dimension size 1. Got shape: (1,)
+```
+
+FSDP は全配列を 2 分割するため、サイズ 1 の norm scale などで落ちる。
+v4 は TP に戻し、メモリを `--freeze-scales` と `--skip-checkpoint` で削る。
 
 ### T4 で draft 学習が回るか（`uzu-t4-probe`）
 
