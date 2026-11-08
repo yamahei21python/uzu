@@ -29,6 +29,49 @@
 
 0.8B の残件 → 4B を 1 条件 → **9B 本体** → speculator。9B は最後。
 
+
+## Step 0（実施済み）: 公開 draft の convert 検証（2026-11-08）
+
+`lalamo speculator convert guglxni/Qwen3.5-9B-abliterated-DFlash` は**通った**。
+
+| 項目 | 結果 |
+|---|---|
+| 出力 | `config.json` / `model.safetensors`（44 テンソル, 2.18GB bf16） |
+| 層数 | 5（公式 speculator は 8） |
+| block_size | 16 |
+| target_layer_ids | [1, 8, 15, 22, 29] |
+| mask_token_id | 248070（公式は 248077） |
+| weaver | **なし**（config の `weaver_config` は null） |
+| shapes.json | **生成されない → 手で作る必要あり** |
+
+### 欠けていたもの: shapes.json
+
+uzu は `speculator/shapes.json` を必須で読む（`dflash_tfm.rs`）。
+lalamo の convert は書き出さないので、以下の最小構成を手で置く。
+
+```json
+{"default": {"tree_budget": 16, "max_tree_depth": 16,
+             "dflash_depth_override": null,
+             "construction_method": {"type": "Argmax"}}}
+```
+
+- `Argmax` は**一直線の chain**（木を作らない）。weaver 重みが無い場合はこれ
+- `tree_budget` は `dflash_depth`（既定 block_size=16）以下であること
+- weaver を使うなら `{"type":"Weaver","rounds":8,"expand_per_round":4,"expand_width":4}`
+
+### 実測（公式 9B-M を target に流用）
+
+| 構成 | メモリ | Generate |
+|---|---:|---:|
+| 公式 9B-M（投機なし） | 5.37GB | 15.3 t/s |
+| 公式 9B-M + **guglxni draft（Argmax chain）** | 7.05GB | **41.2 t/s** |
+
+**2.7 倍。** しかもこの draft は別の abliterated 9B（lukey03 版）で学習されたもの。
+我々の Huihui 版で fine-tune すればさらに上がる見込み。
+
+> 注意: target は公式 9B-M（QAD 済み・4bit）。我々の変換モデルでの数値ではない。
+> また draft 自体は bf16 のまま（2.18GB）。4bit 化すれば 755MB 程度になる。
+
 ## 段取り
 
 **自前学習は必須。** 理由: draft は「本体の隠れ状態 → 次の 16 トークン」を写すモデルなので、
