@@ -244,7 +244,7 @@ for (int k = 0; k < aligned_k_iterations; ++k) {
 | GEMM の k ループが単一バッファ、1 反復に barrier 2 回 | ✅ **正しい** | `gemm/common/simdgroup_mma_core.h`: load → barrier → matmul → next で、先読みが無い |
 | 入力 RHT が GEMM の外で個別カーネル | ✅ **正しい** | `encodable_block/linear/rht_wrapper.rs` の `input_rht.prepare_in_place` を毎 linear で呼ぶ |
 | 出力 RHT が別カーネルで VRAM 往復 | ❌ **誤り** | `gemm/common/gemm_rht.h` の `apply_output_random_hadamard_transform` は MMA コア内（`mxu_mma_core.h:216`）で呼ばれ、**エピローグで融合**されている。往復は無い |
-| Attention の Combine が常に起動 | ❌ **誤り** | `attention/mod.rs:183` の `direct`（kv ≤ TILE_KEYS）では `statistics` が None になり、`:297` で早期 return。combine は呼ばれない |
+| Attention の Combine が常に起動 | ✅ **正しい（kv > 32 のとき）** | `direct` は `kv ≤ TILE_KEYS(32)` のときだけ。実際の prefill（512 tok）は非 direct で、`num_splits=1` でも combine が走る。ただしコストは 512×4096×2B×32 層 ≒ 130MB の往復 = 約 1.5ms で、全体の 0.03% |
 | M>16 で `Tile64x64x32` 固定 | ✅ **正しい（量子化のみ）** | `policy.rs` の `simdgroup_quant_tile`。非量子化は `Tile64x32x32` 固定 |
 | 150〜190 t/s まで改善 | ⚠️ **過大の見込み** | 入力 RHT は 1 要素あたり log2(32)=5 回の加減算で、GEMM の 2N に対して無視できる。利得の本体は barrier の解消のみ |
 
@@ -254,7 +254,8 @@ for (int k = 0; k < aligned_k_iterations; ++k) {
 
 - 1 反復ごとに load と MMA が直列化する。`K=4096` なら 128 反復 × 2 barrier
 - 入力 RHT の個別起動は回数が多いが、計算量としては小さい
-- したがって現実的な改善幅は **+20〜40%**（88 → 105〜125 t/s）で、2 倍はない
+- ただし **0.8B の実測では 2048 トークンで 3.5 TFLOP/s** 出ている（下記）。同じエンジンで
+  9B が 1.58 TFLOP/s というのは不自然で、**88 t/s の測定条件を疑うべき**
 
 ### 次にやるなら
 
@@ -264,3 +265,21 @@ for (int k = 0; k < aligned_k_iterations; ++k) {
 
 **この変更はカーネルの書き換えなので、テスト（`dispatch_paths_test` / `quant_dispatch_test`）が
 通ることを前提に、別ブランチで行う。**
+
+### 追測: 0.8B の prompt 長スキャン（2026-11-08 / load 14〜15 でも相対値は有効）
+
+`scripts/bench_context.py` で 0.8B（公式 M）を測定。
+
+| 要求トークン | 実トークン | prompt t/s | 実効 |
+|---:|---:|---:|---:|
+| 128 | 70 | 1,500 | 2.25 TFLOP/s |
+| 512 | 340 | 2,141 | 3.21 TFLOP/s |
+| 2,048 | 1,360 | 2,338 | **3.51 TFLOP/s** |
+
+- **長いプロンプトでは 3.5 TFLOP/s**。fp16 ピーク（約 7 TFLOPS）の 50%
+- 短いと 1.5 倍遅い → **固定オーバーヘッドは確かに存在**するが、長文では吸収される
+- つまり「22% しか出ていない」という前提は **9B の 88 t/s という 1 点に依存**しており、
+  同じエンジンの 0.8B は 50% 出している
+
+**結論の修正**: prefill の効率問題は「GEMM の k ループ」より
+「**9B の測定条件（負荷・熱・メモリ）**」の可能性が高い。まず idle 状態で 9B を再測定する。
