@@ -1,7 +1,9 @@
 # Modal（4B / 9B の逃がし先）
 
 T4 16GB では 4B / 9B の calibration が載らない。9B は BF16 18GB で eval すら不可。
-ローカルでも回さない（`docs/LOCAL_POLICY.md`）。**Modal の A100 が唯一の実行場所**。
+ローカルでも回さない（`docs/LOCAL_POLICY.md`）。
+
+ただし **Modal は最終手段**（下記「位置づけ」）。まず Kaggle に収める工夫をする。
 
 ## 前提
 
