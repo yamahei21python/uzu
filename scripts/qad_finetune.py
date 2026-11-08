@@ -710,7 +710,11 @@ def main() -> None:
     # A reused output directory can hold the previous run's lalamo backup and
     # encoding. The backup wins in make_lalamo_eval_copy, so a stale one makes
     # the "after" measurement silently read the pre-training weights.
-    for stale in ("model.safetensors.lalamo.bak", "encoding.json"):
+    for stale in (
+        "model.safetensors.lalamo.bak",
+        "model.safetensors.lalamo.bak.stamp",
+        "encoding.json",
+    ):
         (args.output_dir / stale).unlink(missing_ok=True)
     if args.master_dtype != "bfloat16":
         params = {key: value.astype(master_dtypes.get(key, value.dtype)) for key, value in params.items()}

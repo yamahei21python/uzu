@@ -110,7 +110,7 @@ def test_checkpoint_params_only_flag_is_registered() -> None:
     assert "AdamW moments" in result.stdout
 
 
-def test_stale_lalamo_backup_is_detected(tmp_path) -> None:
+def test_backup_is_valid_only_with_a_matching_stamp(tmp_path) -> None:
     import os
     import sys
     from pathlib import Path
@@ -121,10 +121,18 @@ def test_stale_lalamo_backup_is_detected(tmp_path) -> None:
 
     weights = tmp_path / "model.safetensors"
     backup = tmp_path / "model.safetensors.lalamo.bak"
+    stamp = tmp_path / "model.safetensors.lalamo.bak.stamp"
     weights.write_bytes(b"new")
     backup.write_bytes(b"old")
     os.utime(backup, (1_000_000, 1_000_000))
-    os.utime(weights, (2_000_000, 2_000_000))
+
+    # no stamp: a leftover backup cannot be trusted
     assert fresh_backup(weights, backup) is False
-    os.utime(backup, (3_000_000, 3_000_000))
+
+    stamp.write_text(str(weights.stat().st_mtime_ns), encoding="utf-8")
     assert fresh_backup(weights, backup) is True
+
+    # weights rewritten after the backup: stamp no longer matches
+    os.utime(weights, None)
+    weights.write_bytes(b"newer")
+    assert fresh_backup(weights, backup) is False

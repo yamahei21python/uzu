@@ -85,11 +85,12 @@ def rewrite(path: Path, *, dry_run: bool = False, backup: bool = True) -> int:
     new_header += b" " * padding
 
     tmp = path.with_name(path.name + ".rewrite.tmp")
+    backup_path = path.with_name(path.name + ".lalamo.bak")
     if backup:
-        backup_path = path.with_name(path.name + ".lalamo.bak")
-        if not backup_path.exists():
-            shutil.copy2(path, backup_path)
-            print(f"backup: {backup_path}")
+        # Always refresh: a leftover backup from an earlier run describes
+        # different weights, and eval copies prefer the backup.
+        shutil.copy2(path, backup_path)
+        print(f"backup: {backup_path}")
 
     with path.open("rb") as src, tmp.open("wb") as dst:
         dst.write(struct.pack("<Q", len(new_header)))
@@ -97,6 +98,11 @@ def rewrite(path: Path, *, dry_run: bool = False, backup: bool = True) -> int:
         src.seek(data_start)
         shutil.copyfileobj(src, dst, length=1024 * 1024 * 16)
     os.replace(tmp, path)
+    if backup:
+        # The backup is written before the rewrite, so its mtime is always
+        # older than the rewritten file. Record which file it belongs to.
+        stamp = path.with_name(path.name + ".lalamo.bak.stamp")
+        stamp.write_text(str(path.stat().st_mtime_ns), encoding="utf-8")
     print(f"rewrote {changed} metadata entries in {path}")
     return changed
 

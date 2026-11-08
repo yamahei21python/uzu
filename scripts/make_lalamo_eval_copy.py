@@ -58,10 +58,16 @@ def lalamo_config(source: Path) -> dict:
 
 
 def fresh_backup(weights: Path, backup: Path) -> bool:
-    """The backup must not predate the weights it is supposed to mirror."""
+    """The backup holds pre-rewrite bytes, so mtimes cannot reveal staleness.
+
+    rewrite_lalamo_hybrid_spec stamps the backup with the rewritten file's
+    mtime; the backup is only valid while the weights carry that mtime.
+    """
+    stamp = backup.with_name(backup.name + ".stamp")
     try:
-        return backup.stat().st_mtime >= weights.stat().st_mtime
-    except OSError:
+        recorded = int(stamp.read_text(encoding="utf-8").strip())
+        return recorded == weights.stat().st_mtime_ns
+    except (OSError, ValueError):
         return False
 
 
