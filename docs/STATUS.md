@@ -487,7 +487,7 @@ preflight, preflight.sdpa_xla, env_fingerprint, qad.freeze_scales
 
 ---
 
-## 3. 実行状態（2026-11-08 19:30）
+## 3. 実行状態（2026-11-08 19:45）
 
 ```
 owner cpu 0/5   gpu 0/2
@@ -495,7 +495,7 @@ owner cpu 0/5   gpu 0/2
 
 | kernel | lane | 状態 | 結果 |
 |---|---|---|---|
-| `uzu-qad-best` v3 | QAD 50 step（fsdp / lr 5e-4 / freeze-scales / skip-checkpoint） | RUNNING | — |
+| `uzu-qad-best` v3 | QAD 50 step（fsdp / lr 5e-4 / freeze-scales / skip-checkpoint） | **ERROR** | 原因調査中（v2 の OOM とは別） |
 | `uzu-t4-probe` | T4 で draft 学習が回るかの実測 | RUNNING | — |
 | `uzu-sym8-eval` | symmetric wide8 の品質 | RUNNING | — |
 | `uzu-wide-d1e0` | wide8 + damping 1.0 | RUNNING | — |
@@ -517,6 +517,9 @@ jit_train_step
 
 v3 の変更: `--parallel fsdp` / `--freeze-scales` / `--skip-checkpoint` /
 `--master-dtype float32` / `--lr 5e-4` / `--grad-clip 1.0`。
+
+> QAD は v1（export 欠陥）、v2（GPU OOM）、v3（原因不明）と 3 回失敗している。
+> v3 は fsdp + freeze-scales + skip-checkpoint でメモリを削った構成。ログを確認して判断する。
 
 ### T4 で draft 学習が回るか（`uzu-t4-probe`）
 

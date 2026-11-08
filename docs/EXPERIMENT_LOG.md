@@ -136,3 +136,30 @@
 
 - `calibration.json` には device が入っていない（eval のみ `device` を記録）
 - 校正のデバイス間一致は未検証（校正は CPU 固定なので不要と判断）
+
+## 2026-11-08 夜の実行
+
+| 実験 | デバイス | 条件 | 根拠 |
+|---|---|---|---|
+| 公式 0.8B-M の品質 | **Kaggle GPU T4×2** | 100 chunks / 128 tokens / f32 | `uzu-official-eval` |
+| wide8 seeds（3 本） | **Kaggle CPU** | s32 q128 d1e-1 / emb4 | Muse 実行分。HF `uzu-results` |
+| embedding bits（emb4/emb8） | **Kaggle CPU** | down-out8 + d1e-1 / 100 chunks | Muse 実行分 |
+| damping 1e0（down-out8） | **Kaggle CPU** | s32 q128 / 100 chunks | `uzu-alloc-downout8-d1e0` |
+| symmetric int8 のビルド | **Kaggle CPU** | wide8 / emb4 / sym8 | `uzu-sym8-build` |
+| symmetric int8 の品質 | **Kaggle CPU** | 100 chunks | `uzu-sym8-eval` |
+| wide8 + d1e0 | **Kaggle CPU** | s32 q128 d1e0 / emb4 | `uzu-wide-d1e0` |
+| QAD v2 / v3 | **Kaggle GPU T4×2** | 50 step / fsdp / lr 5e-4 | `uzu-qad-best` |
+| T4 で draft 学習が可能か | **Kaggle GPU T4×2** | matmul / SDPA / flash-attn / speculators | `uzu-t4-probe` |
+
+### ローカルでやったこと（Mac）
+
+推論の t/s 実測と speculator の変換・量子化のみ。
+
+| 作業 | 内容 |
+|---|---|
+| `cli bench` | 0.8B 3 構成、9B（投機なし / bf16 draft / 4bit draft / 公式 draft） |
+| `lalamo speculator convert` | guglxni（5 層）、z-lab（6 層） |
+| `quantize_speculator.py` | 両方とも 4bit 化（632MB / 778MB） |
+
+**変換・校正・評価はローカルで回していない**（`docs/ENVIRONMENT.md` の規約）。
+
