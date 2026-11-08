@@ -17,14 +17,24 @@ METAL_FUNC constexpr uint symmetric_zero_point() {
 
 template <ushort BITS>
 METAL_FUNC uint decode_zero_point(uint8_t packed, uint group_index) {
-  static_assert(BITS == 4, "zero points are 4-bit");
-  return read_packed<4>(packed, group_index);
+  static_assert(BITS == 4 || BITS == 8, "zero points are 4 or 8 bit");
+  if constexpr (BITS == 4) {
+    return read_packed<4>(packed, group_index);
+  } else {
+    // int8 zero points take a whole byte each, so the index is unused.
+    (void)group_index;
+    return uint(packed);
+  }
 }
 
 template <ushort BITS>
 METAL_FUNC uint decode_zero_point(const device uint8_t* zero_points_row, uint group_index) {
-  static_assert(BITS == 4, "zero points are 4-bit");
-  return read_packed<4>(zero_points_row, group_index);
+  static_assert(BITS == 4 || BITS == 8, "zero points are 4 or 8 bit");
+  if constexpr (BITS == 4) {
+    return read_packed<4>(zero_points_row, group_index);
+  } else {
+    return uint(zero_points_row[group_index]);
+  }
 }
 
 UZU_CONST ushort W4_BITS = 4;

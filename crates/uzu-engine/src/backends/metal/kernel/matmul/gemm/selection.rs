@@ -50,7 +50,7 @@ pub fn small_m_weights(shape: &MatmulShape) -> Option<(ActivationFormat, GemmTil
             GemmTiling::Tile8x32x64_Simdgroups1x2x4,
             512,
         )),
-        (GemmBPrologueKind::ScaleSymmetricDequant, Some(8)) => {
+        (GemmBPrologueKind::ScaleSymmetricDequant | GemmBPrologueKind::ScaleZeroPointDequant, Some(8)) => {
             Some((ActivationFormat::Bf16, GemmTiling::Tile8x32x128_Simdgroups1x2x4, 256))
         },
         _ => None,

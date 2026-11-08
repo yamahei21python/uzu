@@ -92,7 +92,9 @@ CONSTRAINT(
      GEMM_TILING == GemmTiling::Tile128x128x256_Simdgroups4x4))
 CONSTRAINT((B_PROLOGUE == GemmBPrologueKind::FullPrecision) == (BITS == 0))
 CONSTRAINT((BITS == 0) == (GROUP_SIZE == 0))
-CONSTRAINT(B_PROLOGUE != GemmBPrologueKind::ScaleZeroPointDequant || BITS == 4)
+CONSTRAINT(
+    B_PROLOGUE != GemmBPrologueKind::ScaleZeroPointDequant || BITS == 4 ||
+    (BITS == 8 && !A_IS_INT8))
 CONSTRAINT(B_PROLOGUE != GemmBPrologueKind::ScaleSymmetricDequant || BITS == 8)
 CONSTRAINT(B_PROLOGUE != GemmBPrologueKind::ScaleBiasDequant || BITS == 2 || BITS == 4)
 CONSTRAINT((BITS == 2) == (GROUP_SIZE == 128) && (BITS != 2 || A_IS_INT8))

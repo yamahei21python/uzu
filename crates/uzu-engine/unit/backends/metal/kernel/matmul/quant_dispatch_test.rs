@@ -559,6 +559,13 @@ fn a8w4_zero_point_tail_parity(#[case] m: u32) {
 #[case::w4_bias(4, QuantizationMethod::ScaleBias, 256, 2, 32)]
 #[case::w4_zp(4, QuantizationMethod::ScaleZeroPoint, 256, 2, 32)]
 #[case::w8_sym(8, QuantizationMethod::ScaleSymmetric, 256, 2, 32)]
+#[case::w8_zp(8, QuantizationMethod::ScaleZeroPoint, 256, 2, 32)]
+#[case::w8_zp_m1(8, QuantizationMethod::ScaleZeroPoint, 1024, 1, 32)]
+#[case::w8_sym_m16(8, QuantizationMethod::ScaleSymmetric, 1024, 16, 32)]
+#[case::w8_zp_m16_k256(8, QuantizationMethod::ScaleZeroPoint, 256, 16, 32)]
+#[case::w8_sym_m33(8, QuantizationMethod::ScaleSymmetric, 1024, 33, 32)]
+#[case::w8_zp_m16(8, QuantizationMethod::ScaleZeroPoint, 1024, 16, 32)]
+#[case::w8_zp_m33(8, QuantizationMethod::ScaleZeroPoint, 1024, 33, 32)]
 #[case::direct_w8_m5(8, QuantizationMethod::ScaleSymmetric, 1024, 5, 64)]
 fn signed_weights_full_precision_activations_parity_bf16(
     #[case] bits: u32,

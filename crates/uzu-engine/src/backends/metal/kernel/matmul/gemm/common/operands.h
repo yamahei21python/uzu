@@ -148,6 +148,8 @@ struct RightStorage {
   METAL_FUNC uint
   zero_point(const uint row, const uint group, const constant uzu::matmul::GemmParams* params) const thread {
     const uint index = zero_point_index(row, group, params);
+    // Zero points are packed at the weight bit width: two per byte at 4 bits, one at 8.
+    constexpr uint ZERO_POINTS_PER_BYTE = 8u / Right::BITS;
     return decode_zero_point<Right::BITS>(zp() + index / ZERO_POINTS_PER_BYTE, index % ZERO_POINTS_PER_BYTE);
   }
 };
