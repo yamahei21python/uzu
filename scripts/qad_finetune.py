@@ -176,11 +176,24 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.parallel == "data":
+        raise SystemExit(
+            "data parallelism cannot work here: the script trains on a single sequence, "
+            "so the batch axis has size 1 and cannot be split across devices "
+            "(lalamo also shards the PRNG keychain along it). Use --parallel tensor "
+            "or --parallel replicated."
+        )
+    if args.parallel == "fsdp":
+        raise SystemExit(
+            "fsdp cannot shard this model: it splits every array along axis 0, and "
+            "dimension-1 parameters such as norm scales cannot be divided. "
+            "Use --parallel tensor or --parallel replicated."
+        )
     if args.optimizer == "muon" and args.parallel == "tensor":
         raise SystemExit(
             "muon cannot run with tensor parallelism: Newton-Schulz contracts the "
             "sharded gradient (x @ x.T), and JAX cannot infer the output sharding. "
-            "Use --parallel data or --parallel replicated, or --optimizer adamw."
+            "Use --parallel replicated or --optimizer adamw."
         )
     sys.path.insert(0, args.lalamo_path)
     sys.path.insert(0, str(Path(__file__).resolve().parent))

@@ -161,3 +161,35 @@ def test_muon_and_tensor_parallel_is_rejected_early(tmp_path) -> None:
     )
     assert result.returncode != 0
     assert "tensor parallelism" in (result.stdout + result.stderr)
+
+
+def _run_with(tmp_path, *extra):
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    return subprocess.run(
+        [
+            sys.executable,
+            str(root / "scripts" / "qad_finetune.py"),
+            "--teacher-dir", str(tmp_path / "t"),
+            "--student-dir", str(tmp_path / "s"),
+            "--output-dir", str(tmp_path / "o"),
+            "--corpus", "corpus.txt",
+            *extra,
+        ],
+        text=True, capture_output=True, check=False,
+    )
+
+
+def test_data_parallel_is_rejected_because_batch_is_one(tmp_path) -> None:
+    result = _run_with(tmp_path, "--parallel", "data")
+    assert result.returncode != 0
+    assert "single sequence" in (result.stdout + result.stderr)
+
+
+def test_fsdp_is_rejected_because_of_dimension_one_arrays(tmp_path) -> None:
+    result = _run_with(tmp_path, "--parallel", "fsdp")
+    assert result.returncode != 0
+    assert "dimension-1" in (result.stdout + result.stderr)
