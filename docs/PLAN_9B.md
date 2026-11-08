@@ -74,6 +74,45 @@ group 64 は −267MB（−5.5%）= TPS +5.8%。公式は g32 なのでここが
 | データ | 我々の 9B で生成した応答（teacher-forced） | 学習と推論の分布を揃える |
 | 目的関数 | block CE（位置ごとに指数減衰） | 受理率に直結 |
 
+
+### Step 2.5: Kaggle T4 で 100 step 実測（9B 本体ビルド後）
+
+draft 学習を Kaggle GPU で回せるかを**数字で決める**ための短時間テスト。
+9B 本体ができてから実施する（教師は配布する int4 モデル）。
+
+#### 構成
+
+| 要素 | 値 |
+|---|---|
+| 教師 | **我々の 9B int4**（凍結、5GB） |
+| draft | 377M / fp16 / 学習対象 |
+| optimizer | AdamW（fp32 state） |
+| seq / block | 2048 / 16 |
+| バッチ | 8（T4 16GB ×2、TP=2 or FSDP） |
+| データ | 校正コーパス + 生成応答 |
+
+#### 測るもの
+
+1. **int4 教師の forward が T4 で回るか**（bf16 matmul 不可のため f32 dequant になる）
+2. **1 step の秒数**（forward + backward + optimizer）
+3. 100 step の loss 低下（学習が成立しているか）
+4. ピークメモリ
+5. 参考: BF16 教師との loss 低下の差
+
+#### 判定
+
+```
+総 step 数 = 目標トークン数 / (batch × seq)
+総時間     = 総 step 数 × 1 step 秒
+```
+
+| 条件 | 判断 |
+|---|---|
+| 30h 以内（Kaggle 週次枠） | **Kaggle で完走** |
+| 30h 超 | Modal A100（概算 1/8 の時間） |
+| int4 forward が動かない/遅すぎる | BF16 教師に変更（= Modal 必須） |
+
+**注意**: 週次 30h を学習で使い切ると評価レーンが止まる。学習は週の前半に寄せる。
 ### Step 3: export → uzu
 
 lalamo に変換コマンドがある。
