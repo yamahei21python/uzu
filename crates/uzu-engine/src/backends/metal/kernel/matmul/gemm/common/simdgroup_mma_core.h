@@ -233,6 +233,11 @@ struct SimdgroupMmaCore {
         min(THREADGROUP_BLOCK_M, static_cast<int>(params->M) - static_cast<int>(geometry.block_row_start));
     const ushort tile_block_cols =
         min(THREADGROUP_BLOCK_N, static_cast<int>(params->N) - static_cast<int>(geometry.block_col_start));
+    // With split-k this is not a remainder: aligned_inner_iterations covers one
+    // partition, so the value can be huge (e.g. 896). It is only safe because
+    // encode_split_k always reports GemmAlignment::K, which skips the leftover
+    // pass below. Removing that alignment without recomputing this value would
+    // silently read nonsense.
     const ushort leftover_block_depth = params->K - params->aligned_inner_iterations * THREADGROUP_BLOCK_K;
 
     const bool needs_scale = output_transform.contains(GemmDTransform::SCALE);

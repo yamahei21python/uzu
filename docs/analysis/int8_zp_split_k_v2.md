@@ -200,7 +200,8 @@
    修正は engine 共通の `encode_split_k` のみでカーネル本体は無変更のため、M5+ でのリスクは
    低いと見るが未確認。
 3. **W4 ZP は bf16 partial のまま**: 仕組み上 partial は W8 の ~1/16 以下（code 範囲 16 vs 256）で、
-   追加ケース (k=1024, sk=8) 実測パス。ただし k≥8192 級の kp 大の累積は未検証。問題が出たら
+   k=1024 (sk=8) に加え **k=8192 (sk=64、kp=128 で 64 回の bf16 丸め) の極端分割でも実測パス**
+   （追加テスト `w4_zp_m16_k8192` / `w8_zp_m16_k8192`、未コミット）。問題が出たら
    `partial_data_type` の条件を `b_bits` 無関係の `ScaleZeroPointDequant` に広げればよい（1 行）。
 4. **別件として実測で発見したバグ（対応済み: commit 82166ff0 で本修正と同時に取り込まれた）**: W8 ZP で **m ∈ [4, 8] かつ MXU 非搭載機**では、
    `small_m_weights` が (ZP, 8) を Tile8x32x128 に割り当てたせいで small-batch DirectSchedule に乗るが、
@@ -219,7 +220,10 @@
    ```
    これで W8 ZP の m∈[4,8] は staged GEMM (Tile8x32x32) / GEMV に落ち、正しくなる。
    本バグは split-k 修正と独立。0.8B モデルを本機でバッチデコード (m=4..8) する場合に実害となる。
-5. **bf16 partial の残余リスク**: symmetric W8 / W4 全般は bf16 partial のまま。データ運で
+5. **gemv_test に W8 ZP の直接ケースが無い**: `gemv_test.rs` は W4 ZP と W8 symmetric のみ。
+   W8 ZP の gemv は non-MXU 機で dispatch テストの m=2 ケースが間接的に踏む（実測パス）が、
+   直接ケースの追加を推奨。
+6. **bf16 partial の残余リスク**: symmetric W8 / W4 全般は bf16 partial のまま。データ運で
    許容差 (abs 0.5) を超える可能性は構造的にゼロではないが、既存テスト範囲では問題なし。
 
 ### 受入条件との対応

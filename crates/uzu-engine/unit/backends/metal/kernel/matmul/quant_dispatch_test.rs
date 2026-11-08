@@ -559,6 +559,8 @@ fn a8w4_zero_point_tail_parity(#[case] m: u32) {
 #[case::w4_bias(4, QuantizationMethod::ScaleBias, 256, 2, 32)]
 #[case::w4_zp(4, QuantizationMethod::ScaleZeroPoint, 256, 2, 32)]
 #[case::w4_zp_m16_k1024(4, QuantizationMethod::ScaleZeroPoint, 1024, 16, 32)]
+#[case::w4_zp_m16_k8192(4, QuantizationMethod::ScaleZeroPoint, 8192, 16, 32)]
+#[case::w8_zp_m16_k8192(8, QuantizationMethod::ScaleZeroPoint, 8192, 16, 32)]
 #[case::w8_sym(8, QuantizationMethod::ScaleSymmetric, 256, 2, 32)]
 #[case::w8_zp(8, QuantizationMethod::ScaleZeroPoint, 256, 2, 32)]
 #[case::w8_zp_m1(8, QuantizationMethod::ScaleZeroPoint, 1024, 1, 32)]
