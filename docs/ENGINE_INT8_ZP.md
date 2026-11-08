@@ -45,3 +45,28 @@ wide8 の品質は asym 1.13/1.24 に対し sym 1.73/2.10。**uzu が int8 ZP �
   実変換モデル（wide8 asymmetric）で bench が通るかは別途確認中
   （`uzu-asym8-wide8` を Kaggle CPU でビルド）
 - split_k=1 固定による prefill 速度の低下量（実形状では小さいと予想）
+
+## 実モデルでの確認（2026-11-08 / ローカル M3）
+
+Kaggle のカーネルが詰まっていたため、**ローカルで RTN 変換して確認**した
+（calibration 無しなので品質は低いが、エンジンの経路は同じ）。
+
+```
+lalamo convert Qwen/Qwen3.5-0.8B --output-dir /tmp/bf16_lalamo
+rht_int4_convert --load-from /tmp/bf16_lalamo --bits 4 --group-size 32 \
+  --quantize-embedding --embedding-bits 4 \
+  --layer-bits-json lanes/bits-wide-8.json --symmetric-bits ""
+```
+
+| 項目 | 結果 |
+|---|---|
+| ロード | ✅ 0.602GB（asymmetric int8 の wide8 + emb4） |
+| prompt | 883 t/s（load 6.6 のため参考値） |
+| generate | 128.9 t/s（同条件の symmetric wide8 は 124.4。バイト数が同じなので妥当） |
+| 生成 | ✅ 指示に従う（"Repeat exactly this word: banana" → `banana`） |
+| カーネルエラー | 無し |
+
+**int8 zero-point は uzu で動く。** 残る `split_k = 1` 固定は性能上の制約のみ。
+
+注意: この確認モデルは YAQA 校正なしの RTN。品質の数字（1.13 / 1.24）は
+校正ありのモデルで測ったもので、このローカルモデルの品質ではない。
