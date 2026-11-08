@@ -484,9 +484,11 @@ class Runner:
             ]
         convert_settings = dict(self.spec.get("convert", {}))
         convert_settings.update(condition.get("convert") or {})
-        for key in ("bits", "group_size", "block_size", "parallel"):
+        for key in ("bits", "group_size", "block_size", "parallel", "embedding_bits"):
             if key in convert_settings:
                 convert_command += [f"--{key.replace('_', '-')}", str(convert_settings[key])]
+        if convert_settings.get("quantize_embedding"):
+            convert_command.append("--quantize-embedding")
         if convert_settings.get("layer_filter"):
             convert_command += ["--layer-filter", str(convert_settings["layer_filter"])]
         if condition.get("layer_bits_json"):
@@ -574,9 +576,11 @@ class Runner:
                 "--calibration-json",
                 str(out / "calibration.json"),
             ]
-            for key in ("bits", "group_size", "block_size", "parallel"):
+            for key in ("bits", "group_size", "block_size", "parallel", "embedding_bits"):
                 if key in self.spec.get("convert", {}):
                     convert_command += [f"--{key.replace('_', '-')}", str(self.spec["convert"][key])]
+            if self.spec.get("convert", {}).get("quantize_embedding"):
+                convert_command.append("--quantize-embedding")
             self.run(f"{name} convert", convert_command, out / "lane.log")
             self.run(
                 f"{name} eval copy",

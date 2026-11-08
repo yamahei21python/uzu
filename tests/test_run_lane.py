@@ -244,3 +244,17 @@ def test_exclude_cannot_remove_every_condition() -> None:
     result = run_lane(LANES / "robustness-08b-shard3of5.json", "--exclude", "s")
     assert result.returncode != 0
     assert "removed every condition" in result.stdout + result.stderr
+
+
+def test_embedding_flags_reach_the_convert_command(tmp_path: Path) -> None:
+    spec = json.loads((LANES / "cpu-tuning-08b.json").read_text(encoding="utf-8"))
+    spec["convert"]["embedding_bits"] = 8
+    spec["convert"]["quantize_embedding"] = True
+    spec["conditions"] = spec["conditions"][:1]
+    path = tmp_path / "spec.json"
+    path.write_text(json.dumps(spec), encoding="utf-8")
+    result = run_lane(path, "--exclude", "rtn")
+    assert result.returncode == 0, result.stdout + result.stderr
+    convert = [line for line in result.stdout.splitlines() if line.startswith("$ ") and "rht_int4_convert.py" in line]
+    assert convert
+    assert any("--embedding-bits 8" in line and "--quantize-embedding" in line for line in convert)
