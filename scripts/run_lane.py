@@ -491,6 +491,10 @@ class Runner:
             convert_command.append("--quantize-embedding")
         if convert_settings.get("layer_filter"):
             convert_command += ["--layer-filter", str(convert_settings["layer_filter"])]
+        if convert_settings.get("layer_bits_json"):
+            settings_path = self.resolve(convert_settings["layer_bits_json"])
+            assert settings_path is not None
+            convert_command += ["--layer-bits-json", str(settings_path)]
         if condition.get("layer_bits_json"):
             bits_path = self.resolve(condition["layer_bits_json"])
             assert bits_path is not None
