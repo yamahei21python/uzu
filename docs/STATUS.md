@@ -558,15 +558,17 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 
 ---
 
-## 6. 次の一手
+## 6. 次の一手（2026-11-08 決定）
 
-1. **QAD v2 の before/after**（実行中）→ 公式（QAD 込み）との差を詰める
-2. **symmetric wide8 / downout8 を Mac で実測**（ロード確認 + t/s）。成果物は取得中
-3. symmetric で wide8 の品質を再測定（asymmetric の 1.13 / 1.24 は参考値）
-4. **damping 1e0 を wide8 に適用**して 1.0% 切りを狙う
-5. setting 確定 → 4B へ移植（group 64 / emb8 / damping 1e0）
-6. wide8 の EN seed を 2〜3 本追加（有意性の確定）
-7. 公式との比較を KL でも取る（公式の主張と同じ物差し）
+**主戦場は 9B。4B は軽く。KL 評価はやらない。**
+
+| 優先 | 内容 | 詳細 |
+|---|---|---|
+| 1 | 9B 本体を確定（Modal A100） | g64 / wide8 / emb8 / d1e0。`docs/PLAN_9B.md` |
+| 2 | **公式 speculator の流用テスト** | 公式 9B の 755MB draft を我々の 9B に付けて受理率を測る |
+| 3 | 流用不可なら自前 draft 学習 | DFlash 8 層 + Weaver。uzu 形式へ export |
+| 4 | 0.8B の残件を閉じる | QAD v2 / symmetric 品質 / d1e0 を wide8 に |
+| 5 | 4B は 1 条件だけ確認 | 設定移植の妥当性のみ。seed は振らない |
 
 ## 8. 4B の実行設定（Modal / 2026-11-08 決定）
 
