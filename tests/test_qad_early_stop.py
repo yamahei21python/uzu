@@ -95,3 +95,16 @@ def test_peak_rss_is_reported_in_mb() -> None:
     value = peak_rss_mb()
     assert value > 0
     assert value < 200_000  # sanity: not bytes
+
+
+def test_checkpoint_params_only_flag_is_registered() -> None:
+    import subprocess
+
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "qad_finetune.py"), "--help"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "--checkpoint-params-only" in result.stdout
+    assert "AdamW moments" in result.stdout

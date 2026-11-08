@@ -154,6 +154,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--val-every", type=int, default=5, help="evaluate fixed validation chunks every N steps")
     parser.add_argument("--save-every", type=int, default=10, help="checkpoint interval; 0 = only final")
     parser.add_argument(
+        "--checkpoint-params-only",
+        action="store_true",
+        help=(
+            "save only master weights (no AdamW moments). Roughly a third of the "
+            "checkpoint memory, at the cost of reinitialising the optimizer on resume"
+        ),
+    )
+    parser.add_argument(
         "--skip-checkpoint",
         action="store_true",
         help="do not write orbax checkpoints (isolates the export-phase OOM)",
@@ -463,11 +471,10 @@ def main() -> None:
         tmp_path = checkpoint_dir / f".{path.name}.tmp"
         if tmp_path.exists():
             shutil.rmtree(tmp_path)
-        checkpointer.save(
-            tmp_path,
-            {"params": current_params, "opt_state": current_state, "step": step},
-            force=True,
-        )
+        payload = {"params": current_params, "step": step}
+        if not args.checkpoint_params_only:
+            payload["opt_state"] = current_state
+        checkpointer.save(tmp_path, payload, force=True)
         with open(tmp_path / "rng.pkl", "wb") as file:
             pickle.dump(current_rng.bit_generator.state, file)
         with open(tmp_path / "meta.json", "w", encoding="utf-8") as file:
@@ -507,7 +514,15 @@ def main() -> None:
                     )
             restored = checkpointer.restore(resume_path)
             params = restored["params"]
-            opt_state = restored["opt_state"]
+            if "opt_state" in restored:
+                opt_state = restored["opt_state"]
+            else:
+                opt_state = optimizer.init(params)
+                print(
+                    "resume: checkpoint has no optimizer state "
+                    "(--checkpoint-params-only); AdamW moments reinitialised",
+                    flush=True,
+                )
             start_step = int(restored["step"])
             rng_file = resume_path / "rng.pkl"
             if not rng_file.exists():
