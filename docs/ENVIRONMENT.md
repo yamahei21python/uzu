@@ -12,6 +12,17 @@
 | Modal mount | `modal_targets` / `lalamo_forward` を image に積み忘れ、起動前に死亡 | mount 網羅テスト |
 | argparse | `args.layer_filter` を使うが宣言が無い | 宣言テスト |
 
+## ローカルの中間ファイル
+
+`/tmp/uzu-kernels`（`watch_kernels.py` のダウンロード先）、`/tmp/kout`（評価出力のコピー）、
+変換済みモデルは**すべて再取得・再生成できる**。
+
+- 数値の正本は `docs/STATUS.md` と `docs/0.8B_RESULTS.md`。カーネル出力はその材料でしかない
+- 変換済みモデルは Kaggle 出力から再取得、または `kit` のスクリプトで数十秒〜10 分で再生成
+- したがって容量が苦しくなったら消してよい。ただし**消す前に**「docs に載っているか」を確認する
+
+計測をやり直すときは `load average < 2` を確認する。`cli bench` は負荷で ±9 t/s 動く。
+
 ## 規約
 
 1. **lalamo は git pin**。`git+https://github.com/trymirai/lalamo@e401e17761f2fcd337b0cf20218d67d656e6ecba` を単独で入れる。PyPI を使わない。
