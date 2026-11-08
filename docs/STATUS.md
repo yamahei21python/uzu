@@ -213,6 +213,33 @@ seed0 は clean レーンの mixed50-d1e-1 と完全一致（決定性の確認�
 `run_lane` は自動でやるが、直接呼ぶときは手動で必要。
 
 
+
+### 8bit は symmetric でないと uzu で動かない（2026-11-08 実測）
+
+wide8 / down-out8 の変換結果を `cli bench` に渡すと、カーネル未定義で落ちる。
+
+```
+Function _D4Gemm...ScaleZeroPointDequantS1V8S2V32S13VFullPrecisionS1V0
+was not found in the library
+```
+
+原因は 2 つが重なっている。
+
+1. `gemm.metal` の制約: `B_PROLOGUE != ScaleZeroPointDequant || BITS == 4`
+   → **zero-point dequant は 4bit 専用**。8bit は symmetric 前提
+2. `rht_int4_convert.py` が全ビット幅で `is_symmetric=False` を固定していた
+   → 8bit 層が「8bit + zero point」というコンパイルされない組み合わせになっていた
+
+修正: `--symmetric-bits`（既定 `8`）を追加し、そのビット幅の層を symmetric で書き出す。
+`IntAffineParameters.from_weights` は symmetric 時に `zero_points=None` を返すので、
+8bit 層の zero_point テンソルは消え、ファイルも小さくなる。
+
+**W8 symmetric の制約（`gemm/selection.rs`）**: group 32 or 64、k は 256 の倍数、
+decode は `Tile8x32x128_Simdgroups1x2x4`。0.8B の次元は満たす。
+
+**含意**: 過去に測った wide8 / down-out8 の品質は **asymmetric int8** の値。
+symmetric に変えると品質はわずかに動く（要再測）。速度も未実測だった（動かなかったため）。
+
 ### 総トークンが支配的で、seq 長の効果は小さい（2026-11-08 / 100 chunks）
 
 | 条件 | 総トークン | EN | JA |

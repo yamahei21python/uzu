@@ -55,6 +55,15 @@ def parse_args() -> argparse.Namespace:
         help='Per-layer bit overrides: {"default": 4, "rules": [{"match": "mlp/down_projection", "bits": 6}]}',
     )
     parser.add_argument(
+        "--symmetric-bits",
+        default="8",
+        help=(
+            "Comma-separated bit widths exported as symmetric int (no zero points). "
+            "uzu only compiles the zero-point gemm for 4 bits, so int8 must be symmetric. "
+            "Pass an empty string to force asymmetric everywhere."
+        ),
+    )
+    parser.add_argument(
         "--embedding-bits",
         type=int,
         default=None,
@@ -292,6 +301,12 @@ def main() -> None:
     if bad and not args.skip_incompatible:
         raise SystemExit("incompatible Linear shapes; use --skip-incompatible to leave them full precision")
 
+    symmetric_bits = {
+        int(item) for item in str(args.symmetric_bits).split(",") if item.strip()
+    }
+    if not symmetric_bits.issubset({4, 8}):
+        raise SystemExit("--symmetric-bits accepts only 4 and 8")
+
     layer_bits_summary, layer_bits_rules = load_layer_bits(args.layer_bits_json, args.bits)
     if layer_bits_rules:
         print(f"layer bits overrides: {json.dumps(layer_bits_summary, ensure_ascii=False)}")
@@ -301,7 +316,7 @@ def main() -> None:
             quantization_spec=IntSpec(
                 bits=bits,
                 group_size=args.group_size,
-                is_symmetric=False,
+                is_symmetric=bits in symmetric_bits,
                 layout=Layout.OUTPUT_INPUT,
             ),
             adapter_spec=None,
@@ -397,18 +412,24 @@ def main() -> None:
         return
 
     if args.no_rht:
-        print(f"quantize -> plain INT{args.bits} group {args.group_size} (symmetric=False, layout=output_input)")
+        print(
+            f"quantize -> plain INT{args.bits} group {args.group_size} "
+            f"(symmetric={args.bits in symmetric_bits}, layout=output_input)"
+        )
         if args.embedding_bits is not None:
-            print(f"embedding quantize -> plain INT{args.embedding_bits} group {args.group_size} (symmetric=False)")
+            print(
+                f"embedding quantize -> plain INT{args.embedding_bits} group {args.group_size} "
+                f"(symmetric={args.embedding_bits in symmetric_bits})"
+            )
     else:
         print(
             f"quantize -> RHT block {args.block_size} + INT{args.bits} group {args.group_size} "
-            f"(symmetric=False, layout=output_input)"
+            f"(symmetric={args.bits in symmetric_bits}, layout=output_input)"
         )
         if args.embedding_bits is not None:
             print(
                 f"embedding quantize -> RHT block {args.block_size} + INT{args.embedding_bits} group {args.group_size} "
-                f"(symmetric=False)"
+                f"(symmetric={args.embedding_bits in symmetric_bits})"
             )
     quantized_model = map_nodes_of_type_with_path(Linear, quantize_linear, model)
     print(
@@ -427,7 +448,7 @@ def main() -> None:
             quantization_spec=IntSpec(
                 bits=embedding_bits,
                 group_size=args.group_size,
-                is_symmetric=False,
+                is_symmetric=embedding_bits in symmetric_bits,
                 layout=layout,
             ),
             adapter_spec=None,

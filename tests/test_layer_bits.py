@@ -92,3 +92,28 @@ def test_dotted_lalamo_paths_match_lane_rules() -> None:
     dotted_out = ".decoder/.transformer/.layers/[0]/.mixer/.out_projection"
     assert resolve_bits(dotted_out, rules, 4) == 6
     assert resolve_bits(".decoder/.transformer/.layers/[0]/.mlp/.up_projection", rules, 4) == 4
+
+
+def test_symmetric_bits_defaults_to_int8() -> None:
+    """uzu only compiles the zero-point GEMM for 4 bits (selection.rs constraint)."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    script = root / "scripts" / "rht_int4_convert.py"
+    text = script.read_text(encoding="utf-8")
+    assert '"--symmetric-bits"' in text
+    # the default must make int8 symmetric, otherwise uzu rejects the export
+    assert 'default="8"' in text
+    assert "is_symmetric=bits in symmetric_bits" in text
+    assert "is_symmetric=embedding_bits in symmetric_bits" in text
+
+    help_text = subprocess.run(
+        [sys.executable, str(script), "--help"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert help_text.returncode == 0, help_text.stderr
+    assert "--symmetric-bits" in help_text.stdout
