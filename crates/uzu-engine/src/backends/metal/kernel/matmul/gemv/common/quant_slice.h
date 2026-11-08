@@ -120,8 +120,10 @@ public:
         load_words<false>(weights[R], source);
       } else {
         const uint valid_bytes = offset_bytes < row_stride ? min(row_stride - offset_bytes, SLICE_BYTES) : 0u;
-        constexpr uint LOAD_ALIGNMENT =
-            SLICE_BYTES < QuantChunk<BITS>::VECTOR_BYTES ? SLICE_BYTES : QuantChunk<BITS>::VECTOR_BYTES;
+        constexpr uint LOAD_ALIGNMENT = BITS == 6
+                                            ? QuantChunk<BITS>::WORD_BYTES
+                                            : (SLICE_BYTES < QuantChunk<BITS>::VECTOR_BYTES ? SLICE_BYTES
+                                                                                            : QuantChunk<BITS>::VECTOR_BYTES);
         const bool load_aligned = ((row * row_stride + offset_bytes) & (LOAD_ALIGNMENT - 1)) == 0;
         if (valid_bytes == SLICE_BYTES && load_aligned) {
           load_words<false>(weights[R], source);
@@ -200,6 +202,16 @@ private:
     } else if constexpr (!BOUNDED && SLICE_BYTES == 2 * QuantChunk<BITS>::WORD_BYTES) {
       const uint2 packed = *reinterpret_cast<const device uint2*>(source);
       words[0] = uint4(packed[0], packed[1], 0u, 0u);
+    } else if constexpr (!BOUNDED && SLICE_BYTES == 3 * QuantChunk<BITS>::WORD_BYTES) {
+      // 6-bit slices: 12 bytes = three aligned 32-bit words.
+      const device uint* packed = reinterpret_cast<const device uint*>(source);
+      words[0] = uint4(packed[0], packed[1], packed[2], 0u);
+    } else if constexpr (!BOUNDED && SLICE_BYTES == 6 * QuantChunk<BITS>::WORD_BYTES) {
+      // 6-bit full-group slices: 24 bytes = one uint4 plus one uint2, both 8-byte aligned.
+      const uint4 head = *reinterpret_cast<const device uint4*>(source);
+      const uint2 tail = *reinterpret_cast<const device uint2*>(source + QuantChunk<BITS>::VECTOR_BYTES);
+      words[0] = head;
+      words[1] = uint4(tail[0], tail[1], 0u, 0u);
     } else if constexpr (!BOUNDED) {
       static_assert(SLICE_BYTES % QuantChunk<BITS>::VECTOR_BYTES == 0, "large slices contain complete uint4 words");
       const device uint4* packed = reinterpret_cast<const device uint4*>(source);

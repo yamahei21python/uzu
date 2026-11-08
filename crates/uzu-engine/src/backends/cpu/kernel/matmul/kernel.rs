@@ -226,15 +226,23 @@ impl MatmulKernel for MatmulCpuKernel {
                                     group_size,
                                     signed_codes,
                                 } => {
-                                    let pack_factor = 32 / *bits;
                                     let weight_linear_index = b_col * k_u + inner;
-                                    let word_index = weight_linear_index / pack_factor;
-                                    let code_index_in_word = weight_linear_index % pack_factor;
-                                    let bit_offset = code_index_in_word * *bits;
                                     let weights_words = weights.as_ptr() as *const u32;
-                                    let word = weights_words.add(word_index).read_unaligned();
                                     let code_mask = (1u32 << bits) - 1;
+                                    // 6-bit codes form an LSB-first bit stream (value i at bit 6 * i);
+                                    // the byte-aligned widths keep one value per pack below.
+                                    let (word_index, bit_offset) = if *bits == 6 {
+                                        (weight_linear_index * 6 / 32, weight_linear_index * 6 % 32)
+                                    } else {
+                                        let pack_factor = 32 / *bits;
+                                        (weight_linear_index / pack_factor, (weight_linear_index % pack_factor) * *bits)
+                                    };
+                                    let word = weights_words.add(word_index).read_unaligned();
                                     let mut weight_code = ((word >> bit_offset) & code_mask) as u8;
+                                    if *bits == 6 && bit_offset + *bits > 32 {
+                                        let next = weights_words.add(word_index + 1).read_unaligned();
+                                        weight_code |= (((next << (32 - bit_offset)) & code_mask) as u8);
+                                    }
                                     if *signed_codes {
                                         weight_code ^= 1u8 << (bits - 1);
                                     }

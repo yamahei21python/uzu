@@ -107,11 +107,18 @@ impl GemvSpecialization {
         if bits == 2 && gemm_b_layout == GemmBLayout::MxuTiled {
             return None;
         }
+        // 6-bit codes are always unsigned; let the GEMM validation report signed 6-bit.
+        if bits == 6 && shape.signed_codes {
+            return None;
+        }
         if !is_quant && (shape.n < DEFAULT_RESULTS_PER_SIMDGROUP || shape.m > GEMV_MAX_BATCH) {
             return None;
         }
         let block_size = if !is_quant {
             FP_K_BLOCK
+        } else if bits == 6 {
+            // 6-bit groups are 24 bytes; K must cover whole groups for aligned loads.
+            32
         } else {
             QUANT_K_BLOCK_BYTES * 8 / bits
         };

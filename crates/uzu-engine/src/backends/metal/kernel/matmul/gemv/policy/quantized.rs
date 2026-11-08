@@ -8,7 +8,9 @@ const fn lane_tile(
     bits: u32,
     group: u32,
 ) -> GemvTile {
-    let pack_factor = 32 / bits;
+    // The lane slice holds 32 / pack_factor values: 8 bytes at 4 bits... For 6-bit the
+    // slice is 16 values (12 bytes), i.e. the same 16-values-per-lane split as 4-bit.
+    let pack_factor = if bits == 6 { 8 } else { 32 / bits };
     GemvTile::quantized(num_simdgroups, results_per_simdgroup, 1, 32, group / (2 * pack_factor))
 }
 
@@ -25,7 +27,7 @@ pub fn gathered_tile(
     m: u32,
     n: u32,
 ) -> Option<GemvTile> {
-    if !matches!((bits, group), (4 | 8, 32 | 64) | (2, 128)) || !(1..=8).contains(&m) {
+    if !matches!((bits, group), (4 | 6 | 8, 32 | 64) | (2, 128)) || !(1..=8).contains(&m) {
         return None;
     }
     let tile = lane_default(bits, group);

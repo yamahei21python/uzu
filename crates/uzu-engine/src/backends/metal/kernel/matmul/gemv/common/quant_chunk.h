@@ -72,6 +72,19 @@ private:
       for (uint i = 0; i < VALUES; i++) {
         values[i] = float_with_offset(extract_bits(word0, BITS * i, BITS)) - origin;
       }
+    } else if constexpr (BITS == 6) {
+      // Eight 6-bit codes span 48 bits of the 64-bit word0/word1 window. Six-bit codes
+      // are always unsigned, so signed_codes must be false.
+      (void)signed_codes;
+      METAL_PRAGMA_UNROLL
+      for (uint i = 0; i < VALUES; i++) {
+        const uint bit = BITS * i;
+        uint code = bit < WORD_BITS ? word0 >> bit : word1 >> (bit - WORD_BITS);
+        if (bit < WORD_BITS && bit + BITS > WORD_BITS) {
+          code |= word1 << (WORD_BITS - bit);
+        }
+        values[i] = float_with_offset(code & 0x3Fu) - origin;
+      }
     } else {
       const uint mask = signed_codes ? W8_SIGN_MASK : 0u;
       word0 ^= mask;

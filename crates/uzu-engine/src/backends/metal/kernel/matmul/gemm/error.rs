@@ -10,6 +10,8 @@ pub enum GemmSpecializationError {
     },
     #[error("quantized B requires transposed layout")]
     QuantizedRequiresTransposedB,
+    #[error("6-bit weights require unsigned codes")]
+    SixBitRequiresUnsignedCodes,
     #[error("tiling {tiling} does not match use_mxu={use_mxu}")]
     TilingUseMxuMismatch {
         tiling: GemmTiling,

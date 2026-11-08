@@ -17,11 +17,11 @@ METAL_FUNC constexpr uint symmetric_zero_point() {
 
 template <ushort BITS>
 METAL_FUNC uint decode_zero_point(uint8_t packed, uint group_index) {
-  static_assert(BITS == 4 || BITS == 8, "zero points are 4 or 8 bit");
+  static_assert(BITS == 4 || BITS == 6 || BITS == 8, "zero points are 4, 6 or 8 bit");
   if constexpr (BITS == 4) {
     return read_packed<4>(packed, group_index);
   } else {
-    // int8 zero points take a whole byte each, so the index is unused.
+    // 6- and 8-bit zero points take a whole byte each, so the index is unused.
     (void)group_index;
     return uint(packed);
   }
@@ -29,7 +29,7 @@ METAL_FUNC uint decode_zero_point(uint8_t packed, uint group_index) {
 
 template <ushort BITS>
 METAL_FUNC uint decode_zero_point(const device uint8_t* zero_points_row, uint group_index) {
-  static_assert(BITS == 4 || BITS == 8, "zero points are 4 or 8 bit");
+  static_assert(BITS == 4 || BITS == 6 || BITS == 8, "zero points are 4, 6 or 8 bit");
   if constexpr (BITS == 4) {
     return read_packed<4>(zero_points_row, group_index);
   } else {
@@ -102,7 +102,7 @@ inline void dequantize(
     threadgroup StageT* w_local,
     const bool signed_codes
 ) {
-  static_assert(bits == 4 || bits == 8, "Only int4 and int8 supported");
+  static_assert(bits == 4 || bits == 6 || bits == 8, "Only int4, int6 and int8 supported");
   static_assert(bits == 8 || N % 2 == 0, "int4 values are unpacked in pairs");
   constexpr bool IS_16_BIT_COMPUTE = sizeof(ComputeT) == 2;
   constexpr bool READ_CODE_WORDS = bits == 4 && N % 8 == 0 && IS_16_BIT_COMPUTE;
@@ -126,6 +126,30 @@ inline void dequantize(
       const uint code = uint(w[i]) ^ sign_flip;
       pairs[i] = vec<StageT, 2>(vec<ComputeT, 2>(dequantize_code(code & 0x0fu), dequantize_code(code >> 4)));
     }
+  } else if constexpr (bits == 6) {
+    // Six-bit codes form an LSB-first bit stream: value i lives at bit 6 * i, so one
+    // pack of four values spans three bytes. Six-bit codes are always unsigned
+    // (asymmetric zero-point only), so signed_codes must be false here; a byte-wide
+    // sign flip cannot align with 6-bit code boundaries.
+    (void)signed_codes;
+    for (int i = 0; i < (N / 4); i++) {
+      const uint b0 = uint(w[3 * i]);
+      const uint b1 = uint(w[3 * i + 1]);
+      const uint b2 = uint(w[3 * i + 2]);
+      pairs[2 * i] = vec<StageT, 2>(
+          vec<ComputeT, 2>(
+              dequantize_code(b0 & 0x3Fu),
+              dequantize_code(((b0 >> 6) | (b1 << 2)) & 0x3Fu)
+          )
+      );
+      pairs[2 * i + 1] = vec<StageT, 2>(
+          vec<ComputeT, 2>(
+              dequantize_code(((b1 >> 4) | (b2 << 4)) & 0x3Fu),
+              dequantize_code((b2 >> 2) & 0x3Fu)
+          )
+      );
+    }
+    static_assert(N % 4 == 0, "6-bit dequantize works on complete four-value packs");
   } else {
     const uint sign_flip = signed_codes ? 0x80u : 0u;
     for (int i = 0; i < (N / 2); i++) {

@@ -73,7 +73,7 @@ VARIANTS(
     GemmBPrologueKind::ScaleBiasDequant,
     GemmBPrologueKind::ScaleZeroPointDequant,
     GemmBPrologueKind::ScaleSymmetricDequant)
-VARIANTS(BITS, 0, 2, 4, 8)
+VARIANTS(BITS, 0, 2, 4, 6, 8)
 VARIANTS(GROUP_SIZE, 0, 32, 64, 128)
 VARIANTS(
     A_PROLOGUE,
@@ -94,7 +94,7 @@ CONSTRAINT((B_PROLOGUE == GemmBPrologueKind::FullPrecision) == (BITS == 0))
 CONSTRAINT((BITS == 0) == (GROUP_SIZE == 0))
 CONSTRAINT(
     B_PROLOGUE != GemmBPrologueKind::ScaleZeroPointDequant || BITS == 4 ||
-    (BITS == 8 && !A_IS_INT8))
+    ((BITS == 6 || BITS == 8) && !A_IS_INT8))
 CONSTRAINT(B_PROLOGUE != GemmBPrologueKind::ScaleSymmetricDequant || BITS == 8)
 CONSTRAINT(B_PROLOGUE != GemmBPrologueKind::ScaleBiasDequant || BITS == 2 || BITS == 4)
 CONSTRAINT((BITS == 2) == (GROUP_SIZE == 128) && (BITS != 2 || A_IS_INT8))

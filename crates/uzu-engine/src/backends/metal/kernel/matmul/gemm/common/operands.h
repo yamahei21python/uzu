@@ -54,8 +54,8 @@ struct RightOperand {
   UZU_CONST ushort MMA_BLOCK_K = BITS_ == 2 ? 2 * MXU_SIMDGROUP_BLOCK_K : MXU_SIMDGROUP_BLOCK_K;
 
   static_assert(
-      !QUANTIZED || BITS_ == 2 || BITS_ == 4 || BITS_ == 8,
-      "quantized integer weights must use 2, 4 or 8 bits"
+      !QUANTIZED || BITS_ == 2 || BITS_ == 4 || BITS_ == 6 || BITS_ == 8,
+      "quantized integer weights must use 2, 4, 6 or 8 bits"
   );
   static_assert(!QUANTIZED || PROLOGUE != GemmBPrologueKind::FullPrecision, "quantized weights need a scheme");
 
@@ -109,7 +109,10 @@ struct RightStorage {
       const Index row,
       const constant uzu::matmul::GemmParams* params
   ) const thread {
-    const Index row_stride = Index(params->K) / (8 / Right::BITS);
+    // 6-bit rows hold K * 6 / 8 bytes; the other widths are K * BITS / 8 with
+    // BITS dividing 8.
+    const Index row_stride =
+        Right::BITS == 6 ? Index(params->K) * 3 / 4 : Index(params->K) / (8 / Right::BITS);
     return codes + row * row_stride;
   }
 
@@ -148,8 +151,9 @@ struct RightStorage {
   METAL_FUNC uint
   zero_point(const uint row, const uint group, const constant uzu::matmul::GemmParams* params) const thread {
     const uint index = zero_point_index(row, group, params);
-    // Zero points are packed at the weight bit width: two per byte at 4 bits, one at 8.
-    constexpr uint ZERO_POINTS_PER_BYTE = 8u / Right::BITS;
+    // Zero points are packed at the weight bit width: two per byte at 4 bits, one at 6
+    // and 8 bits.
+    constexpr uint ZERO_POINTS_PER_BYTE = Right::BITS == 6 ? 1u : 8u / Right::BITS;
     return decode_zero_point<Right::BITS>(zp() + index / ZERO_POINTS_PER_BYTE, index % ZERO_POINTS_PER_BYTE);
   }
 };

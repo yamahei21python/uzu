@@ -58,7 +58,8 @@ fn mode_for_bits(bits: u32) -> QuantizationMode {
     match bits {
         2 => QuantizationMode::U2,
         4 => QuantizationMode::U4,
-        8 => QuantizationMode::U8,
+        // 6-bit zero points take one byte per group, like 8-bit.
+        6 | 8 => QuantizationMode::U8,
         _ => unreachable!("unsupported bits: {bits}"),
     }
 }

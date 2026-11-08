@@ -26,10 +26,12 @@ template <
 struct QuantizedBlockLoaderScaleZeroPoint {
   static_assert(THREADGROUP_TILE_COLS <= GROUP_SIZE, "Group size should be larger than columns");
   static_assert(GROUP_SIZE % THREADGROUP_TILE_COLS == 0, "Group size should be divisible by columns");
-  static_assert(BITS == 4 || BITS == 8, "Only int4 and int8 supported");
+  static_assert(BITS == 4 || BITS == 6 || BITS == 8, "Only int4, int6 and int8 supported");
 
   UZU_CONST short PACK_FACTOR = get_pack_factor<BITS, 8>();
   UZU_CONST short BYTES_PER_PACK = get_bytes_per_pack<BITS>();
+  // Zero points are one byte per group at 6 and 8 bits, two per byte at 4 bits.
+  UZU_CONST short ZERO_POINTS_PER_BYTE = BITS == 6 ? 1 : PACK_FACTOR;
   UZU_CONST short THREADGROUP_TILE_COLS_PACKED = THREADGROUP_TILE_COLS / PACK_FACTOR;
   UZU_CONST short READS_PER_THREAD = (THREADGROUP_TILE_COLS_PACKED * THREADGROUP_TILE_ROWS < THREADGROUP_SIZE)
                                          ? 1
@@ -121,8 +123,8 @@ struct QuantizedBlockLoaderScaleZeroPoint {
     if constexpr (SCALE_SYMMETRIC) {
       zero_point_value = symmetric_zero_point<ushort(BITS)>();
     } else {
-      const uint byte_index = zero_point_index / uint(PACK_FACTOR);
-      const uint packed_index = zero_point_index % uint(PACK_FACTOR);
+      const uint byte_index = zero_point_index / uint(ZERO_POINTS_PER_BYTE);
+      const uint packed_index = zero_point_index % uint(ZERO_POINTS_PER_BYTE);
       zero_point_value = decode_zero_point<ushort(BITS)>(zero_points_row_start[byte_index], packed_index);
     }
     out_scale = scale_value;

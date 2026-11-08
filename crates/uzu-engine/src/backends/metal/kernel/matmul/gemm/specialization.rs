@@ -82,6 +82,11 @@ impl GemmSpecialization {
         if self.b_prologue != GemmBPrologueKind::FullPrecision && !self.transpose_b {
             return Err(GemmSpecializationError::QuantizedRequiresTransposedB);
         }
+        // 6-bit codes are always unsigned: a byte-wide sign flip cannot align with
+        // 6-bit code boundaries, so signed 6-bit weights are rejected outright.
+        if self.bits_per_b == Some(6) && self.signed_codes {
+            return Err(GemmSpecializationError::SixBitRequiresUnsignedCodes);
+        }
         Ok(())
     }
 }
