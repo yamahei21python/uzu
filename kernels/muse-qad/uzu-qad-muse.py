@@ -14,7 +14,7 @@ subprocess.run(["hf", "download", 'yamahei21/uzu-quant-kit', "--repo-type", "dat
     "--revision", '07f7d3f4a0512e5e09c02400861b398c0f5c187d', "--local-dir", "/kaggle/working/kit"], check=True)
 subprocess.run([sys.executable, "/kaggle/working/kit/scripts/build_kit.py",
     "--check", "/kaggle/working/kit"], check=True)
-subprocess.run(["hf", "download", 'yamahai21/qad-best-student', "--local-dir", "/kaggle/working/qad-input"], check=True)
+subprocess.run(["hf", "download", 'kentasatomuse/qad-best-student', "--local-dir", "/kaggle/working/qad-input"], check=True)
 
 kit = Path("/kaggle/working/kit")
 work = Path("/kaggle/working/qad")
