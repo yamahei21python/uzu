@@ -152,6 +152,22 @@ ValueError: unsupported quantization parameter width: 6
 
 
 
+
+### 8bit 配分 × damping 1e-1 が現最良（2026-11-08 / 100 chunks / CPU）
+
+| 条件 | EN | JA | 置き場所 |
+|---|---:|---:|---|
+| **down-out8 + d1e-1（q128/s32）** | **1.39%** | **1.70%** | CPU |
+| uniform4 + d1e-1（= mixed50 d1e-1） | 1.99% | 2.26% | CPU |
+| s64_q256_d1e-1 | 1.48% | 1.98% | GPU |
+| s64_q512_d1e-1 | 1.67% | 1.94% | GPU |
+| mix35 d1e-1 | 1.65% | 2.30% | CPU |
+
+- 8bit 配分の寄与は **EN −0.60pp / JA −0.56pp**（Muse の -0.81/-0.98 は誤り）
+- `uniform4-d1e-1` と `mixed50-d1e-1` は同一値（37.992 / 47.286）→ レーン間の再現性 OK
+- **CPU の q128/s32 が GPU の s64/q512 を上回る**（1.39/1.70 vs 1.67/1.94）
+- mix35 は d1e-1 では mixed50 と同等（優位性は消える）
+
 ### bf16 校正で CPU の q512 が通る（2026-11-08 実測）
 
 | 条件 | 校正デバイス / dtype | EN | JA | 校正時間 |
