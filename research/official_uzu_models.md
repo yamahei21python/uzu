@@ -131,3 +131,58 @@
 
 **重要な示唆**: 公式の速度は「量子化」ではなく **speculator** で稼いでいる。
 9B で 264 vs 90（llama.cpp）の差は投機由来。量子化だけなら我々は既に同等。
+
+## 8. 追加調査（2026-11-09）
+
+### 8.1 公開リポジトリの全体像
+
+| リポジトリ | 中身 |
+|---|---|
+| `trymirai/uzu` | エンジン本体（★3,240）。我々のフォーク元 |
+| `trymirai/lalamo` | JAX の量子化基盤。我々が変換に使用 |
+| **`trymirai/sglang`** | **DFlash-TfM の再現実装**（論文つき） |
+| **`trymirai/romakl`** | KL 評価スイート（`kl-eval` の後継。旧 `kl-eval` は archive） |
+| `trymirai/miraitensors` | INT4 を扱う safetensors フォーク |
+| `trymirai/mpsgraph-rs` / `xgrammar-rs` / `slang-rs` | 補助クレート |
+
+**我々が使っている lalamo は公式の量子化基盤そのもの。** 変換の再現性はここで担保される。
+
+### 8.2 DFlash-TfM（公式 speculator の正体）
+
+論文: *Trees from Marginals: Autoregressive drafting with factorized priors*
+（arXiv 2607.06763、2026-07、v3 2026-10）
+
+- DFlash は 16 トークンの**周辺分布**を並列に出す（独立仮定）
+- **Weaver** が「実現した draft トークン」を条件に、**top-512 候補上の残差 logits** を予測して木を作る
+- フル語彙の射影を避ける（512 候補に限定）
+- **Weaver は 56.7M パラメータ**（我々の 9B speculator の config と一致: 1 層 / 2048 dim / 16 heads / max_depth 15 / rounds 8 / expand 4 / candidate_pool 512）
+- 効果（Qwen3.6-27B, B200）: AR 89.9 → DFlash 315.0（3.50x）→ **DFlash-TfM 392.8（4.37x）**
+- **budget 64** が最速。我々が使っていた budget 8〜16 より大きい
+
+含意:
+
+1. **Weaver は 57M の小さなアダプタ**。ゼロから 9B を学習するより桁で安い
+2. ただし**自己回帰**なので、並列 draft のように 1 forward では終わらない
+3. 学習には「draft の候補集合」と「実現した系列」が必要（受理信号ではなく次トークン教師でよい）
+4. **budget を 16 → 64 に増やす余地**。我々の shapes.json は 16 で固定している
+
+### 8.3 KL 評価を公式と同じ土俵にする
+
+`romakl` は lalamo / GGUF / EXL3 を同じ基準で比較する。
+既定データセット `trymirai/kl-mixture` は**非公開**（アクセス申請が必要）。
+
+- 我々が自前で KL を実装するより、`romakl` に lalamo モデルを渡すのが早い
+- ただし NVIDIA GPU 必須（Linux）
+- データセットが非公開なので、**完全に同じ数値にはならない**。相対比較のみ
+
+### 8.4 我々の現在地との差分
+
+| 項目 | 公式 | 我々 |
+|---|---|---|
+| 量子化 | PTQ + QAD | PTQ（QAD 実験中） |
+| Weaver | 57M、top-512 残差 | **無し**（Argmax chain） |
+| budget | 64 | 16 |
+| 評価 | KL（非公開データ） | BPC（公開コーパス） |
+
+**次にやるなら budget 64 の検証が一番安い。** shapes.json の `tree_budget` を上げるだけで試せる
+（Argmax では `dflash_depth` が上限なので 16 まで。64 は Weaver 前提）。
