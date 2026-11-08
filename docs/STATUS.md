@@ -567,8 +567,8 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 | 1 | 0.8B を閉じる: QAD v2 / symmetric 品質 / d1e0 を wide8 に / EN seed 2 本 | Kaggle CPU（無料） | 最終表を固定 |
 | 2 | 4B を 1 条件だけ移植（g64 / emb8 / wide8 / d1e0）+ eval | Modal A100 | 設定が 9B に効く見込みが立つ |
 | 3 | 9B 本体（g64 / wide8 / emb8）+ eval | Modal A100 | 品質と t/s が出る |
-| 4 | 公式 speculator の流用テスト | ローカル Mac | 受理率で可否 |
-| 5 | 不要なら自前 draft 学習（DFlash + Weaver） | Modal A100 | 実効 t/s が 2 倍以上 |
+| 4 | **自前 draft 学習（必須）** | Modal A100 | 実効 t/s が 2 倍以上 |
+| 5 | （参考）公式 draft を付けて受理率を測る | ローカル Mac | 分布差の確認だけ。採用しない |
 
 4B を飛ばして 9B に行かない。4B は「設定の妥当性を見る 1 本」で終わり。
 
