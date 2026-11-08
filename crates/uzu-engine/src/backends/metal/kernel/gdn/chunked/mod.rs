@@ -40,10 +40,6 @@ impl DeltaNetChunkedPrefill for MetalDeltaNetChunkedPrefill {
             return Ok(None);
         }
 
-        if !context.supports_mxu {
-            return Ok(None);
-        }
-
         // The precompute kernel assigns one grouped v-head to each of its four simdgroups.
         if groups_per_head > 4 {
             return Ok(None);
@@ -55,6 +51,9 @@ impl DeltaNetChunkedPrefill for MetalDeltaNetChunkedPrefill {
             INNER_DATA_TYPE
         };
 
+        // The chunked pipeline is simdgroup-only except for the output/state MMA, which has both
+        // a fragment-MMA and an MPP variant; the parity tests run the fragment-MMA one on
+        // non-MXU devices, so chunked prefill works there too.
         Ok(Some(Self {
             min_t: MXU_MIN_T,
             prep: DeltaNetPrefillPrepMetalKernel::new(
@@ -73,7 +72,7 @@ impl DeltaNetChunkedPrefill for MetalDeltaNetChunkedPrefill {
                 scratch_data_type,
                 head_dim,
                 VT,
-                true,
+                context.supports_mxu,
             )?,
         }))
     }
