@@ -139,6 +139,23 @@ ValueError: unsupported quantization parameter width: 6
 
 
 
+
+### damping と samples は代替関係（2026-11-08 / 100 chunks）
+
+| 条件 | EN | JA |
+|---|---:|---:|
+| s64_q512 d1e-3 | **1.55%** | 1.99% |
+| s64_q512 d1e-1 | 1.66% | **1.94%** |
+| s64_q512 d1e-0 | 1.95% | 2.22% |
+| s32_q128 d1e-2 | 2.16% | 2.73% |
+| s32_q128 d1e-1 | 1.99% | **2.26%** |
+
+- **s32/q128 では d1e-1 が JA を 0.47pp 改善**（seed 幅 0.23 を超える）
+- **s64/q512 では d1e-1 の効果が 0.05pp**（有意でない）
+- 解釈: damping は「推定ノイズの補正」。samples が増えてノイズが減ると、damping の効きも消える
+- **damping は 1e-2 で十分**。1e-1 は samples が少ないときの保険。1e0 は行き過ぎ
+- レーン間の baseline は 0.06% ずれる（GPU 35.364 / CPU 35.386）ので、EN Δ の比較は ±0.06pp の誤差込みで見る
+
 ### 併用は加算しない（2026-11-08 / 100 chunks / GPU）
 
 Hessian 混合（balanced-h）の merge damping を 1e-2 にした結果。
