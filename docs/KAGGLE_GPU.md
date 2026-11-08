@@ -126,6 +126,76 @@ lane.resume_hf_results
 
 古い kit は `build_kit.py --check` で落ちる。
 
+
+## GPU の実測スペックと設定（2026-11-08）
+
+### デバイス
+
+| 項目 | Kaggle T4×2 | Modal A100-80GB |
+|---|---|---|
+| compute capability | **7.5（Turing）** | 8.0（Ampere） |
+| メモリ | 16GB × 2（**1 枚あたり**） | 80GB |
+| bf16 matmul | **不可**（`ALG_DOT_BF16_BF16_F32` が無い） | 可 |
+| fp16 | 可 | 可 |
+| flash-attn 2 | **不可**（sm80 以上要求） | 可 |
+| 課金 | 無料（30h/週・同時 2 セッション） | 従量 |
+| 1 セッション | 12 時間 | 無し |
+
+**T4 の 16GB は「2 枚合わせて」ではない。** 1 プロセスから見えるのは 16GB で、
+TP=2 にすると各デバイスに分割される。
+
+### 並列モードの可否（0.8B で実測）
+
+| モード | 0.8B | 理由 |
+|---|---|---|
+| `replicated` | ✅ | CPU でも可。GPU では 1 枚に全部載る |
+| `tensor`（TP=2） | ✅ | 実績あり（QAD 0.39 s/step） |
+| `fsdp` | **❌** | サイズ 1 の配列（norm scale）を 2 分割できず即死 |
+| `data` | ✅ | ただし重みは複製されるのでメモリは減らない |
+
+FSDP のエラー（再現用）:
+
+```
+Sharding spec ('fsdp',) implies that array axis 0 is partitioned 2 times,
+but does not evenly divide the dimension size 1. Got shape: (1,)
+```
+
+### メモリの見積もり（0.8B QAD の実例）
+
+| 項目 | サイズ |
+|---|---:|
+| teacher（bf16） | 1.5GB |
+| student master（fp32） | 3GB |
+| 勾配（fp32） | 3GB |
+| AdamW m + v | 6GB |
+| 活性化ほか | 2〜3GB |
+| **合計** | **15.5GB 超 → T4 で OOM** |
+
+削り方（効果が大きい順）:
+
+| 手段 | 削減 | 副作用 |
+|---|---:|---|
+| `--optimizer muon` | **−3GB** | lr の意味が変わる（`--muon-lr`） |
+| `--seq 64` | −1〜2GB | 学習信号が減る |
+| `--freeze-scales` | 小 | scales が動かない |
+| `--skip-checkpoint` | 中（orbax のピーク） | resume 不可 |
+| `--master-dtype bfloat16` | −1.5GB | **更新が 1 ulp 未満で丸め落ちる（不可）** |
+
+### GPU を使う前のチェックリスト
+
+1. `kaggle kernels status` ではなく **クォータ**を確認（`rtk python3 scripts/kaggle_usage.py`）
+2. 12 時間で切れる前提で checkpoint を設計（出力は `/kaggle/working`、サイズ上限 20GB）
+3. bf16 を使わない（T4）。`--calib-dtype float32` / `--dtype float32`
+4. TP=2 を使うなら `--parallel tensor`。FSDP は試さない
+5. 失敗したらまず **メモリ**を疑う。`Free memory/Total` がログに出る
+
+### クォータの実際
+
+- 30h/週は**セッション時間**で消費される（待ち時間も含む）
+- 2026-11-08 に QAD の 4 連敗（うち 3 本が OOM）で**使い切った**
+- 使い切ると `Maximum weekly GPU quota of 30.00 hours reached.` で **push 自体が失敗**する
+- 回復まで GPU は使えない → CPU で回せる設計にしておく
+
 ## クォータ
 
 - GPU: 1 アカウント 2 セッション同時、30h/週
