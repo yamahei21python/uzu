@@ -61,16 +61,24 @@ lalamo の convert は書き出さないので、以下の最小構成を手で�
 
 ### 実測（公式 9B-M を target に流用）
 
-| 構成 | メモリ | Generate |
-|---|---:|---:|
-| 公式 9B-M（投機なし） | 5.37GB | 15.3 t/s |
-| 公式 9B-M + **guglxni draft（Argmax chain）** | 7.05GB | **41.2 t/s** |
+| 構成 | メモリ | Generate | 倍率 |
+|---|---:|---:|---:|
+| 公式 9B-M（投機なし） | 5.00GB | 16.2 t/s | 1.0x |
+| 公式 9B-M + **guglxni draft（5層 / Argmax chain / bf16）** | 7.05GB | **41.2 t/s** | **2.5x** |
+| **公式 9B-M + 公式 draft（8層 / Weaver 木 / 4bit）** | 5.74GB | **63.4 t/s** | **3.9x** |
 
-**2.7 倍。** しかもこの draft は別の abliterated 9B（lukey03 版）で学習されたもの。
-我々の Huihui 版で fine-tune すればさらに上がる見込み。
+**読み取れること**:
+
+1. 別モデル（lukey03 版 abliterated）で学習した draft でも **2.5x** 出る
+   → abliterated 同士なら分布が近い。ゼロから学習する必要はない
+2. 公式との差（2.5x vs 3.9x）の要因は 3 つ
+   - **Weaver の木**（Argmax は chain のみ）
+   - 8 層 vs 5 層
+   - 4bit 量子化（755MB）による帯域削減
+3. したがって我々の作業は「公開 draft を Huihui 9B で fine-tune」+「Weaver 追加」+「4bit 化」
 
 > 注意: target は公式 9B-M（QAD 済み・4bit）。我々の変換モデルでの数値ではない。
-> また draft 自体は bf16 のまま（2.18GB）。4bit 化すれば 755MB 程度になる。
+> 我々の 9B は 4-8bit 配分なので hidden state が少しずれる。fine-tune で吸収する。
 
 ## 段取り
 
