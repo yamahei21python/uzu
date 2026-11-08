@@ -487,7 +487,7 @@ preflight, preflight.sdpa_xla, env_fingerprint, qad.freeze_scales
 
 ---
 
-## 3. 実行状態（2026-11-08 19:45）
+## 3. 実行状態（2026-11-08 20:45）
 
 ```
 owner cpu 0/5   gpu 0/2
@@ -495,7 +495,7 @@ owner cpu 0/5   gpu 0/2
 
 | kernel | lane | 状態 | 結果 |
 |---|---|---|---|
-| `uzu-qad-best` v4 | QAD 50 step（tp / lr 5e-4 / freeze-scales / skip-checkpoint） | RUNNING | v3 は FSDP 不可で即死 |
+| `uzu-qad-best` v5 | QAD 50 step（**CPU** / adamw / lr 5e-4 / freeze-scales / skip-checkpoint） | RUNNING | GPU はクォータ切れ |
 | `uzu-t4-probe` | T4 で draft 学習が回るかの実測 | RUNNING | — |
 | `uzu-sym8-eval` | symmetric wide8 の品質 | RUNNING | — |
 | `uzu-wide-d1e0` | wide8 + damping 1.0 | RUNNING | — |
@@ -528,7 +528,9 @@ but does not evenly divide the dimension size 1. Got shape: (1,)
 ```
 
 FSDP は全配列を 2 分割するため、サイズ 1 の norm scale などで落ちる。
-v4 は TP に戻し、メモリを `--freeze-scales` と `--skip-checkpoint` で削る。
+v4 は TP に戻し、メモリを `--freeze-scales` と `--skip-checkpoint` で削る → それでも step 0 で OOM
+（AdamW の m,v が 6GB）。v5 は Muon を試そうとしたが **GPU の週次クォータ 30h を使い切った**ため、
+**CPU に切り替えた**（0.8B は CPU で回る）。
 
 ### T4 で draft 学習が回るか（`uzu-t4-probe`）
 
