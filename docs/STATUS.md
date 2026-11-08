@@ -229,6 +229,21 @@ seed0 は clean レーンの mixed50-d1e-1 と完全一致（決定性の確認�
 - 「少し遅いが品質は上」は **JA で成立、EN は同等**
 - 注意: wide8 側は asymmetric int8 の値（§8 の symmetric 再測が前提）
 
+
+### RHT block 64/128 は構造的に不可能（2026-11-08 実測）
+
+変換が `incompatible Linear shapes` で落ちる。
+
+```
+.decoder/.transformer/.layers/[14]/.mixer/.in_proj: (8224, 1024)
+```
+
+- `8224 = 32 × 257`（257 は素数）→ **64 で割れない**
+- 9B も `in_proj` が 12352 = 32 × 386 で同様
+- RHT のブロックは全次元を割り切る必要があるため、**block は 32 で固定**
+- エンジン側の対応（`block_size == 32` のみ受け付ける）以前に、変換が成立しない
+
+→ block 64/128 の品質プローブは無意味。エンジン拡張も不要。
 ### 8bit は symmetric でないと uzu で動かない（2026-11-08 実測）
 
 wide8 / down-out8 の変換結果を `cli bench` に渡すと、カーネル未定義で落ちる。
