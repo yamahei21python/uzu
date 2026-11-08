@@ -487,7 +487,7 @@ preflight, preflight.sdpa_xla, env_fingerprint, qad.freeze_scales
 
 ---
 
-## 3. 実行状態（2026-11-08 夜）
+## 3. 実行状態（2026-11-08 19:30）
 
 ```
 owner cpu 0/5   gpu 0/2
@@ -495,23 +495,39 @@ owner cpu 0/5   gpu 0/2
 
 | kernel | lane | 状態 | 結果 |
 |---|---|---|---|
-| `uzu-sym8-build` | symmetric int8 での wide/downout 再ビルド（CPU） | **COMPLETE** | 成果物を取得中 |
-| `uzu-qad-best` v2 | wide8 + emb4 student に QAD 50 step（GPU） | **RUNNING** | 60〜90 分 |
-| `uzu-official-eval` | 公式 0.8B-M の品質（GPU） | COMPLETE | EN +1.21% / JA +3.83% |
-| `uzu-alloc-downout8-d1e0` | damping 1e0（CPU） | COMPLETE | EN +1.27% / JA +1.49% |
-| `uzu-lane-budget-q128` | 総トークン説（CPU） | COMPLETE | 32k なら q128 ≒ q512 |
-| `calib-device-cpu-bf16` | 校正 dtype（CPU） | COMPLETE | f32 > bf16（EN +0.63pp） |
-| `uzu-qad-best` v1 | QAD（GPU） | ERROR | `.bak` 誤判定。`1350d022` で修正、v2 で再投入 |
+| `uzu-qad-best` v3 | QAD 50 step（fsdp / lr 5e-4 / freeze-scales / skip-checkpoint） | RUNNING | — |
+| `uzu-t4-probe` | T4 で draft 学習が回るかの実測 | RUNNING | — |
+| `uzu-sym8-eval` | symmetric wide8 の品質 | RUNNING | — |
+| `uzu-wide-d1e0` | wide8 + damping 1.0 | RUNNING | — |
+| `uzu-official-eval` | 公式 0.8B-M の品質 | COMPLETE | EN +1.21% / JA +3.83% |
+| `uzu-alloc-downout8-d1e0` | damping 1e0 | COMPLETE | EN +1.27% / JA +1.49% |
+| `uzu-sym8-build` | symmetric int8 のビルド | COMPLETE | wide 124.4 / downout 128.4 t/s |
 
-### 今日の修正（変換・評価の正しさ）
+### QAD v2 の失敗 = GPU OOM（v3 で修正）
 
-| commit | 内容 |
+```
+RESOURCE_EXHAUSTED: Out of memory ... Free 34MB / Total 15.6GB
+jit_train_step
+```
+
+`.bak` の誤判定は解消済み。残った問題は 2 つ。
+
+1. **step 0 で 15.6GB を消費**。teacher(1.5GB) + master(fp32) + AdamW(m,v) + 勾配で足りない
+2. **lr 2e-5 は 1 int4 step（5.8e-4）の 3.4%**。スクリプト自身が警告していた
+
+v3 の変更: `--parallel fsdp` / `--freeze-scales` / `--skip-checkpoint` /
+`--master-dtype float32` / `--lr 5e-4` / `--grad-clip 1.0`。
+
+### T4 で draft 学習が回るか（`uzu-t4-probe`）
+
+測るのは matmul の実効 TFLOP/s（fp16/bf16/fp32）、SDPA、flash-attn の install/import、
+`vllm-project/speculators` の install。DFlash 学習は flash-attn を要求する可能性が高く、
+T4 は sm75 なので sm80 以上要求なら**その時点で不可**。
+
+| 結果 | 判断 |
 |---|---|
-| `48bcc1d5` | QAD export が `encoding.json` を書かない / 古い `.bak` を残す |
-| `adb705ca` | `make_qad_dataset` が層別ビット・embedding 量子化を渡せない |
-| `9e471128` | **8bit を asymmetric で書いていた**（uzu は 4bit 以外の zero-point を未コンパイル）→ `--symmetric-bits` 既定 8 |
-| `1350d022` | eval copy の `.bak` 鮮度判定が逆（`.bak` は rewrite 前のコピーなので必ず古い）→ stamp 方式へ |
-| `d32b8c07` | 公式比較・damping 1e0・seed/embedding の記録 |
+| flash-attn 不可 または bf16 が激遅 | Kaggle T4 は不可 → Modal A100 |
+| SDPA で実用速度 | Kaggle で fine-tune（30h/週を分割） |
 
 ## 4. 結果回収
 

@@ -199,6 +199,24 @@ Weaver は 9B 用の重みが無いため、ゼロから学習するしかない
 Weaver の利得は「top-1 の chain が外れたときに別候補が当たる」こと。
 draft が十分賢いと chain がほぼ通るので、利得は縮む。
 
+### Step 2.4: 学習をどこで回すか（T4 プローブで判定）
+
+| 対象 | Kaggle T4×2 | 判断 |
+|---|---|---|
+| 4B 変換 | ❌ bf16 データセットが無い / f32 で 16GB ぴったり | Modal |
+| 9B 変換 | ❌ 18GB | Modal |
+| **draft 学習** | 測手中 | プローブ次第 |
+| 0.8B の追加 seed | ✅ | Kaggle GPU |
+
+draft 学習の可否を決めるのは 3 つ。
+
+1. **flash-attn が sm75（T4）で動くか** — DFlash 学習の必須依存。sm80 以上要求なら不可
+2. fp16 / bf16 matmul の実効速度（T4 は bf16 tensor core 無し）
+3. `vllm-project/speculators` が T4 環境で install できるか
+
+結果が「不可」なら Modal A100。「可」でも週 30h を分割する前提で、
+fine-tune は 2〜3 セッションに分ける（checkpoint は Kaggle 出力に置く）。
+
 ### Step 2.5: Kaggle T4 で 100 step 実測（9B 本体ビルド後）
 
 draft 学習を Kaggle GPU で回せるかを**数字で決める**ための短時間テスト。
