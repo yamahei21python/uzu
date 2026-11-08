@@ -1,0 +1,48 @@
+{
+  "lane": "rht128-sym8-wide8-08b",
+  "model": {
+    "hf_repo": "Qwen/Qwen3.5-0.8B",
+    "spec_name": "Qwen3.5-0.8B",
+    "bf16_dir": "bf16-lalamo",
+    "bf16_source": "/kaggle/input/uzu-bf16-08b-lalamo",
+    "bf16_source_auto": true
+  },
+  "paths": {
+    "kit": "kit",
+    "work": "/kaggle/working",
+    "jax_platform": "gpu"
+  },
+  "eval": {
+    "max_sequences": 100,
+    "max_tokens": 128,
+    "min_tokens": 16,
+    "corpora": {
+      "en": "data/eval_en_wikitext2_dedup.txt",
+      "ja": "data/eval_ja_wikipedia_dedup.txt"
+    }
+  },
+  "condition_defaults": {
+    "samples": 32,
+    "max_tokens": 128,
+    "output_block": "small",
+    "output_block_limit": 2048,
+    "damping": 0.1,
+    "raw_output": false
+  },
+  "convert": {
+    "bits": 4,
+    "group_size": 32,
+    "block_size": 128,
+    "parallel": "tensor",
+    "symmetric_bits": "8",
+    "quantize_embedding": true,
+    "embedding_bits": 4,
+    "layer_bits_json": "lanes/bits-wide-8.json"
+  },
+  "conditions": [
+    {
+      "name": "wide8-d1e-1",
+      "calibration_corpus": "data/calibration_mixed_en_ja_dedup.txt"
+    }
+  ]
+}
