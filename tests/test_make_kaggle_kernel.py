@@ -119,3 +119,22 @@ def test_pins_the_kit_revision(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     code = (tmp_path / "out" / "uzu-lane-demo.py").read_text()
     assert re.search(r'"--revision", \'a{40}\'', code)
+
+
+def test_qad_kind_forces_gpu_and_wraps_the_runner(tmp_path: Path) -> None:
+    result = run(tmp_path, "--dataset", "owner/uzu-bf16-demo", "--kind", "qad",
+                 "--student-repo", "owner/qad-student")
+    assert result.returncode == 0, result.stderr
+    metadata = json.loads((tmp_path / "out" / "kernel-metadata.json").read_text())
+    assert metadata["enable_gpu"] is True
+    code = (tmp_path / "out" / "uzu-lane-demo.py").read_text()
+    assert "qad_finetune.py" in code
+    assert "eval_external_model.py" in code
+    assert 'XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"' in code
+    assert "owner/qad-student" in code
+
+
+def test_qad_kind_requires_a_student_repo(tmp_path: Path) -> None:
+    result = run(tmp_path, "--dataset", "owner/uzu-bf16-demo", "--kind", "qad")
+    assert result.returncode != 0
+    assert "--student-repo" in result.stderr + result.stdout
