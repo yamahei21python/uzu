@@ -577,7 +577,7 @@ python scripts/publish_results.py --out out --as muse --repo kentasatomuse/uzu-r
 | 4B/9B の emb/readout INT4 維持 | emb4 の値段 | 0.8B で EN +0.64 / JA +0.83pp。**emb8 を既定にすべき** |
 | wide8 が EN で有意か | seed 追加 2〜3 本 | 平均 +1.05% vs down-out8 +1.39%（差 0.34pp < seed 幅 0.44pp） |
 | symmetric int8 の品質・速度 | `uzu-sym8-build` の再測定 | 未測定（asymmetric の値しかない） |
-| QAD が効くか | QAD before/after ΔBPC | `uzu-qad-best` v2 実行中（wide8 + emb4 / 50 step） |
+| QAD が効くか | QAD before/after ΔBPC | **効く（最弱 student で EN −1.46 / JA −0.88pp）**。強い student では逓減の見込み |
 | 混合比の曲線（mix35 / jaonly） | Muse clean-suite | 実行中 |
 
 ### 判定の物差し
