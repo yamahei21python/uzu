@@ -140,6 +140,59 @@ JA が速いのは 1 トークンあたりの文字数（fertility）が高く�
 
 ---
 
+## 8. 実測プロファイル（2026-11-08 / MacBook Air M3 16GB）
+
+### 方法
+
+- `target/release/cli bench <model> <task> <out>` で TPS を取得（UI 無し）
+- `xctrace record --template 'Metal System Trace'` で command buffer を取得
+- `xctrace export` で `metal-application-command-buffer-submissions` / `metal-gpu-intervals` を XML 化して集計
+
+### 結果
+
+| モデル | 使用メモリ | generate t/s | 実効帯域 | prompt t/s |
+|---|---:|---:|---:|---:|
+| 0.8B INT4 | 0.92 GB | **87.9** | **81 GB/s** | 681 |
+| 9B INT4 | 5.37 GB | **15.3** | **82 GB/s** | 96.8 |
+
+**両モデルで実効帯域が 81〜82 GB/s に揃う。** M3 の公称 ~100GB/s に対して **82%**。
+decode は完全に帯域律速で、per-token 時間 = 重みバイト数 ÷ 82GB/s でほぼ説明できる。
+
+### 計測の落とし穴（重要）
+
+command buffer の `duration` は **GPU 実行時間ではない**。
+
+| 指標 | 0.8B | 9B |
+|---|---:|---:|
+| CB duration（中央値） | 2.59 ms | 3.77 ms |
+| 実 wall / token | 11.4 ms | 65 ms |
+
+CB duration は encode〜submit の側で、GPU 実行は wall の大半を占める。
+これを GPU 時間と誤認すると「GPU 稼働率 20%、CPU がボトルネック」と誤結論する。
+実際は CPU 側は 1 トークンあたり数 ms で、帯域が支配的。
+
+### 実効帯域から見た上限
+
+| 構成 | 0.8B | 9B |
+|---|---:|---:|
+| BF16 | 1.6GB → 約 51 t/s | 18GB → 約 4.6 t/s |
+| INT4 uniform | 0.58GB → 約 141 t/s（理論）/ 実測 88 | 5.0GB → 約 16.4 / 実測 15.3 |
+| INT4 wide8 | 0.66GB → 約 124 t/s（理論） | 5.24GB → 約 15.6 |
+| INT4 + 投機（受理 1.5 tok/pass） | ×1.5 | ×1.5 |
+
+- 4bit の実測が理論の 62% なのは、実効帯域 82% と KV/活性のぶん
+- **8bit 化は理論値で −8〜14%**（サイズ増のぶんだけ素直に遅くなる）
+- 帯域 82% を 90% に上げられれば +10% だが、カーネル改善の余地は小さい
+
+### 結論の更新
+
+1. uzu の decode は **帯域律速（実効 82GB/s）**。CPU はボトルネックではない
+2. TPS を上げる手段は **「1 トークンあたりの読み出しバイトを減らす」か「1 回の読み出しで複数トークン出す」** の2つだけ
+3. 前者は 4bit 維持・8bit 最小化・group 64（メタデータ減）
+4. 後者は投機デコード。**帯域の壁を越える唯一の手段**
+
+---
+
 ## 6. 未調査（次の深掘り候補）
 
 1. `gemv.metal` の内側ループ（lane staging 8 bytes の実装）と実効帯域の実測
