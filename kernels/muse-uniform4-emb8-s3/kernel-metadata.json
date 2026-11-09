@@ -1,0 +1,18 @@
+{
+  "id": "kentasatomuse/uzu-uniform4-emb8-s3",
+  "title": "uzu uniform4 emb8 s3",
+  "code_file": "uzu-uniform4-emb8-s3.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "yamahei21python/uzu-bf16-08b-lalamo"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}
