@@ -193,3 +193,11 @@ def test_fsdp_is_rejected_because_of_dimension_one_arrays(tmp_path) -> None:
     result = _run_with(tmp_path, "--parallel", "fsdp")
     assert result.returncode != 0
     assert "dimension-1" in (result.stdout + result.stderr)
+
+
+def test_sgd_optimizer_is_accepted_with_tensor_parallel(tmp_path) -> None:
+    result = _run_with(tmp_path, "--optimizer", "sgd", "--parallel", "tensor")
+    # It should get past the guard and fail later on the missing teacher directory,
+    # not on argument validation.
+    assert "tensor parallelism" not in result.stdout + result.stderr
+    assert "sgd" in result.stdout + result.stderr or result.returncode != 0

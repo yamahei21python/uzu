@@ -126,9 +126,13 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--optimizer",
-        choices=("muon", "adamw"),
+        choices=("muon", "adamw", "sgd"),
         default="muon",
-        help="muon: master=Muon + scales=AdamW; adamw: all trainables=AdamW",
+        help=(
+            "muon: master=Muon + scales=AdamW; adamw: all trainables=AdamW; "
+            "sgd: momentum SGD for master weights, AdamW for scales (one state "
+            "per weight, tensor-parallel safe — use when AdamW does not fit)"
+        ),
     )
     parser.add_argument("--adam-b1", type=float, default=0.9)
     parser.add_argument("--adam-b2", type=float, default=0.95, help="short QAD (<100 steps) uses 0.95, not 0.999")
@@ -334,7 +338,7 @@ def main() -> None:
         if jax.tree_util.keystr(path).endswith(".scales") and isinstance(leaf, jax.Array)
     ]
     quant_step = median_quantization_step(scale_leaves)
-    planned_lr = args.lr if args.optimizer == "adamw" else args.muon_lr
+    planned_lr = args.muon_lr if args.optimizer == "muon" else args.lr
     if quant_step is not None:
         print(f"median int4 step: {quant_step:.2e}  planned lr: {planned_lr:g}", flush=True)
     if update_is_absorbed(planned_lr, quant_step):
@@ -351,7 +355,22 @@ def main() -> None:
     def is_scale_key(key: str) -> bool:
         return key.endswith("scales") or key.endswith("master_zero_points")
 
-    if args.optimizer == "adamw":
+    if args.optimizer == "sgd":
+        labels = {
+            key: ("scale" if is_scale_key(key) else "weight")
+            for key in params
+        }
+        optimizer = optax.multi_transform(
+            {
+                # One momentum buffer per weight instead of AdamW's two, so this fits
+                # where AdamW is a few MiB short. Elementwise, so TP-safe.
+                "weight": optax.sgd(args.lr, momentum=0.9),
+                "scale": optax.adamw(args.scale_lr, b1=args.adam_b1, b2=args.adam_b2, weight_decay=0.0),
+            },
+            labels,
+        )
+        print(f"optimizer: SGD(momentum=0.9, lr={args.lr}) + AdamW(scale_lr={args.scale_lr})", flush=True)
+    elif args.optimizer == "adamw":
         labels = {
             key: ("scale" if is_scale_key(key) else "weight")
             for key in params
