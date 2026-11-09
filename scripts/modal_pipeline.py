@@ -244,9 +244,13 @@ def rtn(size: str, run_name: str, quantize_embedding: bool, bits: int = 4,
     timeout=14400,
 )
 def calibrate(size: str, run_name: str, samples: int, max_tokens: int, group_size: int, corpus: str,
-              damping: float = 1e-3, output_block: str = "none") -> str:
+              damping: float = 1e-3, output_block: str = "none", attention: str = "xla") -> str:
     """Calibrate in layer groups so the Hessian accumulators fit in memory."""
     os.environ["JAX_PLATFORM_NAME"] = "cuda"
+    # The Pallas flash kernel cannot be differentiated (pallas_call jvp asserts
+    # axis_frame is set), so calibration must use the plain XLA path. CPU runs
+    # already use XLA, so this also keeps the numerics comparable.
+    os.environ["UZU_ATTENTION_IMPL"] = attention
     # JAX otherwise reserves 75% of the device and OOMs before the Hessian fits
     os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     model = spec(size)
@@ -567,6 +571,7 @@ def main(
     seq: int = 0,
     damping: float = 0.0,
     output_block: str = "",
+    attention: str = "xla",
     optimizer: str = "adamw",
     # 2e-5 is a finetuning lr. The 4-bit quantizer rounds an update that small
     # away, so val_kl never moves and early stop fires on a run that learned
@@ -615,7 +620,8 @@ def main(
             )
         )
     elif command == "calibrate":
-        print(calibrate.remote(size, run_name, samples, max_tokens, group_size, corpus, damping, output_block))
+        print(calibrate.remote(size, run_name, samples, max_tokens, group_size, corpus, damping,
+                               output_block, attention))
     elif command == "yaqa":
         print(
             yaqa.remote(

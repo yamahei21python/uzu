@@ -130,6 +130,7 @@ python scripts/modal_batch.py --sizes 4b,9b --commands import,rtn,eval \
 
 ## 注意
 
+- **calibration は必ず `UZU_ATTENTION_IMPL=xla`**（既定）。Pallas flash カーネルは微分できない（`pallas_call` の JVP が `axis_frame` で assert する）。CPU 校正も XLA なので数値が揃う。`--attention pallas` は calibration では失敗する
 - calibration の既定は config 由来（9B は `none` / 1e-3）。0.8B の clean 設定は `small` / 1e-3、9B の採用レシピは `small` / **1.0**。比較するときは必ず明示する
 - QAD の student は `make_qad_dataset.py` で作る。`provenance.json` が無いと QAD が拒否する
 - **QAD の lr は 1e-3 前後**。2e-5 は finetuning の値で、4-bit の量子化刻み（0.8B の中央値 4.7e-4）より 1 桁小さい。量子化器が更新を丸めて落とし、val_kl が 1 ビットも動かない（`uzu-qad-cpu` がこれで early stop した）。`qad_finetune.py` は起動時に `median int4 step` と lr を比べて警告する
