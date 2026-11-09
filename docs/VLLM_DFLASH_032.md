@@ -10,7 +10,7 @@
 | 原因 | PR #60692（0.32.0 に merge、`36f397281`）が DFlash の draft を FULL CUDA graph で replay する際、**kernel block table を更新しない** |
 | 症状 | draft が古い block table を読む → 提案が target と噛み合わず受理 0。出力テキスト自体は正しい（検証は走る） |
 | 修正 | PR #64059（2026-11-04 merge、main / `0.32.1rc1.dev505`）。**コード 8 行** |
-| リリース | 未。最新は 0.32.0 と 0.33.0rc3（2026-11-02） |
+| リリース | **どのリリースにも入っていない**。`v0.32.0` / `v0.32.1rc0` / `v0.33.0rc3` / `v0.33.0` を commit 比較で確認（2026-11-09）。入るのは main / nightly のみ |
 | ワークアラウンド | `cudagraph_mode=PIECEWISE` または `--enforce-eager`（DFlash は piecewise を持たないので draft が eager になる） |
 
 ## 実測（Issue #63587 / PR #64059、B200）
@@ -62,7 +62,7 @@ vllm serve <27B target> \
 
 1. **#64059 の 10 行を当てる**（`vllm/v1/worker/gpu/spec_decode/{dflash,autoregressive,}speculator.py`）
    - 0.32.0 のイメージに `git apply` できる見込み。FULL グラフを維持できて最速
-2. 0.32.1 / main のビルドに上げる（未リリースなので nightly 待ち）
+2. 0.32.1 / main のビルドに上げる（**0.33.0 でも直らない**。commit 比較で確認済み。nightly 待ち）
 3. 当面 `PIECEWISE` で運用（速度は半分）
 
 ## 注意
