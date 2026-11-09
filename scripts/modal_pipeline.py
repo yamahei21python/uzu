@@ -56,6 +56,8 @@ image = (
     .add_local_file("scripts/eval_quantized.py", "/workspace/scripts/eval_quantized.py")
     .add_local_file("scripts/qad_finetune.py", "/workspace/scripts/qad_finetune.py")
     .add_local_file("scripts/lalamo_forward.py", "/workspace/scripts/lalamo_forward.py")
+    # bit allocation rules (wide8 etc.); name-based so they are size independent
+    .add_local_dir("lanes", "/workspace/lanes")
     # imported by this entrypoint at startup; must sit beside it, not in /workspace/scripts
     .add_local_file("scripts/modal_targets.py", "/root/modal_targets.py")
     .add_local_file(
@@ -65,6 +67,10 @@ image = (
     .add_local_file(
         "experiments/qwen35-0.8b/data/calibration_ja_wikipedia_dedup.txt",
         "/workspace/data/calibration_ja_dedup.txt",
+    )
+    .add_local_file(
+        "experiments/qwen35-0.8b/data/calibration_mixed_en_ja_dedup.txt",
+        "/workspace/data/calibration_mixed_dedup.txt",
     )
     .add_local_file(
         "experiments/qwen35-0.8b/data/eval_en_wikitext2_dedup.txt",
@@ -82,6 +88,42 @@ app = modal.App(APP_NAME)
 def run(command: list[str]) -> None:
     print("+", " ".join(command), flush=True)
     subprocess.run(command, check=True)
+
+
+def convert_flags(
+    bits: int,
+    quant_group_size: int,
+    block_size: int,
+    parallel: str,
+    symmetric_bits: str,
+    embedding_bits: int,
+    layer_bits: str,
+) -> list[str]:
+    """Quantization knobs shared by rtn and yaqa.
+
+    Defaults mirror the 0.8B winner (wide8 + emb8 + symmetric int8), so a bare
+    ``--quantize-embedding`` reproduces the tuned recipe instead of the old
+    uniform-4 asymmetric one.
+    """
+    flags = [
+        "--bits",
+        str(bits),
+        "--group-size",
+        str(quant_group_size),
+        "--block-size",
+        str(block_size),
+        "--parallel",
+        parallel,
+        "--symmetric-bits",
+        symmetric_bits,
+    ]
+    if embedding_bits:
+        flags += ["--embedding-bits", str(embedding_bits)]
+    if layer_bits:
+        if not os.path.exists(layer_bits):
+            raise SystemExit(f"missing layer-bits JSON: {layer_bits}")
+        flags += ["--layer-bits-json", layer_bits]
+    return flags
 
 
 def ensure_bf16_eval(run_name: str) -> str:
@@ -161,7 +203,9 @@ def import_model(size: str, run_name: str) -> str:
     memory=65536,
     timeout=7200,
 )
-def rtn(size: str, run_name: str, quantize_embedding: bool) -> str:
+def rtn(size: str, run_name: str, quantize_embedding: bool, bits: int = 4,
+        quant_group_size: int = 32, block_size: int = 32, parallel: str = "replicated",
+        symmetric_bits: str = "8", embedding_bits: int = 0, layer_bits: str = "") -> str:
     os.environ["JAX_PLATFORM_NAME"] = "cpu"
     if os.path.exists(f"/out/{run_name}/int4-rtn/COMPLETE"):
         print(f"skip rtn: /out/{run_name}/int4-rtn/COMPLETE exists", flush=True)
@@ -177,6 +221,8 @@ def rtn(size: str, run_name: str, quantize_embedding: bool) -> str:
         "--output-dir",
         f"/out/{run_name}/int4-rtn",
     ]
+    command += convert_flags(bits, quant_group_size, block_size, parallel, symmetric_bits,
+                             embedding_bits, layer_bits)
     if quantize_embedding:
         command.append("--quantize-embedding")
     run(command)
@@ -303,7 +349,9 @@ def calibrate(size: str, run_name: str, samples: int, max_tokens: int, group_siz
     memory=65536,
     timeout=7200,
 )
-def yaqa(size: str, run_name: str, quantize_embedding: bool) -> str:
+def yaqa(size: str, run_name: str, quantize_embedding: bool, bits: int = 4,
+         quant_group_size: int = 32, block_size: int = 32, parallel: str = "replicated",
+         symmetric_bits: str = "8", embedding_bits: int = 0, layer_bits: str = "") -> str:
     os.environ["JAX_PLATFORM_NAME"] = "cpu"
     if os.path.exists(f"/out/{run_name}/int4-yaqa/COMPLETE"):
         print(f"skip yaqa: /out/{run_name}/int4-yaqa/COMPLETE exists", flush=True)
@@ -323,6 +371,8 @@ def yaqa(size: str, run_name: str, quantize_embedding: bool) -> str:
         "--calibration-json",
         f"/out/{run_name}/calibration/calibration.json",
     ]
+    command += convert_flags(bits, quant_group_size, block_size, parallel, symmetric_bits,
+                             embedding_bits, layer_bits)
     if quantize_embedding:
         command.append("--quantize-embedding")
     run(command)
@@ -499,12 +549,20 @@ def main(
     group_size: int = 4,
     corpus: str = "calibration_en_dedup.txt",
     quantize_embedding: bool = False,
+    bits: int = 4,
+    quant_group_size: int = 32,
+    block_size: int = 32,
+    parallel: str = "replicated",
+    symmetric_bits: str = "8",
+    embedding_bits: int = 0,
+    layer_bits: str = "",
     candidate: str = "int4-yaqa",
     max_sequences: int = 100,
     student: str = "student",
     steps: int = 10,
     seq: int = 0,
     damping: float = 0.0,
+    output_block: str = "",
     optimizer: str = "adamw",
     # 2e-5 is a finetuning lr. The 4-bit quantizer rounds an update that small
     # away, so val_kl never moves and early stop fires on a run that learned
@@ -525,7 +583,7 @@ def main(
     samples = samples or int(calibration.get("samples", 8))
     max_tokens = max_tokens or int(calibration.get("max_tokens", 512))
     damping = damping or float(calibration.get("damping", 1e-3))
-    output_block = str(calibration.get("output_block", "none"))
+    output_block = output_block or str(calibration.get("output_block", "none"))
     seq = seq or int(qad_defaults(size).get("seq", 128))
 
     if command == "check":
@@ -533,11 +591,21 @@ def main(
     elif command == "import":
         print(import_model.remote(size, run_name))
     elif command == "rtn":
-        print(rtn.remote(size, run_name, quantize_embedding))
+        print(
+            rtn.remote(
+                size, run_name, quantize_embedding, bits, quant_group_size, block_size,
+                parallel, symmetric_bits, embedding_bits, layer_bits,
+            )
+        )
     elif command == "calibrate":
         print(calibrate.remote(size, run_name, samples, max_tokens, group_size, corpus, damping, output_block))
     elif command == "yaqa":
-        print(yaqa.remote(size, run_name, quantize_embedding))
+        print(
+            yaqa.remote(
+                size, run_name, quantize_embedding, bits, quant_group_size, block_size,
+                parallel, symmetric_bits, embedding_bits, layer_bits,
+            )
+        )
     elif command == "eval":
         print(evaluate.remote(size, run_name, candidate, max_sequences))
     elif command == "qad":

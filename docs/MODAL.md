@@ -21,6 +21,32 @@ modal volume create uzu-models     # BF16 ソース（任意）
 
 `--size 4b` / `--size 9b`。`run_name` の既定は `huihui-4b` / `huihui-9b`。
 
+### 量子化フラグ（2026-11-09 追加）
+
+`rtn` / `yaqa` は 0.8B で確定した構成を既定にした。
+
+| フラグ | 既定 | 意味 |
+|---|---|---|
+| `--bits` | 4 | ベースビット幅 |
+| `--quant-group-size` | 32 | 量子化グループ（校正の `--group-size` とは別物） |
+| `--block-size` | 32 | RHT ブロック |
+| `--parallel` | replicated | JAX デバイス分割 |
+| `--symmetric-bits` | 8 | このビット幅は symmetric int8（uzu は 4bit のみ ZP を持つ） |
+| `--embedding-bits` | 0（未指定） | embedding/readout のビット幅（8 推奨） |
+| `--layer-bits` | 空 | 層別配分 JSON の**コンテナ内パス**。`lanes/` は `/workspace/lanes` に焼いてある |
+| `--quantize-embedding` | False | embedding を量子化する |
+
+```bash
+# 9B の採用レシピ（wide8 + emb8 + d1e0）
+modal run scripts/modal_pipeline.py --command yaqa --size 9b \
+  --quantize-embedding --embedding-bits 8 \
+  --layer-bits /workspace/lanes/bits-wide-8.json
+```
+
+`--symmetric-bits ""` で全ビット幅 asymmetric になる（非推奨、`docs/ENGINE_INT8_ZP.md`）。
+
+### 基本手順
+
 ```bash
 # 1. BF16 import（CPU、~10 分）
 modal run scripts/modal_pipeline.py --command import --size 9b
@@ -47,6 +73,34 @@ modal run scripts/modal_pipeline.py --command qad --size 9b \
 # 7. 回収
 modal run scripts/modal_pipeline.py --command fetch --size 9b --remote int4-yaqa
 ```
+
+## 9B の採用レシピ（2026-11-09）
+
+0.8B で 4 seed 回して確定した構成（`docs/0.8B_RESULTS.md` §13）を 9B に移す。
+
+| 項目 | 値 |
+|---|---|
+| 校正コーパス | `calibration_mixed_dedup.txt`（EN/JA 混合） |
+| 校正 | s32 / 128 tok / **small(2048)** / **damping 1.0** / bf16 / group 4 |
+| 8bit 層 | `bits-wide-8.json`（down_proj / out_proj / qkvg / out_projection） |
+| embedding | 8bit（symmetric） |
+| 量子化グループ | 32（RHT block 32） |
+
+```bash
+R=9b-abliterated
+modal run scripts/modal_pipeline.py --command import    --size 9b --run-name $R
+modal run scripts/modal_pipeline.py --command calibrate --size 9b --run-name $R \
+  --samples 32 --max-tokens 128 --group-size 4 \
+  --corpus calibration_mixed_dedup.txt --damping 1.0 --output-block small
+modal run scripts/modal_pipeline.py --command yaqa      --size 9b --run-name $R \
+  --quantize-embedding --embedding-bits 8 \
+  --layer-bits /workspace/lanes/bits-wide-8.json
+modal run scripts/modal_pipeline.py --command eval      --size 9b --run-name $R \
+  --candidate int4-yaqa --max-sequences 100
+```
+
+**順番を守る**: `check` → `import` で落ちないことを確認してから GPU（`calibrate`）に進む。
+`calibrate` は group ごとに `COMPLETE` 相当の npz を残すので、途中で落ちても同じコマンドで再開する。
 
 ## バッチ実行（timeout 必須）
 
@@ -75,7 +129,7 @@ python scripts/modal_batch.py --sizes 4b,9b --commands import,rtn,eval \
 
 ## 注意
 
-- calibration は `--output-block none` / damping 1e-2。0.8B の clean 設定（small / 1e-3）とは**違う**。比較するときは明示する
+- calibration の既定は config 由来（9B は `none` / 1e-3）。0.8B の clean 設定は `small` / 1e-3、9B の採用レシピは `small` / **1.0**。比較するときは必ず明示する
 - QAD の student は `make_qad_dataset.py` で作る。`provenance.json` が無いと QAD が拒否する
 - **QAD の lr は 1e-3 前後**。2e-5 は finetuning の値で、4-bit の量子化刻み（0.8B の中央値 4.7e-4）より 1 桁小さい。量子化器が更新を丸めて落とし、val_kl が 1 ビットも動かない（`uzu-qad-cpu` がこれで early stop した）。`qad_finetune.py` は起動時に `median int4 step` と lr を比べて警告する
 - `eval` は `A100-80GB`。BF16 18GB + INT4 5GB + 実行時バッファで 40GB だと足りない場合がある
