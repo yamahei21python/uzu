@@ -91,7 +91,7 @@ modal run scripts/modal_pipeline.py --command fetch --size 9b --remote int4-yaqa
 R=9b-abliterated
 modal run scripts/modal_pipeline.py --command import    --size 9b --run-name $R
 modal run scripts/modal_pipeline.py --command calibrate --size 9b --run-name $R \
-  --samples 32 --max-tokens 128 --group-size 4 \
+  --samples 32 --max-tokens 128 --group-size 16 \
   --corpus calibration_mixed_dedup.txt --damping 1.0 --output-block small
 modal run scripts/modal_pipeline.py --command yaqa      --size 9b --run-name $R \
   --quantize-embedding --embedding-bits 8 \
@@ -140,8 +140,8 @@ python scripts/modal_batch.py --sizes 4b,9b --commands import,rtn,eval \
 
 ## 既知の制約
 
-- 9B の calibration は layer group 分割が必須（1 層ずつでも H が大きい）
-- 4B は `--group-size 8` くらいまで大きくできる見込み（未検証）
+- calibration を layer group に分けると、group ごとに別プロセスが 18GB をロードし直す（9B で 1 回 3 分）。`--group-size` は**大きく取る**
+- Hessian の実サイズ（9B、hidden 4096）: 1 サイト = 4096² × 4B = 67MB、1 層 = 4 サイト = 268MB。**group 16 でも 4.3GB** で 80GB に余裕。`group 4`（8 グループ）は保守的すぎた（2026-11-09 実測、`peak_rss` 14.8GB）。次回は `--group-size 16`
 - QAD は単一 GPU。FSDP は未対応（`--parallel` は replicated のまま）
 
 ## 位置づけ（2026-11-08 決定）

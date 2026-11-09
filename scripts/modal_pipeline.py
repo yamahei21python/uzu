@@ -397,9 +397,12 @@ def yaqa(size: str, run_name: str, quantize_embedding: bool, bits: int = 4,
     memory=65536,
     timeout=14400,
 )
-def evaluate(size: str, run_name: str, candidate: str, max_sequences: int) -> str:
+def evaluate(size: str, run_name: str, candidate: str, max_sequences: int,
+             attention: str = "") -> str:
     """PPL / BPC for EN and JA against the dedup eval corpora."""
     os.environ["JAX_PLATFORM_NAME"] = "cuda"
+    if attention:
+        os.environ["UZU_ATTENTION_IMPL"] = attention
     bf16 = ensure_bf16_eval(run_name)
     candidate_dir = f"/out/{run_name}/{candidate}"
     if not os.path.exists(f"{candidate_dir}/model.safetensors"):
@@ -630,7 +633,7 @@ def main(
             )
         )
     elif command == "eval":
-        print(evaluate.remote(size, run_name, candidate, max_sequences))
+        print(evaluate.remote(size, run_name, candidate, max_sequences, attention))
     elif command == "qad":
         print(
             qad.remote(
