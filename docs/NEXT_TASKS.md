@@ -55,6 +55,17 @@ EN 1.11% / JA 1.16% / 113.8 t/s / 0.615GB（4 seed、`docs/0.8B_RESULTS.md` §13
 
 順序厳守: **draft が先、Weaver は後**。τ が 2.5 未満なら Weaver に進まない。
 
+## P2.5: 27B の DFlash（原因確定済み）
+
+受理 0 は vLLM 0.32.0 の回帰（PR #60692）。詳細と切り分けは `docs/VLLM_DFLASH_032.md`。
+
+| # | タスク | 場所 | 完了条件 |
+|---|---|---|---|
+| 12 | `PIECEWISE` + `--no-enable-prefix-caching` で 1 本 | Muse | 受理率 >20% なら原因確定 |
+| 13 | PR #64059 の 10 行パッチを当てたイメージ | Muse / Modal | FULL グラフのまま受理 >0.3 |
+
+MTP（31.3 t/s）は影響なし。サービスは MTP で維持する。
+
 ## P3: 整備
 
 | # | タスク | 内容 |
