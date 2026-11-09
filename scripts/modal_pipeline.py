@@ -121,7 +121,11 @@ def convert_flags(
         flags += ["--embedding-bits", str(embedding_bits)]
     if layer_bits:
         if not os.path.exists(layer_bits):
-            raise SystemExit(f"missing layer-bits JSON: {layer_bits}")
+            raise SystemExit(
+                f"missing layer-bits JSON: {layer_bits}\n"
+                "Pass a path that exists *inside the container*; the repo's lanes/ "
+                "are at /workspace/lanes (e.g. /workspace/lanes/bits-wide-8.json)."
+            )
         flags += ["--layer-bits-json", layer_bits]
     return flags
 
@@ -577,6 +581,19 @@ def main(
 ) -> None:
     if command not in COMMANDS:
         raise SystemExit(f"unknown command: {command}; choose {COMMANDS}")
+    # Fail before a container starts: a bad flag otherwise burns GPU minutes.
+    if bits not in (4, 6, 8):
+        raise SystemExit(f"bad --bits {bits}; choose 4, 6 or 8")
+    if quant_group_size <= 0:
+        raise SystemExit(f"bad --quant-group-size {quant_group_size}")
+    if block_size not in (32, 64, 128):
+        raise SystemExit(f"bad --block-size {block_size}; choose 32, 64 or 128")
+    if parallel not in ("replicated", "tensor", "fsdp", "data"):
+        raise SystemExit(f"bad --parallel {parallel}")
+    if embedding_bits not in (0, 4, 8):
+        raise SystemExit(f"bad --embedding-bits {embedding_bits}; choose 0 (unset), 4 or 8")
+    if embedding_bits and not quantize_embedding:
+        raise SystemExit("--embedding-bits needs --quantize-embedding, otherwise it is ignored")
     run_name = run_name or default_run_name(size)
     # configs are the single source of truth; explicit CLI args still win
     calibration = calibration_defaults(size)
