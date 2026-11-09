@@ -16,6 +16,7 @@ modal volume create uzu-models     # BF16 ソース（任意）
 - イメージは lalamo `e401e177` を pin
 - スクリプトと dedup コーパスだけ焼き込む。BF16 は Modal 内で HF から取る
 - 各ステップは冪等（`COMPLETE` か出力の存在で skip）
+- **クライアントは venv のものを使う**: グローバルの `modal`（1.2.6 / Python 3.9）は image builder `2026.10` を知らず、起動直後に `VersionError` で落ちる。`.deps/venv-lalamo/bin/python -m modal run ...`（1.6.3）で実行する
 
 ## 実行
 
