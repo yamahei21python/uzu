@@ -62,7 +62,7 @@ EN 1.11% / JA 1.16% / 113.8 t/s / 0.615GB（4 seed、`docs/0.8B_RESULTS.md` §13
 | # | タスク | 場所 | 完了条件 |
 |---|---|---|---|
 | 12 | `PIECEWISE` + `--no-enable-prefix-caching` で 1 本 | Muse | 受理率 >20% なら原因確定 |
-| 13 | PR #64059 の 10 行パッチを当てたイメージ | Muse / Modal | FULL グラフのまま受理 >0.3 |
+| 13 | `patches/vllm-0320-dflash-kernel-block-table.patch` を当てたイメージ | Muse / Modal | FULL グラフのまま受理 >0.3 |
 
 MTP（31.3 t/s）は影響なし。サービスは MTP で維持する。
 

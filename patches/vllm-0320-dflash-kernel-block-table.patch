@@ -1,0 +1,63 @@
+Backport of vllm-project/vllm#64059 (merged 2026-11-04, merge commit
+d3a3230931f3815f3d2e06ff93caf10055f453ba) to vLLM **0.32.0**, which fixes
+#63587.
+
+Upstream's patch does not apply to 0.32.0: the refactor of
+`autoregressive/speculator.py` and the tail of `speculator.py` moved between
+0.32.0 and the 0.32.1 dev branch. Two hunks are needed instead of three; the
+`map_to_kernel_block_table` API itself does exist in 0.32.0
+(`vllm/v1/worker/utils.py`, `target_dependent_ar/speculator.py`), so this is a
+faithful backport, not a reimplementation.
+
+What it fixes: with the default FULL_AND_PIECEWISE cudagraph mode, the DFlash
+draft replayed a FULL graph without refreshing its kernel block table, so on a
+hybrid GDN target it read stale KV blocks and almost no draft token was
+accepted (0.004 acceptance, ~3.7x slower).
+
+Apply inside the vLLM 0.32.0 container, from the directory that contains the
+`vllm/` package (for the official image that is
+/usr/local/lib/python3.12/site-packages):
+
+    patch -p1 --dry-run < vllm-0320-dflash-kernel-block-table.patch
+    patch -p1 < vllm-0320-dflash-kernel-block-table.patch
+
+or, for a derived image:
+
+    FROM vllm/vllm-openai:v0.32.0
+    COPY vllm-0320-dflash-kernel-block-table.patch /tmp/
+    RUN cd /usr/local/lib/python3.12/site-packages && \
+        patch -p1 < /tmp/vllm-0320-dflash-kernel-block-table.patch
+
+Verified against the v0.32.0 tag source: both hunks apply, both files parse.
+Runtime behaviour (acceptance > 0.3) is not verified here; it needs a GPU.
+
+Scope: the backported fix addresses the split kernel-block-table path, which
+FlashAttention v4 hd256 selects on Blackwell. On Hopper/Ada the tables are not
+split, so if acceptance stays 0 with this patch, look at #58894 (prefix caching)
+instead.
+
+--- a/vllm/v1/worker/gpu/spec_decode/speculator.py
++++ b/vllm/v1/worker/gpu/spec_decode/speculator.py
+@@ -599,3 +599,11 @@
+         for groups in self.attn_groups:
+             for group in groups:
+                 group.update_draft_decode_metadata(attn_metadata)
++
++    def _map_kernel_block_tables(self) -> None:
++        """Refresh the persistent kernel block tables a FULL graph reads."""
++        for groups in self.attn_groups:
++            for group in groups:
++                group.map_to_kernel_block_table(
++                    self.block_tables.input_block_tables[group.kv_cache_group_id]
++                )
+--- a/vllm/v1/worker/gpu/spec_decode/dflash/speculator.py
++++ b/vllm/v1/worker/gpu/spec_decode/dflash/speculator.py
+@@ -505,6 +505,8 @@
+                 step=self.num_query_per_req,
+                 causal=self._group_causal,
+             )
++        else:
++            self._map_kernel_block_tables()
+ 
+         # DFlash processes all speculative tokens in one forward pass,
+         # so the real token count is num_query_tokens.

@@ -60,8 +60,12 @@ vllm serve <27B target> \
 
 ## 恒久対策（優先順）
 
-1. **#64059 の 10 行を当てる**（`vllm/v1/worker/gpu/spec_decode/{dflash,autoregressive,}speculator.py`）
-   - 0.32.0 のイメージに `git apply` できる見込み。FULL グラフを維持できて最速
+1. **`patches/vllm-0320-dflash-kernel-block-table.patch` を 0.32.0 に当てる**（#64059 の backport）
+   - 2 ハンク。v0.32.0 のタグ実ソースで **dry-run と py パースまで検証済み**
+   - 上流のパッチは 0.32.0 に**当たらない**（`autoregressive/speculator.py` の構成と
+     `speculator.py` の末尾が 0.32.1 dev で変わっている）。API 自体
+     （`map_to_kernel_block_table`）は 0.32.0 に存在するので、移植は等価
+   - 当て方は patch のヘッダ（site-packages で `patch -p1`、または派生イメージ）
 2. 0.32.1 / main のビルドに上げる（**0.33.0 でも直らない**。commit 比較で確認済み。nightly 待ち）
 3. 当面 `PIECEWISE` で運用（速度は半分）
 
